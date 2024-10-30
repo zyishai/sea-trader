@@ -6,6 +6,7 @@ export default {
     extend: {
       fontFamily: {
         sans: [
+          "Macondo",
           '"Inter"',
           "ui-sans-serif",
           "system-ui",
