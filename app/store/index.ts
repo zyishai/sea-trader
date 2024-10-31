@@ -20,15 +20,15 @@ type Context = {
     autoUpdatePrices?: boolean;
   }
 };
-export const goods = ['copper', 'wheat', 'olive'] as const;
-type Goods = 'copper'|'wheat'|'olive';
+export const goods = ['copper', 'wheat', 'olive', 'silk', 'tea'] as const;
+type Goods = 'copper'|'wheat'|'olive'|'silk'|'tea';
 export const ports = ['israel', 'turkey', 'egypt', 'italy', 'india'] as const;
 type Port = typeof ports[number];
 const PRICE_CHANGE_INTERVAL_IN_DAYS = 7;
 const events: Event[] = [
   {
-    message: "A storm has delayed your journey!",
-    effect: (_, changes) => ({ ...changes, days: 1 + (changes?.days ?? 0) })
+    message: "A storm has damaged your ship!",
+    effect: (_, changes) => ({ ...changes, damage: (changes?.damage ?? 0) + 20 })
   },
   {
     message: "You've found a shortcut, saving time!",
@@ -52,22 +52,22 @@ const events: Event[] = [
       return { ...changes, inventory: { ...changes?.inventory, ...newInventory } };
     }
   },
-  {
-    message: "A trade festival is happening, boosting prices!",
-    effect: (_, changes) => changes,
-    affectsPrices: (prices) => Object.fromEntries(
-      Object.entries(prices)
-        .map(([country, map]) => [country, Object.fromEntries(Object.entries(map).map(([goods, price]) => [goods, Math.round(price * 1.2)]))])
-    ) as Record<Port, Record<Goods, number>>
-  },
-  {
-    message: "Political tensions are rising, impacting the market!",
-    effect: (_, changes) => changes,
-    affectsPrices: (prices) => Object.fromEntries(
-      Object.entries(prices)
-        .map(([country, map]) => [country, Object.fromEntries(Object.entries(map).map(([goods, price]) => [goods, Math.round(price * 0.8)]))])
-    ) as Record<Port, Record<Goods, number>>
-  },
+  // {
+  //   message: "A trade festival is happening, boosting prices!",
+  //   effect: (_, changes) => changes,
+  //   affectsPrices: (prices) => Object.fromEntries(
+  //     Object.entries(prices)
+  //       .map(([country, map]) => [country, Object.fromEntries(Object.entries(map).map(([goods, price]) => [goods, Math.round(price * 1.2)]))])
+  //   ) as Record<Port, Record<Goods, number>>
+  // },
+  // {
+  //   message: "Political tensions are rising, impacting the market!",
+  //   effect: (_, changes) => changes,
+  //   affectsPrices: (prices) => Object.fromEntries(
+  //     Object.entries(prices)
+  //       .map(([country, map]) => [country, Object.fromEntries(Object.entries(map).map(([goods, price]) => [goods, Math.round(price * 0.8)]))])
+  //   ) as Record<Port, Record<Goods, number>>
+  // },
 ] as const;
 type Event = {
   message: string;
@@ -82,8 +82,10 @@ const generatePrices = () => {
     [port]: {
       copper: Math.floor(Math.random() * 50) + 10,
       olive: Math.floor(Math.random() * 50) + 10,
-      wheat: Math.floor(Math.random() * 50) + 10
-    } 
+      wheat: Math.floor(Math.random() * 50) + 10,
+      silk: Math.floor(Math.random() * 50) + 10,
+      tea: Math.floor(Math.random() * 50) + 10,
+    } satisfies Record<Goods, number>
   }), {} as Record<Port, Record<Goods, number>>);
 };
 const calculateStandardTravelTime = (from: Port) => (to: Port) => ({
@@ -145,7 +147,7 @@ const initialContext: () => Context = () => ({
   port: 'israel',
   prices: generatePrices(),
   balance: 1000,
-  inventory: { copper: 0, wheat: 0, olive: 0 },
+  inventory: { copper: 0, wheat: 0, olive: 0, silk: 0, tea: 0 },
   day: 1,
   nextPriceChange: PRICE_CHANGE_INTERVAL_IN_DAYS,
   damage: 0
