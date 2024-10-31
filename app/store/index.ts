@@ -52,27 +52,80 @@ const events: Event[] = [
       return { ...changes, inventory: { ...changes?.inventory, ...newInventory } };
     }
   },
-  // {
-  //   message: "A trade festival is happening, boosting prices!",
-  //   effect: (_, changes) => changes,
-  //   affectsPrices: (prices) => Object.fromEntries(
-  //     Object.entries(prices)
-  //       .map(([country, map]) => [country, Object.fromEntries(Object.entries(map).map(([goods, price]) => [goods, Math.round(price * 1.2)]))])
-  //   ) as Record<Port, Record<Goods, number>>
-  // },
-  // {
-  //   message: "Political tensions are rising, impacting the market!",
-  //   effect: (_, changes) => changes,
-  //   affectsPrices: (prices) => Object.fromEntries(
-  //     Object.entries(prices)
-  //       .map(([country, map]) => [country, Object.fromEntries(Object.entries(map).map(([goods, price]) => [goods, Math.round(price * 0.8)]))])
-  //   ) as Record<Port, Record<Goods, number>>
-  // },
+  {
+    message: "A local festival in India boosts silks prices!",
+    effect: (_, changes) => changes,
+    affectsPrices: (prices) => ({ ...prices, india: { ...prices.india, silk: Math.round(prices.india.silk * 1.5) } }),
+    availablePorts: ['india']
+  },
+  {
+    message: "You attend a ceremony in India, gaining valuable contacts.",
+    effect: (_, changes) => ({ ...changes, balance: (changes?.balance ?? 0) + 200 }),
+    availablePorts: ['india']
+  },
+  {
+    message: "Turkey dock workers are on strike, delaying your departure.",
+    effect: (_, changes) => ({ ...changes, days: (changes?.days ?? 0) + 1 }),
+    availablePorts: ['turkey']
+  },
+  {
+    message: "You discover a hidden market in Turkey with discounted Copper.",
+    effect: (_, changes) => changes,
+    affectsPrices: (prices) => ({ ...prices, turkey: { ...prices.turkey, copper: Math.round(prices.turkey.copper * 0.7) } }),
+    availablePorts: ['turkey']
+  },
+  {
+    message: "A generous Israeli merchant offers to repair your ship at a discount",
+    effect: (_, changes) => ({ ...changes, damage: (changes?.damage ?? 0) - 30 }),
+    availablePorts: ['israel']
+  },
+  {
+    message: "You learn of a secret tea plantation near Israel.",
+    effect: (_, changes) => ({ ...changes, inventory: { ...changes?.inventory, tea: (changes?.inventory?.tea ?? 0) + 20 } }),
+    availablePorts: ['israel']
+  },
+  {
+    message: "A sudden demand for Wheat in Italy drives up prices!",
+    effect: (_, changes) => changes,
+    affectsPrices: (prices) => ({ ...prices, italy: { ...prices.italy, wheat: Math.round(prices.italy.wheat * 1.8) } }),
+    availablePorts: ['italy']
+  },
+  {
+    message: "You win a small lottery in Italy!",
+    effect: (_, changes) => ({ ...changes, balance: (changes?.balance ?? 0) + 500 }),
+    availablePorts: ['italy']
+  },
+  {
+    message: "A typhoon in Egypt damages your ship but brings rare goods.",
+    effect: (_, changes) => ({
+      ...changes,
+      damage: (changes?.damage ?? 0) - 15,
+      inventory: {
+        ...changes?.inventory,
+        copper: (changes?.inventory?.copper ?? 0) + 15,
+        silk: (changes?.inventory?.silk ?? 0) + 15,
+        tea: (changes?.inventory?.tea ?? 0) + 15,
+      }
+    }),
+    availablePorts: ['egypt']
+  },
+  {
+    message: "You stumble upon a clearance sale in Egypt's markets.",
+    effect: (_, changes) => changes,
+    affectsPrices: (prices) => ({
+      ...prices,
+      egypt: Object.fromEntries(
+        Object.entries(prices.egypt).map(([good, price]) => [good, Math.floor(price * 0.8)])
+      ) as Record<Goods, number>
+    }),
+    availablePorts: ['egypt']
+  },
 ] as const;
 type Event = {
   message: string;
   effect: (context: Context, changes: Context['changes']) => Context['changes'];
   affectsPrices?: boolean | ((prices: Record<Port, Record<Goods, number>>) => Record<Port, Record<Goods, number>>);
+  availablePorts?: Port[];
 };
 
 // ===== Utility Functions =====
@@ -120,9 +173,16 @@ const calculateStandardTravelTime = (from: Port) => (to: Port) => ({
     italy: 4
   }
 } as Record<Port, Record<Port, number>>)[from][to];
-const pickRandomEvent = () => {
-  return events[Math.floor(Math.random() * events.length)];
+const pickRandomEvent = (port: Port) => {
+  let eventsPool = events;
+  if (shouldPickLocationSpecificEvent()) {
+    eventsPool = events.filter(evt => evt.availablePorts && evt.availablePorts.includes(port));
+  } else {
+    eventsPool = events.filter(evt => !evt.availablePorts || evt.availablePorts.length === 0);
+  }
+  return eventsPool[Math.floor(Math.random() * eventsPool.length)];
 };
+const shouldPickLocationSpecificEvent = () => Math.random() < 0.6;
 const mergePricesChanges = (prices: Record<Port, Record<Goods, number>>, changes: Partial<Record<Port, Record<Goods, number>>>) => {
   const newPrices = {} as typeof prices;
 
@@ -205,7 +265,7 @@ export const tradeMachine = setup({
       const changes = context.changes;
 
       if (changes?.damage) {
-        enqueue.assign({ damage: context.damage + changes.damage });
+        enqueue.assign({ damage: Math.min(100, Math.max(0, context.damage + changes.damage)) });
       }
       if (changes?.balance) {
         enqueue.assign({ balance: context.balance + changes.balance });
@@ -316,8 +376,8 @@ export const tradeMachine = setup({
         },
         eventOccurred: {
           entry: [
-            enqueueActions(({ enqueue }) => {
-              const { message, effect, affectsPrices } = pickRandomEvent();
+            enqueueActions(({ enqueue, context }) => {
+              const { message, effect, affectsPrices } = pickRandomEvent(context.port);
 
               enqueue.assign(({ context }) => ({ event: message, changes: effect(context, context.changes) }));
               

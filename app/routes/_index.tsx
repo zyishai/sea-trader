@@ -48,11 +48,11 @@ export default function Index() {
           </tr>
         </tbody>
       </table>
-      <div className="mt-9 w-9/12 flex items-center justify-between">
+      <div className="mt-9 w-9/12 flex items-center justify-between gap-4">
         <div className="flex flex-col justify-between items-start gap-9">
           <div>
-            <h2 className="text-xl">{context.changes?.destination ? `Traveling to ${context.changes?.destination}..` : 'Travel'}</h2>
-            <div className="mt-3 flex gap-3">
+            <h2 className="text-xl">{context.changes?.destination ? `Traveling to ${capitalize(context.changes?.destination)} from ${capitalize(context.port)}..` : 'Travel'}</h2>
+            <div className="mt-3 flex flex-wrap gap-3">
               {ports.map(port => (
                 <button
                   key={port}
@@ -95,4 +95,8 @@ export default function Index() {
       </div>
     </div>
   }</ClientOnly>;
+}
+
+function capitalize(word: string) {
+  return `${word[0].toUpperCase()}${word.slice(1)}`;
 }
