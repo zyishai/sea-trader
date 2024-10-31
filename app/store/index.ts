@@ -377,7 +377,7 @@ export const tradeMachine = setup({
         eventOccurred: {
           entry: [
             enqueueActions(({ enqueue, context }) => {
-              const { message, effect, affectsPrices } = pickRandomEvent(context.port);
+              const { message, effect, affectsPrices } = pickRandomEvent(context.changes?.destination ?? context.port);
 
               enqueue.assign(({ context }) => ({ event: message, changes: effect(context, context.changes) }));
               

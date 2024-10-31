@@ -20,7 +20,7 @@ export default function Index() {
   }, []);
 
   return <ClientOnly>{() => 
-    <div className="flex flex-col h-full min-h-screen p-8 items-center justify-center gap-4 bg-slate-800 text-slate-100">
+    <div className="flex flex-col h-full min-h-screen p-8 items-center justify-center gap-4 bg-slate-950 text-slate-100">
       <h1 className="text-3xl font-semibold tracking-wide">Day #{context.day}</h1>
       <span className="text-xl">Balance: <strong className={["tabular-nums", context.balance >= 0 ? "text-yellow-400" : "text-red-500"].join(' ')}>{balanceDisplay}</strong></span>
       <span className="">Ship Health: <strong className={["tabular-nums", context.damage < 30 ? "text-green-500" : context.damage < 60 ? "text-orange-400" : "text-red-400"].filter(Boolean).join(' ')}>{100 - context.damage}</strong></span>
