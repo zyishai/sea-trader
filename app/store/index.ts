@@ -3,28 +3,77 @@ import { assign, enqueueActions, setup } from "xstate";
 // ===== Types and Constants =====
 type Context = {
   port: Port;
-  destination?: Port;
   balance: number;
   inventory: Record<Goods, number>;
   prices: Record<Port, Record<Goods, number>>;
   day: number;
   nextPriceChange: number;
-  event?: Event;
+  event?: Event['message'];
+  damage: number;
+  changes?: {
+    destination?: Port;
+    balance?: number;
+    damage?: number;
+    days?: number;
+    inventory?: Partial<Record<Goods, number>>;
+    prices?: Partial<Record<Port, Record<Goods, number>>>;
+    autoUpdatePrices?: boolean;
+  }
 };
+export const goods = ['copper', 'wheat', 'olive'] as const;
 type Goods = 'copper'|'wheat'|'olive';
 export const ports = ['israel', 'turkey', 'egypt', 'italy', 'india'] as const;
 type Port = typeof ports[number];
 const PRICE_CHANGE_INTERVAL_IN_DAYS = 7;
-const events = [
-  ["A storm has delayed your journey!", false],
-  ["You've found a shortcut, saving time!", false],
-  ["Pirates attacked, but you fended them off!", false],
-  ["Calm seas make for smooth sailing.", false],
-  ["You've discovered a small island with rare goods!", true],
-  ["A trade festival is happening, affecting prices!", true],
-  ["Political tensions are rising, impacting the market!", true],
+const events: Event[] = [
+  {
+    message: "A storm has delayed your journey!",
+    effect: (_, changes) => ({ ...changes, days: 1 + (changes?.days ?? 0) })
+  },
+  {
+    message: "You've found a shortcut, saving time!",
+    effect: (_, changes) => ({ ...changes, days: Math.max(0, changes?.days ? changes.days - 1 : 0) })
+  },
+  {
+    message: "Pirates attacked, but you fended them off!",
+    effect: (_, changes) => ({ ...changes, damage: (changes?.damage ?? 0) + 10, balance: (changes?.balance ?? 0) - 100 })
+  },
+  {
+    message: "Calm seas make for smooth sailing.",
+    effect: (_, changes) => changes
+  },
+  {
+    message: "You've discovered a small island with rare goods!",
+    effect: (_, changes) => {
+      const newInventory = { ...changes?.inventory };
+      const randomGood = goods[Math.floor(Math.random() * goods.length)];
+      newInventory[randomGood] = (newInventory[randomGood] || 0) + 10;
+
+      return { ...changes, inventory: { ...changes?.inventory, ...newInventory } };
+    }
+  },
+  {
+    message: "A trade festival is happening, boosting prices!",
+    effect: (_, changes) => changes,
+    affectsPrices: (prices) => Object.fromEntries(
+      Object.entries(prices)
+        .map(([country, map]) => [country, Object.fromEntries(Object.entries(map).map(([goods, price]) => [goods, Math.round(price * 1.2)]))])
+    ) as Record<Port, Record<Goods, number>>
+  },
+  {
+    message: "Political tensions are rising, impacting the market!",
+    effect: (_, changes) => changes,
+    affectsPrices: (prices) => Object.fromEntries(
+      Object.entries(prices)
+        .map(([country, map]) => [country, Object.fromEntries(Object.entries(map).map(([goods, price]) => [goods, Math.round(price * 0.8)]))])
+    ) as Record<Port, Record<Goods, number>>
+  },
 ] as const;
-type Event = typeof events[number][0];
+type Event = {
+  message: string;
+  effect: (context: Context, changes: Context['changes']) => Context['changes'];
+  affectsPrices?: boolean | ((prices: Record<Port, Record<Goods, number>>) => Record<Port, Record<Goods, number>>);
+};
 
 // ===== Utility Functions =====
 const generatePrices = () => {
@@ -72,6 +121,24 @@ const calculateStandardTravelTime = (from: Port) => (to: Port) => ({
 const pickRandomEvent = () => {
   return events[Math.floor(Math.random() * events.length)];
 };
+const mergePricesChanges = (prices: Record<Port, Record<Goods, number>>, changes: Partial<Record<Port, Record<Goods, number>>>) => {
+  const newPrices = {} as typeof prices;
+
+  for (const [port, localPrices] of Object.entries(prices)) {
+    newPrices[port as Port] = { ...localPrices, ...changes[port as Port] };
+  }
+
+  return newPrices;
+}
+const mergeInventoryChanges = (inventory: Record<Goods, number>, changes: Partial<Record<Goods, number>>) => {
+  const newInventory = { ...inventory };
+
+  for (const [goods, quantity] of Object.entries(newInventory)) {
+    newInventory[goods as Goods] = quantity + (changes[goods as Goods] ?? 0);
+  }
+
+  return newInventory;
+}
 
 // ===== Defaults =====
 const initialContext: () => Context = () => ({
@@ -80,7 +147,8 @@ const initialContext: () => Context = () => ({
   balance: 1000,
   inventory: { copper: 0, wheat: 0, olive: 0 },
   day: 1,
-  nextPriceChange: PRICE_CHANGE_INTERVAL_IN_DAYS
+  nextPriceChange: PRICE_CHANGE_INTERVAL_IN_DAYS,
+  damage: 0
 });
 
 // ===== State Machine =====
@@ -93,6 +161,7 @@ export const tradeMachine = setup({
       | { type: 'buy', good: Goods, quantity: number }
       | { type: 'sell', good: Goods, quantity: number }
       | { type: 'event.resolve' }
+      | { type: 'repair', cost: number }
   },
   actions: {
     resetContext: assign(initialContext),
@@ -107,7 +176,7 @@ export const tradeMachine = setup({
       balance: context.balance < 0 ? context.balance * Math.pow(1.05, params.days) : context.balance // If balance is negative, accrue 5% daily interest
     })),
 
-    travelTo: assign((_, params: { destination: Port }) => ({ port: params.destination })),
+    moveTo: assign((_, params: { destination: Port }) => ({ port: params.destination })),
 
     purchase: assign(({ context }, params: { good: Goods, quantity: number }) => ({
       balance: context.balance - context.prices[context.port][params.good] * params.quantity,
@@ -124,18 +193,52 @@ export const tradeMachine = setup({
         [params.good]: context.inventory[params.good] - params.quantity
       }
     })),
+
+    repairDamage: assign(({ context }, { cost }: { cost: number }) => ({
+      damage: 0,
+      balance: context.balance - cost
+    })),
+
+    applyPendingChanges: enqueueActions(({ enqueue, context }) => {
+      const changes = context.changes;
+
+      if (changes?.damage) {
+        enqueue.assign({ damage: context.damage + changes.damage });
+      }
+      if (changes?.balance) {
+        enqueue.assign({ balance: context.balance + changes.balance });
+      }
+      if (changes?.inventory) {
+        enqueue.assign({ inventory: mergeInventoryChanges(context.inventory, changes.inventory) });
+      }
+      if (changes?.prices) {
+        enqueue.assign({ prices: mergePricesChanges(context.prices, changes.prices) });
+      }
+      if (changes?.autoUpdatePrices) {
+        enqueue({ type: 'updatePrices' } as any);
+      }
+      if (changes?.destination) {
+        enqueue({ type: 'advanceDay', params: { days: changes?.days ?? 0 } } as any);
+        enqueue({ type: 'moveTo', params: { destination: changes.destination } } as any);
+      }
+    }),
   },
   guards: {
     shouldUpdatePrices: ({ context }) => context.nextPriceChange <= 0,
+
     canBuy: ({ context }, params: { good: Goods; quantity: number }) => {
       const portPrices = context.prices[context.port];
       const price = portPrices[params.good] * params.quantity;
       return price <= context.balance;
     },
+    
     canSell: ({ context }, params: { good: Goods; quantity: number }) => {
       return params.quantity <= context.inventory[params.good];
     },
-    shouldEndGame: ({ context }) => context.day >= 100
+
+    canRepairShip: ({ context }, { cost }: { cost: number }) => context.balance >= cost,
+    
+    shouldEndGame: ({ context }) => context.day >= 100 || context.damage >= 100
   },
 }).createMachine({
   context: initialContext,
@@ -151,12 +254,35 @@ export const tradeMachine = setup({
       initial: 'idle',
       states: {
         idle: {
+          entry: assign({ changes: undefined }),
           on: {
             travel: [
               {
+                guard: () => Math.random() < 0.3,
                 target: 'eventOccurred',
-                actions: [assign(({ event }) => ({ destination: event.to }))]
+                actions: [
+                  assign(({ context, event }) => ({ changes: {...context.changes, destination: event.to} })),
+                  assign(({ context, event }) => {
+                    const travelTime = calculateStandardTravelTime(context.port)(event.to);
+                    const damage = travelTime * 2;
+
+                    return {
+                      changes: {
+                        ...context.changes,
+                        damage,
+                        days: travelTime
+                      }
+                    }
+                  })
+                ]
               },
+              {
+                actions: [
+                  { type: 'advanceDay', params: ({ context, event }) => ({ days: calculateStandardTravelTime(context.port)(event.to) })},
+                  assign(({ context, event }) => ({ damage: context.damage + calculateStandardTravelTime(context.port)(event.to) * 2 })),
+                  { type: 'moveTo', params: ({ event }) => ({ destination: event.to }) }
+                ]
+              }
             ],
             buy: [
               {
@@ -176,48 +302,42 @@ export const tradeMachine = setup({
                 ]
               }
             ],
+            repair: [
+              {
+                guard: { type: 'canRepairShip', params: ({ event }) => ({ cost: event.cost }) },
+                actions: [
+                  { type: 'repairDamage', params: ({ event }) => ({ cost: event.cost }) }
+                ]
+              }
+            ]
           },
         },
         eventOccurred: {
           entry: [
             enqueueActions(({ enqueue }) => {
-              const [event, affectsPrice] = pickRandomEvent();
-              enqueue.assign({ event });
+              const { message, effect, affectsPrices } = pickRandomEvent();
 
-              if (affectsPrice) {
-                enqueue({ type: 'updatePrices' });
+              enqueue.assign(({ context }) => ({ event: message, changes: effect(context, context.changes) }));
+              
+              if (affectsPrices) {
+                if (typeof affectsPrices === 'function') {
+                  enqueue.assign(({ context }) => ({ changes: { ...context.changes, prices: affectsPrices(context.prices) } }));
+                } else {
+                  enqueue.assign(({ context }) => ({ changes: { ...context.changes, autoUpdatePrices: true } }));
+                }
               }
             })
           ],
           on: {
             'event.resolve': [
               {
-                guard: ({ context }) => !!context.destination,
-                target: 'traveling'
-              },
-              {
+                actions: [{ type: 'applyPendingChanges' }],
                 target: 'idle'
               }
             ]
           },
           exit: assign({ event: undefined })
         },
-        traveling: {
-          entry: [
-            { 
-              type: 'advanceDay', 
-              params: ({ context }) => {
-                const travelTime = calculateStandardTravelTime(context.port)(context.destination!);
-                return { days: travelTime };
-              }
-            },
-            { type: 'travelTo', params: ({ context }) => ({ destination: context.destination!}) }
-          ],
-          after: {
-            0: { target: 'idle' }
-          },
-          exit: assign({ destination: undefined })
-        }
       },
       always: [
         { guard: 'shouldEndGame', target: 'gameOver' },
