@@ -8,13 +8,13 @@ import { App } from "./App.js";
 const cli = meow(
   `
 	Usage
-	  $ demo-ink
+	  $ npx ctrader
 
 	Options
 		--name  Your name
 
 	Examples
-	  $ demo-ink --name=Jane
+	  $ ctrader --name=Jane
 	  Hello, Jane
 `,
   {
@@ -29,7 +29,7 @@ const cli = meow(
 );
 
 enterFullscreen();
-const { waitUntilExit } = render(<App name={cli.flags.name} />, { exitOnCtrlC: false });
-// waitUntilExit().then(() => exitFullscreen());
+const { clear, waitUntilExit } = render(<App />, { exitOnCtrlC: process.env.NODE_ENV === "development" });
+waitUntilExit().then(() => exitFullscreen());
 
-// export { clear };
+export { clear };
