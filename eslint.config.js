@@ -8,10 +8,31 @@ import eslintPluginPrettier from "eslint-plugin-prettier/recommended";
 /** @type {import('eslint').Linter.Config[]} */
 export default [
   { files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"] },
-  { languageOptions: { globals: globals.node } },
+  {
+    settings: {
+      react: {
+        version: "detect",
+      },
+    },
+  },
+  {
+    languageOptions: {
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+      globals: globals.browser,
+    },
+  },
   pluginJs.configs.recommended,
   ...tseslint.configs.recommended,
   pluginReact.configs.flat.recommended,
   eslintConfigPrettier,
   eslintPluginPrettier,
+  {
+    rules: {
+      "@typescript-eslint/no-unused-vars": "off",
+    },
+  },
 ];
