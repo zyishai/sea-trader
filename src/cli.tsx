@@ -2,8 +2,9 @@
 import React from "react";
 import { render } from "ink";
 import meow from "meow";
-import { enterFullscreen, exitFullscreen } from "./utils/terminal.js";
 import { App } from "./App.js";
+import { GameContext } from "./components/GameContext.js";
+import { Screen } from "./components/Screen.js";
 
 const cli = meow(
   `
@@ -28,8 +29,13 @@ const cli = meow(
   },
 );
 
-enterFullscreen();
-const { clear, waitUntilExit } = render(<App />, { exitOnCtrlC: process.env.NODE_ENV === "development" });
-waitUntilExit().then(() => exitFullscreen());
+const { clear } = render(
+  <GameContext.Provider>
+    <Screen>
+      <App />
+    </Screen>
+  </GameContext.Provider>,
+  { exitOnCtrlC: process.env.NODE_ENV === "development" },
+);
 
 export { clear };

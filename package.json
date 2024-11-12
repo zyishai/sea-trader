@@ -43,11 +43,17 @@
     "README.md"
   ],
   "dependencies": {
+    "@inkjs/ui": "^2.0.0",
+    "@tqman/ink-table": "^0.0.0-development",
+    "@xstate/react": "^4.1.3",
     "ink": "^5.0.1",
     "ink-big-text": "^2.0.0",
+    "ink-select-input": "^6.0.0",
+    "ink-tab": "^5.1.0",
     "ink-text-input": "^6.0.0",
     "meow": "^13.2.0",
-    "react": "^18.3.1"
+    "react": "^18.3.1",
+    "xstate": "^5.18.2"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.9",
