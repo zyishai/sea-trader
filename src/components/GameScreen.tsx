@@ -1,13 +1,24 @@
 import React, { useEffect, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { GameContext } from "./GameContext.js";
-import { calculateTravelTime, getAvailableStorage, Good, goods, Port, ports } from "../store/store.js";
+import {
+  calculateCostForRepair,
+  calculateRepairForCost,
+  calculateTravelTime,
+  getAvailableStorage,
+  getShipStatus,
+  Good,
+  goods,
+  Port,
+  ports,
+} from "../store/store.js";
 import { Tab, Tabs } from "ink-tab";
 import BigText from "ink-big-text";
 import Select from "ink-select-input";
 import { v4 as randomId } from "uuid";
 import { Table } from "@tqman/ink-table";
 import { TextInput } from "@inkjs/ui";
+import { UncontrolledTextInput } from "ink-text-input";
 
 type Tab = "port" | "market" | "shipyard";
 type Message = {
@@ -15,11 +26,11 @@ type Message = {
   text: string;
   clearAfter?: number;
 };
+const dividerChar = "─";
 
 export function GameScreen() {
   const context = GameContext.useSelector((snapshot) => snapshot.context);
   const actor = GameContext.useActorRef();
-  const healthStatus = context.ship.health >= 100 ? "Perfect" : context.ship.health >= 70 ? "Good" : "Needs repair";
   const [activeTab, setActiveTab] = useState<Tab>("port");
   const [messages, setMessages] = useState<Message[]>([]);
 
@@ -154,6 +165,8 @@ export function GameScreen() {
             <Header day={context.day.toString()} currentPort={context.currentPort} balance={context.balance} />
             <Box width="100%" flexDirection="column">
               <BigText text="Shipyard" font="tiny" />
+
+              <ShipHealth health={context.ship.health} />
             </Box>
           </Box>
         ) : null}
@@ -256,6 +269,92 @@ function MarketForm() {
           }}
         />
       </Box>
+    </Box>
+  );
+}
+
+function ShipHealth({ health }: { health: number }) {
+  const actor = GameContext.useActorRef();
+  const status = getShipStatus(health);
+  const cost = calculateCostForRepair(100 - health);
+  const graphic =
+    status === "Perfect"
+      ? `
+        |    |    | 
+       )_)  )_)  )_) 
+      )___))___))___)\\
+     )____)____)_____)\\ 
+   _____|____|____|____\\__ 
+  \\                   / 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    `
+      : status === "Minor damages"
+        ? `
+        |    |
+       )_)  )_)
+      )___))___))___)\\
+     )____)____)_____)\\
+   _____|____|____|____\\__
+  \\                   /
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      `
+        : status === "Major damages"
+          ? `
+        |    |
+       )_)  )_)
+      )___)) __) ___)\\
+     )____)____)     )\\
+   _____|____|____|____\\__
+  \\                   /
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        `
+          : `
+
+
+       )_)  )_)
+      )_  ))_  ))_  )\\
+     )____)____)     )\\
+   _____|____|____|____\\__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        `;
+
+  return (
+    <Box flexDirection="column" alignItems="center">
+      <Text>{graphic}</Text>
+      <Box height={1} />
+      <Text>
+        Ship health: {health}% ({status})
+      </Text>
+      {health < 100 ? (
+        <>
+          <Box height={2} />
+          <Box flexDirection="column" gap={1}>
+            <Text>
+              Your ship has taken <Text inverse>{100 - health}</Text> damage.
+            </Text>
+            <Text>
+              It&apos;ll cost you <Text inverse>${cost}</Text> to repair the damages.
+            </Text>
+            <Box gap={1}>
+              <Text>How much money will you spend for repair?</Text>
+              <UncontrolledTextInput
+                key={cost}
+                onSubmit={(value) => {
+                  const money = +value;
+                  if (!isNaN(money) && money > 0) {
+                    const damage = calculateRepairForCost(money);
+                    actor.send({ type: "REPAIR_SHIP", damage });
+                  }
+                }}
+              />
+            </Box>
+          </Box>
+        </>
+      ) : null}
     </Box>
   );
 }

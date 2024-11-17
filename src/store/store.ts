@@ -23,6 +23,7 @@ const goodsInfo: { name: Good; basePrice: number; volatility: number }[] = [
 export type Good = (typeof goods)[number];
 export type Port = (typeof ports)[number];
 type Trend = "increasing" | "decreasing" | "stable";
+type ShipStatus = "Perfect" | "Minor damages" | "Major damages" | "Wreckage";
 type Context = {
   currentPort: Port;
   day: number;
@@ -82,6 +83,10 @@ const calculatePrice = ({
 }) => prices[currentPort][good] * quantity;
 export const getAvailableStorage = (ship: Context["ship"]) =>
   ship.capacity - [...ship.hold.values()].reduce((sum, tons) => sum + tons);
+export const getShipStatus = (health: number): ShipStatus =>
+  health >= 90 ? "Perfect" : health >= 70 ? "Minor damages" : health >= 40 ? "Major damages" : "Wreckage";
+export const calculateCostForRepair = (damageToRepair: number) => damageToRepair * 57; // How much it'll cost to repair `damageToRepair` damage.
+export const calculateRepairForCost = (price: number) => Math.floor(price / 57); // How much damage can be repaired with `price`.
 
 const initialContext = () => {
   const trends = generateTrends();
@@ -109,15 +114,9 @@ export const gameMachine = setup({
       | { type: "START_GAME" }
       | { type: "TRAVEL_TO"; destination: Port }
       | { type: "BUY_GOOD"; good: Good; quantity: number }
-      | { type: "SELL_GOOD"; good: Good; quantity: number },
+      | { type: "SELL_GOOD"; good: Good; quantity: number }
+      | { type: "REPAIR_SHIP"; damage: number },
     emitted: {} as { type: "message"; message: string; timeout?: number | "auto" } | { type: "clearMessages" },
-  },
-  guards: {
-    canAfford: ({ context }, { good, quantity }: { good: Good; quantity: number }) =>
-      context.balance >= calculatePrice({ prices: context.prices, currentPort: context.currentPort, good, quantity }),
-    canStore: ({ context }, { quantity }: { quantity: number }) => quantity <= getAvailableStorage(context.ship),
-    enoughInHold: ({ context }, params: { good: Good; quantity: number }) =>
-      params.quantity > 0 && (context.ship.hold.get(params.good) || 0) >= params.quantity,
   },
 }).createMachine({
   initial: "introScreen",
@@ -152,22 +151,31 @@ export const gameMachine = setup({
             },
             BUY_GOOD: [
               {
-                guard: not({
-                  // @ts-expect-error - xstate
-                  type: "canAfford",
-                  // @ts-expect-error - xstate
-                  params: ({ event }) => ({ good: event.good, quantity: event.quantity }),
-                }),
-                actions: [emit({ type: "message", message: "You don't have enough cash", timeout: "auto" })],
+                guard: not(
+                  // Can afford to buy the goods
+                  ({ context, event }) =>
+                    context.balance >=
+                    calculatePrice({
+                      prices: context.prices,
+                      currentPort: context.currentPort,
+                      good: event.good,
+                      quantity: event.quantity,
+                    }),
+                ),
+                actions: [
+                  emit({ type: "clearMessages" }),
+                  emit({ type: "message", message: "You don't have enough cash", timeout: "auto" }),
+                ],
               },
               {
-                guard: not({
-                  // @ts-expect-error - xstate
-                  type: "canStore",
-                  // @ts-expect-error - xstate
-                  params: ({ event }) => ({ quantity: event.quantity }),
-                }),
-                actions: [emit({ type: "message", message: "You don't have enough storage room", timeout: "auto" })],
+                guard: not(
+                  // Have enough storage room to store the goods
+                  ({ context, event }) => event.quantity <= getAvailableStorage(context.ship),
+                ),
+                actions: [
+                  emit({ type: "clearMessages" }),
+                  emit({ type: "message", message: "You don't have enough storage room", timeout: "auto" }),
+                ],
               },
               {
                 actions: [
@@ -187,10 +195,9 @@ export const gameMachine = setup({
             ],
             SELL_GOOD: [
               {
-                guard: {
-                  type: "enoughInHold",
-                  params: ({ event }) => ({ good: event.good, quantity: event.quantity }),
-                },
+                // Have enough in hold of the good
+                guard: ({ context, event }) =>
+                  event.quantity > 0 && (context.ship.hold.get(event.good) || 0) >= event.quantity,
                 actions: [
                   assign(({ context, event }) => ({
                     balance:
@@ -207,9 +214,54 @@ export const gameMachine = setup({
               },
               {
                 actions: [
+                  emit({ type: "clearMessages" }),
                   emit(({ event }) => ({
                     type: "message",
                     message: `You don't have enough ${event.good.toLowerCase()} to sell.`,
+                  })),
+                ],
+              },
+            ],
+            REPAIR_SHIP: [
+              {
+                guard: not(
+                  // Repair appropriate damage (<= 100 health total)
+                  ({ context, event }) => event.damage >= 0 && 100 - context.ship.health >= event.damage,
+                ),
+                actions: [
+                  emit({ type: "clearMessages" }),
+                  emit(({ context }) => ({
+                    type: "message",
+                    message: `You can't repair more than ${100 - context.ship.health} damage`,
+                    timeout: "auto",
+                  })),
+                ],
+              },
+              {
+                guard: not(
+                  // Have enough money to repair
+                  ({ context, event }) => context.balance >= calculateCostForRepair(event.damage),
+                ),
+                actions: [
+                  emit({ type: "clearMessages" }),
+                  emit({
+                    type: "message",
+                    message: "You don't have enough money to repair your ship",
+                    timeout: "auto",
+                  }),
+                ],
+              },
+              {
+                actions: [
+                  assign(({ context, event }) => ({
+                    ship: { ...context.ship, health: context.ship.health + event.damage },
+                    balance: context.balance - calculateCostForRepair(event.damage),
+                  })),
+                  emit({ type: "clearMessages" }),
+                  emit(({ event }) => ({
+                    type: "message",
+                    message: `Repaired ${event.damage} damage`,
+                    timeout: "auto",
                   })),
                 ],
               },
