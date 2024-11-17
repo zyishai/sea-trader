@@ -1,5 +1,11 @@
 # ctrader
 
+## 0.1.0
+
+### Minor Changes
+
+- c821988: Basic market and ship repair
+
 ## 0.0.2
 
 ### Patch Changes
