@@ -18,12 +18,111 @@ const goodsInfo: { name: Good; basePrice: number; volatility: number }[] = [
   { name: "Opium", basePrice: 150, volatility: 0.25 },
   { name: "Clay", basePrice: 30, volatility: 0.05 },
 ] as const;
+const eventTemplates: EventTemplate[] = [
+  {
+    type: "weather",
+    severity: "minor",
+    baseChance: 0.2,
+    message: "A light breeze speeds up your journey",
+    effect: (context) => ({
+      day: Math.max(1, context.day - 1),
+      currentPort: context.destination,
+      destination: undefined,
+      currentEvent: undefined,
+    }),
+  },
+  {
+    type: "weather",
+    severity: "moderate",
+    baseChance: 0.1,
+    message: "A storm damages your ship",
+    effect: (context) => ({
+      ship: { ...context.ship, health: Math.max(0, context.ship.health - 12) },
+      currentPort: context.destination,
+      destination: undefined,
+      currentEvent: undefined,
+    }),
+  },
+  {
+    type: "weather",
+    severity: "major",
+    baseChance: 0.05,
+    message: "A hurricane forces you back to land and damages your ship severely",
+    effect: (context) => ({
+      ship: { ...context.ship, health: Math.max(0, context.ship.health - 23) },
+      currentPort: context.currentPort,
+    }),
+  },
+  {
+    type: "market",
+    severity: "minor",
+    baseChance: 0.15,
+    message: "Local festival increases demand for tea",
+    effect: (context) => ({
+      prices: {
+        ...context.prices,
+        [context.destination!]: {
+          ...context.prices[context.destination!],
+          Tea: Math.round(context.prices[context.destination!].Tea * 1.2),
+        },
+      },
+      currentPort: context.destination,
+      destination: undefined,
+      currentEvent: undefined,
+    }),
+  },
+  {
+    type: "market",
+    severity: "moderate",
+    baseChance: 0.1,
+    message: "Trade regulations change, affecting prices of goods",
+    effect: (context) => {
+      const newPrices = { ...context.prices };
+      goods.forEach((good) => {
+        if (Math.random() > 0.5) {
+          const price = context.prices[context.destination!][good];
+          const factor = Math.random() > 0.5 ? 1.3 : 0.7;
+          newPrices[context.destination!][good] = Math.round(price * factor);
+        }
+      });
+
+      return { prices: newPrices, currentPort: context.destination, destination: undefined, currentEvent: undefined };
+    },
+  },
+  {
+    type: "discovery",
+    severity: "minor",
+    baseChance: 0.1,
+    message: "You discover a small island with rare goods",
+    effect: (context) => {
+      const randomGood = goods[Math.floor(Math.random() * goods.length)] as Good;
+      return {
+        ship: {
+          ...context.ship,
+          hold: context.ship.hold.set(randomGood, (context.ship.hold.get(randomGood) || 0) + 10),
+        },
+        currentPort: context.destination,
+        destination: undefined,
+        currentEvent: undefined,
+      };
+    },
+  },
+];
 
 // ===== Types =====
 export type Good = (typeof goods)[number];
 export type Port = (typeof ports)[number];
 type Trend = "increasing" | "decreasing" | "stable";
 type ShipStatus = "Perfect" | "Minor damages" | "Major damages" | "Wreckage";
+type EventType = "weather" | "market" | "encounter" | "discovery";
+type EventSeverity = "minor" | "moderate" | "major";
+export interface EventTemplate {
+  type: EventType;
+  severity: EventSeverity;
+  baseChance: number;
+  message: string;
+  effect: (state: Context) => Partial<Context>;
+}
 type Context = {
   currentPort: Port;
   day: number;
@@ -36,6 +135,8 @@ type Context = {
   };
   prices: Record<Port, Record<Good, number>>;
   trends: Record<Port, Record<Good, Trend>>;
+  currentEvent?: EventTemplate;
+  destination?: Port;
 };
 
 // ===== Utility Methods =====
@@ -87,6 +188,40 @@ export const getShipStatus = (health: number): ShipStatus =>
   health >= 90 ? "Perfect" : health >= 70 ? "Minor damages" : health >= 40 ? "Major damages" : "Wreckage";
 export const calculateCostForRepair = (damageToRepair: number) => damageToRepair * 57; // How much it'll cost to repair `damageToRepair` damage.
 export const calculateRepairForCost = (price: number) => Math.floor(price / 57); // How much damage can be repaired with `price`.
+export const calculateEventChance = (template: EventTemplate, context: Context) => {
+  let chance = template.baseChance;
+
+  switch (template.type) {
+    case "weather": {
+      chance *= context.day / 100; // Weather events become more likely as the game progresses
+      break;
+    }
+    case "market": {
+      chance *= context.balance / 10000; // Market events become more likely as the player gets richer
+      break;
+    }
+    case "encounter": {
+      chance *= 1 - context.ship.health / 100; // Encounters become more likely when the ship health is low
+      break;
+    }
+    case "discovery": {
+      chance *= context.day / 100; // Discoveries become more likely as the game progresses
+      break;
+    }
+  }
+
+  return Math.min(chance, 1);
+};
+const checkForEvent = (context: Context) => {
+  for (const template of eventTemplates) {
+    const chance = calculateEventChance(template, context);
+    if (Math.random() < chance) {
+      return template;
+    }
+  }
+
+  return;
+};
 
 const initialContext = () => {
   const trends = generateTrends();
@@ -115,6 +250,7 @@ export const gameMachine = setup({
       | { type: "TRAVEL_TO"; destination: Port }
       | { type: "BUY_GOOD"; good: Good; quantity: number }
       | { type: "SELL_GOOD"; good: Good; quantity: number }
+      | { type: "RESOLVE_EVENT" }
       | { type: "REPAIR_SHIP"; damage: number },
     emitted: {} as { type: "message"; message: string; timeout?: number | "auto" } | { type: "clearMessages" },
   },
@@ -133,19 +269,11 @@ export const gameMachine = setup({
         idle: {
           on: {
             TRAVEL_TO: {
+              target: "checkingEvent",
               actions: [
                 assign(({ context, event }) => ({
-                  currentPort: event.destination,
-                  day: Math.min(
-                    100,
-                    context.day + calculateTravelTime(context.currentPort, event.destination, context.ship.speed),
-                  ),
-                })),
-                emit({ type: "clearMessages" }),
-                emit(({ context }) => ({
-                  type: "message",
-                  message: `Arrived to ${context.currentPort}`,
-                  timeout: "auto",
+                  currentEvent: checkForEvent(context),
+                  destination: event.destination,
                 })),
               ],
             },
@@ -267,6 +395,37 @@ export const gameMachine = setup({
               },
             ],
           },
+        },
+        checkingEvent: {
+          always: [
+            { guard: ({ context }) => !!context.currentEvent, target: "eventOccurred" },
+            { target: "traveling" },
+          ],
+        },
+        eventOccurred: {
+          entry: [emit(({ context }) => ({ type: "message", message: context.currentEvent!.message }))],
+          after: {
+            3000: { target: "traveling" },
+          },
+        },
+        traveling: {
+          entry: [
+            assign(({ context }) =>
+              context.currentEvent
+                ? context.currentEvent.effect(context)
+                : {
+                    currentPort: context.destination,
+                    day: Math.min(
+                      100,
+                      context.day + calculateTravelTime(context.currentPort, context.destination!, context.ship.speed),
+                    ),
+                  },
+            ),
+            emit({ type: "clearMessages" }),
+            emit(({ context }) => ({ type: "message", message: `Arrived to ${context.currentPort}`, timeout: "auto" })),
+          ],
+          always: { target: "idle" },
+          exit: assign({ destination: undefined, currentEvent: undefined }),
         },
       },
     },

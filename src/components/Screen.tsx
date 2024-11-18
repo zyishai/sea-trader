@@ -7,7 +7,6 @@ export function Screen({ children }: React.PropsWithChildren) {
   const { write } = useStdout();
 
   useLayoutEffect(() => {
-    // write("\x1b[?1049h");
     return () => write("\x1b[?1049l");
   }, [width, height]);
   useInput(() => {});
