@@ -271,6 +271,7 @@ export const gameMachine = setup({
             TRAVEL_TO: {
               target: "checkingEvent",
               actions: [
+                emit({ type: "clearMessages" }),
                 assign(({ context, event }) => ({
                   currentEvent: checkForEvent(context),
                   destination: event.destination,
