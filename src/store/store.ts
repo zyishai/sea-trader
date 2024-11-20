@@ -137,12 +137,27 @@ type Context = {
   trends: Record<Port, Record<Good, Trend>>;
   currentEvent?: EventTemplate;
   destination?: Port;
+  messages: MessageBucket;
 };
+export type MessageSpec = { message: string } | { delay: number } | { command: "clear" | "ack" };
+class MessageBucket {
+  public readonly messages: MessageSpec[] = [];
+
+  append(msg: MessageSpec) {
+    this.messages.push(msg);
+    return this;
+  }
+}
+type BuyEvent = { type: "BUY_GOOD"; good: Good; quantity: number };
+type SellEvent = { type: "SELL_GOOD"; good: Good; quantity: number };
+type RepairEvent = { type: "REPAIR_SHIP"; damage: number };
 
 // ===== Utility Methods =====
 export const calculateTravelTime = (from: Port, to: Port, shipSpeed: number) => {
   const distance = distanceMatrix[from][to];
-  return Math.ceil(distance / shipSpeed);
+  const baseTime = 3; // base time
+  const speedFactor = 1000 / shipSpeed; // Adjust this value to balance the impact of ship speed
+  return Math.max(baseTime, Math.ceil(baseTime + (distance / 500) * speedFactor));
 };
 const generateTrends = () =>
   ports.reduce(
@@ -230,13 +245,14 @@ const initialContext = () => {
     day: 1,
     balance: 1000,
     ship: {
-      health: 100,
+      health: 81,
       speed: 500,
       capacity: 50,
       hold: goods.reduce((map, good) => map.set(good, 0), new Map()),
     },
     trends,
     prices: generatePrices(trends),
+    messages: new MessageBucket(),
   } satisfies Context;
 };
 
@@ -248,11 +264,12 @@ export const gameMachine = setup({
     events: {} as
       | { type: "START_GAME" }
       | { type: "TRAVEL_TO"; destination: Port }
-      | { type: "BUY_GOOD"; good: Good; quantity: number }
-      | { type: "SELL_GOOD"; good: Good; quantity: number }
+      | BuyEvent
+      | SellEvent
+      | RepairEvent
       | { type: "RESOLVE_EVENT" }
-      | { type: "REPAIR_SHIP"; damage: number },
-    emitted: {} as { type: "message"; message: string; timeout?: number | "auto" } | { type: "clearMessages" },
+      | { type: "MSG_ACK"; id?: string },
+    emitted: {} as { type: "messages"; messages: MessageSpec[] },
   },
 }).createMachine({
   initial: "introScreen",
@@ -267,12 +284,13 @@ export const gameMachine = setup({
       initial: "idle",
       states: {
         idle: {
+          id: "idle",
           on: {
             TRAVEL_TO: {
-              target: "checkingEvent",
+              target: "travel",
               actions: [
-                emit({ type: "clearMessages" }),
                 assign(({ context, event }) => ({
+                  messages: new MessageBucket(),
                   currentEvent: checkForEvent(context),
                   destination: event.destination,
                 })),
@@ -280,153 +298,297 @@ export const gameMachine = setup({
             },
             BUY_GOOD: [
               {
-                guard: not(
-                  // Can afford to buy the goods
-                  ({ context, event }) =>
-                    context.balance >=
-                    calculatePrice({
-                      prices: context.prices,
-                      currentPort: context.currentPort,
-                      good: event.good,
-                      quantity: event.quantity,
-                    }),
-                ),
-                actions: [
-                  emit({ type: "clearMessages" }),
-                  emit({ type: "message", message: "You don't have enough cash", timeout: "auto" }),
-                ],
-              },
-              {
-                guard: not(
-                  // Have enough storage room to store the goods
-                  ({ context, event }) => event.quantity <= getAvailableStorage(context.ship),
-                ),
-                actions: [
-                  emit({ type: "clearMessages" }),
-                  emit({ type: "message", message: "You don't have enough storage room", timeout: "auto" }),
-                ],
-              },
-              {
-                actions: [
-                  assign(({ context, event }) => ({
-                    balance:
-                      context.balance -
-                      calculatePrice({
-                        prices: context.prices,
-                        currentPort: context.currentPort,
-                        good: event.good,
-                        quantity: event.quantity,
-                      }),
-                    hold: context.ship.hold.set(event.good, (context.ship.hold.get(event.good) ?? 0) + event.quantity),
-                  })),
-                ],
+                target: "buy",
+                actions: assign({ messages: new MessageBucket() }),
               },
             ],
             SELL_GOOD: [
               {
-                // Have enough in hold of the good
-                guard: ({ context, event }) =>
-                  event.quantity > 0 && (context.ship.hold.get(event.good) || 0) >= event.quantity,
-                actions: [
-                  assign(({ context, event }) => ({
-                    balance:
-                      context.balance +
-                      calculatePrice({
-                        prices: context.prices,
-                        currentPort: context.currentPort,
-                        good: event.good,
-                        quantity: event.quantity,
-                      }),
-                    hold: context.ship.hold.set(event.good, (context.ship.hold.get(event.good) ?? 0) - event.quantity),
-                  })),
-                ],
-              },
-              {
-                actions: [
-                  emit({ type: "clearMessages" }),
-                  emit(({ event }) => ({
-                    type: "message",
-                    message: `You don't have enough ${event.good.toLowerCase()} to sell.`,
-                  })),
-                ],
+                target: "sell",
+                actions: assign({ messages: new MessageBucket() }),
               },
             ],
             REPAIR_SHIP: [
               {
-                guard: not(
-                  // Repair appropriate damage (<= 100 health total)
-                  ({ context, event }) => event.damage >= 0 && 100 - context.ship.health >= event.damage,
-                ),
-                actions: [
-                  emit({ type: "clearMessages" }),
-                  emit(({ context }) => ({
-                    type: "message",
-                    message: `You can't repair more than ${100 - context.ship.health} damage`,
-                    timeout: "auto",
-                  })),
-                ],
-              },
-              {
-                guard: not(
-                  // Have enough money to repair
-                  ({ context, event }) => context.balance >= calculateCostForRepair(event.damage),
-                ),
-                actions: [
-                  emit({ type: "clearMessages" }),
-                  emit({
-                    type: "message",
-                    message: "You don't have enough money to repair your ship",
-                    timeout: "auto",
-                  }),
-                ],
-              },
-              {
-                actions: [
-                  assign(({ context, event }) => ({
-                    ship: { ...context.ship, health: context.ship.health + event.damage },
-                    balance: context.balance - calculateCostForRepair(event.damage),
-                  })),
-                  emit({ type: "clearMessages" }),
-                  emit(({ event }) => ({
-                    type: "message",
-                    message: `Repaired ${event.damage} damage`,
-                    timeout: "auto",
-                  })),
-                ],
+                target: "repair",
+                actions: assign({ messages: new MessageBucket() }),
               },
             ],
           },
         },
-        checkingEvent: {
-          always: [
-            { guard: ({ context }) => !!context.currentEvent, target: "eventOccurred" },
-            { target: "traveling" },
-          ],
-        },
-        eventOccurred: {
-          entry: [emit(({ context }) => ({ type: "message", message: context.currentEvent!.message }))],
-          after: {
-            3000: { target: "traveling" },
+        travel: {
+          initial: "checkingEvent",
+          states: {
+            checkingEvent: {
+              always: [
+                { guard: ({ context }) => !!context.currentEvent, target: "eventOccurred" },
+                { target: "traveling" },
+              ],
+            },
+            eventOccurred: {
+              entry: [
+                assign(({ context }) => ({
+                  messages: context.messages
+                    .append({ message: context.currentEvent!.message })
+                    .append({ delay: 1000 })
+                    .append({ command: "clear" }),
+                })),
+              ],
+              always: { target: "traveling" },
+            },
+            traveling: {
+              entry: [
+                assign(({ context }) => ({
+                  messages: context.messages
+                    .append({ message: `Arrived to ${context.destination}` })
+                    .append({ delay: 1000 })
+                    .append({ command: "clear" })
+                    .append({ command: "ack" }),
+                })),
+                emit(({ context }) => ({ type: "messages", messages: context.messages.messages })),
+              ],
+              on: {
+                MSG_ACK: {
+                  target: "#idle",
+                  actions: [
+                    assign(({ context }) =>
+                      context.currentEvent
+                        ? context.currentEvent.effect(context)
+                        : {
+                            currentPort: context.destination,
+                            day: Math.min(
+                              100,
+                              context.day +
+                                calculateTravelTime(context.currentPort, context.destination!, context.ship.speed),
+                            ),
+                          },
+                    ),
+                    assign({ destination: undefined, currentEvent: undefined, messages: new MessageBucket() }),
+                  ],
+                },
+              },
+            },
           },
         },
-        traveling: {
-          entry: [
-            assign(({ context }) =>
-              context.currentEvent
-                ? context.currentEvent.effect(context)
-                : {
-                    currentPort: context.destination,
-                    day: Math.min(
-                      100,
-                      context.day + calculateTravelTime(context.currentPort, context.destination!, context.ship.speed),
-                    ),
-                  },
-            ),
-            emit({ type: "clearMessages" }),
-            emit(({ context }) => ({ type: "message", message: `Arrived to ${context.currentPort}`, timeout: "auto" })),
+        buy: {
+          initial: "checkCashSuffice",
+          states: {
+            checkCashSuffice: {
+              always: [
+                {
+                  guard: ({ context, event }) =>
+                    context.balance >=
+                    calculatePrice({
+                      prices: context.prices,
+                      currentPort: context.currentPort,
+                      good: (event as BuyEvent).good,
+                      quantity: (event as SellEvent).quantity,
+                    }),
+                  target: "checkStorageAvailable",
+                },
+                {
+                  actions: [
+                    assign(({ context }) => ({
+                      messages: context.messages
+                        .append({ message: "You don't have enough cash" })
+                        .append({ delay: 1000 })
+                        .append({ command: "clear" })
+                        .append({ command: "ack" }),
+                    })),
+                    emit(({ context }) => ({ type: "messages", messages: context.messages.messages })),
+                  ],
+                  target: "fail",
+                },
+              ],
+            },
+            checkStorageAvailable: {
+              always: [
+                {
+                  guard: ({ context, event }) => (event as BuyEvent).quantity <= getAvailableStorage(context.ship),
+                  target: "buying",
+                },
+                {
+                  actions: [
+                    assign(({ context }) => ({
+                      messages: context.messages
+                        .append({ message: "You don't have enough storage room" })
+                        .append({ delay: 1000 })
+                        .append({ command: "clear" })
+                        .append({ command: "ack" }),
+                    })),
+                    emit(({ context }) => ({ type: "messages", messages: context.messages.messages })),
+                  ],
+                  target: "fail",
+                },
+              ],
+            },
+            buying: {
+              entry: [
+                assign(({ context, event }) => ({
+                  balance:
+                    context.balance -
+                    calculatePrice({
+                      prices: context.prices,
+                      currentPort: context.currentPort,
+                      good: (event as BuyEvent).good,
+                      quantity: (event as BuyEvent).quantity,
+                    }),
+                  hold: context.ship.hold.set(
+                    (event as BuyEvent).good,
+                    (context.ship.hold.get((event as BuyEvent).good) ?? 0) + (event as BuyEvent).quantity,
+                  ),
+                })),
+              ],
+              after: { 0: { target: "#idle" } },
+            },
+            fail: {
+              on: {
+                MSG_ACK: { target: "#idle" },
+              },
+            },
+          },
+          always: [
+            {
+              guard: ({ event }) => event.type !== "BUY_GOOD",
+              target: "#idle",
+            },
           ],
-          always: { target: "idle" },
-          exit: assign({ destination: undefined, currentEvent: undefined }),
+        },
+        sell: {
+          initial: "checkEnoughInHold",
+          states: {
+            checkEnoughInHold: {
+              always: [
+                {
+                  guard: ({ context, event }) =>
+                    (event as SellEvent).quantity > 0 &&
+                    (context.ship.hold.get((event as SellEvent).good) || 0) >= (event as SellEvent).quantity,
+                  target: "selling",
+                },
+                {
+                  actions: [
+                    assign(({ context, event }) => ({
+                      messages: context.messages
+                        .append({
+                          message: `You don't have enough ${(event as SellEvent).good.toLowerCase()} to sell.`,
+                        })
+                        .append({ delay: 1000 })
+                        .append({ command: "clear" })
+                        .append({ command: "ack" }),
+                    })),
+                    emit(({ context }) => ({ type: "messages", messages: context.messages.messages })),
+                  ],
+                  target: "fail",
+                },
+              ],
+            },
+            selling: {
+              entry: [
+                assign(({ context, event }) => ({
+                  balance:
+                    context.balance +
+                    calculatePrice({
+                      prices: context.prices,
+                      currentPort: context.currentPort,
+                      good: (event as SellEvent).good,
+                      quantity: (event as SellEvent).quantity,
+                    }),
+                  hold: context.ship.hold.set(
+                    (event as SellEvent).good,
+                    (context.ship.hold.get((event as SellEvent).good) ?? 0) - (event as SellEvent).quantity,
+                  ),
+                })),
+              ],
+              after: { 0: { target: "#idle" } },
+            },
+            fail: {
+              on: {
+                MSG_ACK: { target: "#idle" },
+              },
+            },
+          },
+          always: [
+            {
+              guard: ({ event }) => event.type !== "SELL_GOOD",
+              target: "#idle",
+            },
+          ],
+        },
+        repair: {
+          initial: "checkNoExcessRepair",
+          states: {
+            checkNoExcessRepair: {
+              always: [
+                {
+                  guard: ({ context, event }) =>
+                    (event as RepairEvent).damage >= 0 && 100 - context.ship.health >= (event as RepairEvent).damage,
+                  target: "checkEnoughMoney",
+                },
+                {
+                  actions: [
+                    assign(({ context }) => ({
+                      messages: context.messages
+                        .append({
+                          message: `You can't repair more than ${100 - context.ship.health} damage`,
+                        })
+                        .append({ delay: 1000 })
+                        .append({ command: "clear" })
+                        .append({ command: "ack" }),
+                    })),
+                    emit(({ context }) => ({ type: "messages", messages: context.messages.messages })),
+                  ],
+                  target: "fail",
+                },
+              ],
+            },
+            checkEnoughMoney: {
+              always: [
+                {
+                  guard: ({ context, event }) =>
+                    context.balance >= calculateCostForRepair((event as RepairEvent).damage),
+                  target: "repairing",
+                },
+                {
+                  actions: [
+                    assign(({ context }) => ({
+                      messages: context.messages
+                        .append({ message: "You don't have enough money to repair your ship" })
+                        .append({ delay: 1000 })
+                        .append({ command: "clear" })
+                        .append({ command: "ack" }),
+                    })),
+                    emit(({ context }) => ({ type: "messages", messages: context.messages.messages })),
+                  ],
+                  target: "fail",
+                },
+              ],
+            },
+            repairing: {
+              entry: [
+                assign(({ context, event }) => ({
+                  ship: { ...context.ship, health: context.ship.health + (event as RepairEvent).damage },
+                  balance: context.balance - calculateCostForRepair((event as RepairEvent).damage),
+                  messages: context.messages
+                    .append({ message: `Repaired ${(event as RepairEvent).damage} damage` })
+                    .append({ delay: 1000 })
+                    .append({ command: "clear" }),
+                })),
+                emit(({ context }) => ({ type: "messages", messages: context.messages.messages })),
+              ],
+              after: { 0: { target: "#idle" } },
+            },
+            fail: {
+              on: {
+                MSG_ACK: { target: "#idle" },
+              },
+            },
+          },
+          always: [
+            {
+              guard: ({ event }) => event.type !== "REPAIR_SHIP",
+              target: "#idle",
+            },
+          ],
         },
       },
     },

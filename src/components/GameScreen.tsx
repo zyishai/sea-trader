@@ -1,72 +1,27 @@
-import React, { useEffect, useState } from "react";
-import { Box, Text, useInput } from "ink";
+import React, { Children, useEffect, useMemo, useRef, useState } from "react";
+import { Box, DOMElement, measureElement, Text, useInput } from "ink";
+import chalk from "chalk";
 import { GameContext } from "./GameContext.js";
 import {
   calculateCostForRepair,
   calculateRepairForCost,
-  calculateTravelTime,
   getAvailableStorage,
   getShipStatus,
   Good,
   goods,
-  Port,
   ports,
 } from "../store/store.js";
-import { Tab, Tabs } from "ink-tab";
-import BigText from "ink-big-text";
-import Select from "ink-select-input";
-import { v4 as randomId } from "uuid";
-import { Table } from "@tqman/ink-table";
-import { TextInput } from "@inkjs/ui";
-import { UncontrolledTextInput } from "ink-text-input";
+import { Badge } from "@inkjs/ui";
+import { TextInput } from "./TextInput/index.js";
+import { useMessages } from "./MessagesContext.js";
 
-type Tab = "port" | "market" | "shipyard";
-type Message = {
-  id: string;
-  text: string;
-  clearAfter?: number;
-};
 const dividerChar = "─";
 
 export function GameScreen() {
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const actor = GameContext.useActorRef();
-  const [activeTab, setActiveTab] = useState<Tab>("port");
-  const [messages, setMessages] = useState<Message[]>([]);
-
-  // Event: "message"
-  useEffect(() => {
-    const subscription = actor.on("message", (evt) => {
-      const messageId = randomId();
-      setMessages((msgs) => [
-        ...msgs,
-        {
-          id: messageId,
-          text: evt.message,
-          clearAfter: evt.timeout === "auto" ? 2000 : evt.timeout,
-        },
-      ]);
-      if (evt.timeout) {
-        setTimeout(
-          () => {
-            setMessages((msgs) => (msgs.length > 0 ? msgs.filter((msg) => msg.id !== messageId) : msgs));
-          },
-          evt.timeout === "auto" ? 2000 : evt.timeout,
-        );
-      }
-    });
-
-    return subscription.unsubscribe;
-  }, []);
-
-  // Event: "clearMessages"
-  useEffect(() => {
-    const subscription = actor.on("clearMessages", () => {
-      setMessages([]);
-    });
-
-    return subscription.unsubscribe;
-  }, []);
+  const [ref, setRef] = useState<DOMElement | null>(null);
+  const { messages } = useMessages();
+  const machine = GameContext.useSelector((snapshot) => snapshot);
+  const isIdle = machine.matches({ gameScreen: "idle" });
 
   useInput((input, key) => {
     if (key.escape) {
@@ -75,286 +30,513 @@ export function GameScreen() {
   });
 
   return (
-    // Container
-    <Box flexDirection="column" alignItems="center" width="100%" height="100%" paddingTop={4}>
-      <Tabs
-        showIndex={false}
-        onChange={(tab) => {
-          setMessages([]); // Clear messages
-          setActiveTab(tab as Tab);
-        }}
-      >
-        <Tab name="port">Port</Tab>
-        <Tab name="market">Goods Market</Tab>
-        <Tab name="shipyard">Shipyard</Tab>
-      </Tabs>
-
-      {/* Tabs Content */}
-      <Box borderStyle="round" padding={1}>
-        {activeTab === "port" ? (
-          <Box width={60} flexDirection="column" alignItems="center">
-            <Header day={context.day.toString()} currentPort={context.currentPort} balance={context.balance} />
-            <Box width="100%" flexDirection="column">
-              <BigText text="Port" font="tiny" />
-              <Text>Which port would you like to travel to?</Text>
-              <Box height={1} />
-              <Select
-                items={ports
-                  .filter((port) => port !== context.currentPort)
-                  .map((port) => ({ value: port, label: port }))}
-                itemComponent={(props) => (
-                  <>
-                    <Text color={props!.isSelected ? "cyan" : undefined}>{props!.label}</Text>
-                    <Text dimColor>
-                      {" "}
-                      ({calculateTravelTime(context.currentPort, props!.label as Port, context.ship.speed)} days)
-                    </Text>
-                  </>
-                )}
-                onSelect={(port) => actor.send({ type: "TRAVEL_TO", destination: port.label as Port })}
-              />
-            </Box>
+    <Box width="100%" flexDirection="column" alignItems="center">
+      <Box flexDirection="column" alignItems="stretch" borderStyle="round" padding={1} ref={setRef}>
+        <StatusBar />
+        <Box height={2} />
+        <Box gap={4}>
+          <Box flexDirection="column">
+            <PriceList />
+            <Box height={2} />
+            <Inventory />
           </Box>
-        ) : activeTab === "market" ? (
-          <Box width={60} flexDirection="column" alignItems="center">
-            <Header day={context.day.toString()} currentPort={context.currentPort} balance={context.balance} />
-            <Box width="100%" flexDirection="column">
-              <BigText text="Market" font="tiny" />
-              {/* Prices */}
-              <Table
-                data={ports.map((port) => ({
-                  name: port,
-                  ...goods.reduce(
-                    (acc, good) => ({
-                      ...acc,
-                      [good]: `$${context.prices[port][good]}`,
-                    }),
-                    {},
-                  ),
-                }))}
-                headings={{ name: "" }}
-                // @ts-expect-error Table can't detect the goods
-                columns={[{ key: "name", align: "left" }, ...goods.map((good) => ({ key: good, align: "center" }))]}
-              />
-              {/* Hold */}
-              <Box marginY={1} gap={3}>
-                <Box flexDirection="column">
-                  <Text>Your hold:</Text>
-                  <Box flexDirection="column" borderStyle="round" paddingRight={3} paddingLeft={1}>
-                    {[...context.ship.hold.entries()].map(([good, quantity]) => (
-                      <Box key={good}>
-                        <Text>{good.padEnd(10, " ")}</Text>
-                        <Text>{quantity}</Text>
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-                <Box flexDirection="column" alignItems="center">
-                  <Text>Available storage:</Text>
-                  <Text>
-                    {getAvailableStorage(context.ship)} / <Text>{context.ship.capacity}</Text>
-                  </Text>
-                </Box>
-              </Box>
+          <Box flexDirection="column" alignItems="center"></Box>
+        </Box>
 
-              <MarketForm />
-            </Box>
-          </Box>
-        ) : activeTab === "shipyard" ? (
-          <Box width={60} flexDirection="column" alignItems="center">
-            <Header day={context.day.toString()} currentPort={context.currentPort} balance={context.balance} />
-            <Box width="100%" flexDirection="column">
-              <BigText text="Shipyard" font="tiny" />
+        {/* Divider */}
+        <Box marginTop={2} marginBottom={1}>
+          <Divider containerRef={ref} />
+        </Box>
 
-              <ShipHealth health={context.ship.health} />
-            </Box>
-          </Box>
-        ) : null}
+        <Box flexDirection="column" height={10}>
+          {messages.length > 0 || !isIdle ? <Messages /> : <Actions />}
+        </Box>
       </Box>
+    </Box>
+  );
+}
 
-      {/* Display Messages */}
-      <Box flexDirection="column" gap={1} marginTop={1}>
-        {messages.map((message) => (
-          <Text key={message.id}>{message.text}</Text>
+function Divider({ containerRef }: { containerRef: DOMElement | null }) {
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    if (containerRef) {
+      const output = measureElement(containerRef);
+      setWidth(output.width);
+    }
+  }, [containerRef]);
+
+  return (
+    <Box>
+      <Text>{dividerChar.repeat(width)}</Text>
+    </Box>
+  );
+}
+
+function StatusBar() {
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const shipHealth = getShipStatus(context.ship.health);
+
+  return (
+    <Box>
+      <Text>
+        Port: <Text inverse>{context.currentPort}</Text>
+      </Text>
+      <Text> | </Text>
+      <Text>
+        Balance: <Text inverse>${context.balance}</Text>
+      </Text>
+      <Text> | </Text>
+      <Text>
+        Day: <Text inverse>{context.day.toString().padStart(3, " ")}</Text>
+      </Text>
+      <Text> | </Text>
+      <Text>
+        Ship Health:{" "}
+        <Badge
+          color={
+            shipHealth === "Perfect"
+              ? "greenBright"
+              : shipHealth === "Minor damages"
+                ? "yellowBright"
+                : shipHealth === "Major damages"
+                  ? "redBright"
+                  : "gray"
+          }
+        >
+          {context.ship.health}% ({shipHealth})
+        </Badge>
+      </Text>
+    </Box>
+  );
+}
+
+function PriceList() {
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  return (
+    <Box>
+      <Box flexDirection="column" alignItems="stretch" flexGrow={1}>
+        <Box
+          borderStyle="single"
+          borderDimColor
+          borderTop={false}
+          borderLeft={false}
+          borderRight={false}
+          paddingRight={1}
+        >
+          <Text bold color="cyan">
+            Port
+          </Text>
+        </Box>
+        {ports.map((port) => (
+          <Box
+            key={port}
+            borderStyle="single"
+            borderDimColor
+            borderTop={false}
+            borderLeft={false}
+            borderRight={false}
+            paddingRight={1}
+          >
+            <Text bold={port === context.currentPort}>{port}</Text>
+          </Box>
+        ))}
+      </Box>
+      {goods.map((good) => (
+        <Box key={good} flexDirection="column" alignItems="stretch">
+          <Box
+            borderStyle="single"
+            borderDimColor
+            borderTop={false}
+            borderLeft={false}
+            borderRight={false}
+            paddingX={2}
+          >
+            <Text bold color="cyan">
+              {good}
+            </Text>
+          </Box>
+          {ports.map((port, index) => (
+            <Box
+              key={port + index}
+              borderStyle="single"
+              borderDimColor
+              borderTop={false}
+              borderLeft={false}
+              borderRight={false}
+              paddingX={2}
+              justifyContent="flex-end"
+            >
+              <Text bold={port === context.currentPort}>${context.prices[port][good]}</Text>
+            </Box>
+          ))}
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+function Inventory() {
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
+
+  return (
+    <Box flexDirection="column">
+      <Box gap={1}>
+        <Text underline>Ship&apos;s Hold</Text>
+        <Text>
+          (total: <Text inverse>{context.ship.capacity}</Text>, available:{" "}
+          <Text inverse>{getAvailableStorage(context.ship)}</Text>)
+        </Text>
+      </Box>
+      <Box flexWrap="wrap" columnGap={2} rowGap={0} marginTop={1}>
+        {[...context.ship.hold.entries()].map(([good, quantity], index) => (
+          <Box key={index} gap={1}>
+            <Text>{good}:</Text>
+            <Text>{quantity}</Text>
+            {index < context.ship.hold.size - 1 ? <Text> |</Text> : null}
+          </Box>
         ))}
       </Box>
     </Box>
   );
 }
 
-function Header({ day, currentPort, balance }: { day: string; currentPort: Port; balance: number }) {
+function Messages() {
+  const { messages } = useMessages();
+
+  // useInput((input) => {
+  //   if (input === " " && messages[0]) {
+  //     // Space key
+  //     clearMessage(messages[0].id);
+  //   }
+  // });
+
   return (
-    <Box flexDirection="row" alignItems="center" gap={3} marginBottom={1}>
-      {/* Current Day */}
-      <Text>
-        Day:{" "}
-        <Text backgroundColor="black" color="white" inverse>
-          {day.padStart(3, " ")}
-        </Text>
-      </Text>
-      {/* Current Port */}
-      <Text>
-        Port:{" "}
-        <Text backgroundColor="black" color="white" inverse>
-          {currentPort}
-        </Text>
-      </Text>
-      {/* Balance */}
-      <Text>
-        Balace:{" "}
-        <Text backgroundColor="black" color="white" inverse>
-          ${balance}
-        </Text>
-      </Text>
+    <Box flexDirection="column" gap={1}>
+      {messages.map((message) => (
+        <Text key={message.id}>{message.text}</Text>
+      ))}
     </Box>
   );
 }
 
-function MarketForm() {
+function Actions() {
   const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const actor = GameContext.useActorRef();
-  const [action, setAction] = useState<"buy" | "sell" | undefined>();
-  const [good, setGood] = useState<Good | undefined>();
-  const [quantity, setQuantity] = useState(0);
+  const [action, setAction] = useState<"T" | "B" | "S" | "R" | null>(null);
 
-  return !action ? (
-    <Box flexDirection="column">
-      <Text>What would you like to do?</Text>
-      <Select
-        items={[
-          { value: "buy", label: "Buy" },
-          { value: "sell", label: "Sell" },
-        ]}
-        onSelect={({ value }) => setAction(value as "buy" | "sell")}
-      />
-    </Box>
-  ) : !good ? (
-    <Box flexDirection="column">
-      <Text>Which good do you wish to {action}?</Text>
-      <Select
-        items={goods.map((good) => ({ value: good, label: good }))}
-        onSelect={({ value }) => setGood(value as Good)}
-      />
-    </Box>
+  return action === "T" ? (
+    <TravelAction onFinish={() => setAction(null)} />
+  ) : action === "B" ? (
+    <BuyingAction onFinish={() => setAction(null)} />
+  ) : action === "S" ? (
+    <SellingAction onFinish={() => setAction(null)} />
+  ) : action === "R" ? (
+    <RepairAction onFinish={() => setAction(null)} />
   ) : (
-    <Box flexDirection="column">
-      {action === "buy" ? (
-        <Box marginBottom={1}>
-          <Text inverse>
-            You can afford {Math.floor(context.balance / context.prices[context.currentPort][good])} tons of{" "}
-            {good.toLowerCase()}.
-          </Text>
-        </Box>
-      ) : null}
+    <Box flexDirection="column" gap={1}>
+      <Text>Available actions:</Text>
+      <Text>(T)ravel, (B)uy goods, (S)ell goods{context.ship.health < 100 ? ", (R)epair ship" : null}</Text>
       <Box gap={1}>
-        <Text>
-          How much {good.toLowerCase()} would you like to {action}?
-        </Text>
+        <Text>What would you like to do?</Text>
         <TextInput
-          placeholder="0"
-          onChange={(amount) => (isNaN(+amount) ? setQuantity(0) : setQuantity(+amount))}
-          onSubmit={() => {
-            if (!!action && !!good && !isNaN(quantity) && quantity > 0) {
-              if (action === "buy") {
-                actor.send({ type: "BUY_GOOD", good, quantity });
-              } else if (action === "sell") {
-                actor.send({ type: "SELL_GOOD", good, quantity });
-              }
-            }
-
-            // Reset form
-            setAction(undefined);
-            setGood(undefined);
-            setQuantity(0);
-          }}
+          key="no_action"
+          checkValidity={(input, prevInput) =>
+            prevInput.length === 0 &&
+            ["T", "B", "S", context.ship.health < 100 ? "R" : null].filter(Boolean).includes(input)
+          }
+          transformValue={(value) => value.toUpperCase()}
+          styleOutput={(value) => chalk.bold(value)}
+          // @ts-expect-error type not inferred
+          onSubmit={setAction}
         />
       </Box>
     </Box>
   );
 }
 
-function ShipHealth({ health }: { health: number }) {
+function TravelAction({ onFinish }: { onFinish: () => void }) {
   const actor = GameContext.useActorRef();
-  const status = getShipStatus(health);
-  const cost = calculateCostForRepair(100 - health);
-  const graphic =
-    status === "Perfect"
-      ? `
-        |    |    | 
-       )_)  )_)  )_) 
-      )___))___))___)\\
-     )____)____)_____)\\ 
-   _____|____|____|____\\__ 
-  \\                   / 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    `
-      : status === "Minor damages"
-        ? `
-        |    |
-       )_)  )_)
-      )___))___))___)\\
-     )____)____)_____)\\
-   _____|____|____|____\\__
-  \\                   /
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-      `
-        : status === "Major damages"
-          ? `
-        |    |
-       )_)  )_)
-      )___)) __) ___)\\
-     )____)____)     )\\
-   _____|____|____|____\\__
-  \\                   /
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        `
-          : `
-
-
-       )_)  )_)
-      )_  ))_  ))_  )\\
-     )____)____)     )\\
-   _____|____|____|____\\__
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        `;
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
 
   return (
-    <Box flexDirection="column" alignItems="center">
-      <Text>{graphic}</Text>
-      <Box height={1} />
-      <Text>
-        Ship health: {health}% ({status})
-      </Text>
-      {health < 100 ? (
+    <Box flexDirection="column" gap={1}>
+      <Synchronize timing={[200, 800, 1400]}>
+        <Text underline>{context.currentPort}&apos;s Port</Text>
         <>
-          <Box height={2} />
-          <Box flexDirection="column" gap={1}>
-            <Text>
-              Your ship has taken <Text inverse>{100 - health}</Text> damage.
-            </Text>
-            <Text>
-              It&apos;ll cost you <Text inverse>${cost}</Text> to repair the damages.
-            </Text>
-            <Box gap={1}>
-              <Text>How much money will you spend for repair?</Text>
-              <UncontrolledTextInput
-                key={cost}
-                onSubmit={(value) => {
-                  const money = +value;
-                  if (!isNaN(money) && money > 0) {
-                    const damage = calculateRepairForCost(money);
-                    actor.send({ type: "REPAIR_SHIP", damage });
-                  }
-                }}
-              />
-            </Box>
-          </Box>
+          <Text wrap="wrap">You can visit:</Text>
+          <Text>{ports.map((port, index) => `${index + 1}) ${port}`).join(", ")}</Text>
         </>
-      ) : null}
+        <Box gap={1}>
+          <Text>Where would you like to go?</Text>
+          <TextInput
+            key="travel_action"
+            checkValidity={(input, prevInput) => {
+              const index = +input;
+              return (
+                prevInput.length === 0 &&
+                index >= 1 &&
+                index <= ports.length &&
+                index !== ports.indexOf(context.currentPort) + 1
+              );
+            }}
+            styleOutput={(value) => chalk.bold(value)}
+            onSubmit={(i) => {
+              const destination = !isNaN(+i) ? ports[+i - 1] : null;
+
+              if (destination) {
+                actor.send({ type: "TRAVEL_TO", destination });
+                onFinish();
+              }
+            }}
+          />
+        </Box>
+      </Synchronize>
     </Box>
   );
 }
+
+function BuyingAction({ onFinish }: { onFinish: () => void }) {
+  return (
+    <Box flexDirection="column" gap={1}>
+      <Synchronize timing={[200, 800, 1400]}>
+        <Text underline>Goods Market</Text>
+        <Text>Available goods: {goods.map((good) => `(${good.at(0)?.toUpperCase()})${good.slice(1)}`).join(" ")}</Text>
+        <BuyMarketForm onFinish={onFinish} />
+      </Synchronize>
+    </Box>
+  );
+}
+
+function BuyMarketForm({ onFinish }: { onFinish: () => void }) {
+  const actor = GameContext.useActorRef();
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const [good, setGood] = useState<Good | undefined>();
+
+  return !good ? (
+    <Box gap={1}>
+      <Text>What do you wish to buy?</Text>
+      <TextInput
+        key="buy_action_good"
+        checkValidity={(input, prevInput) => prevInput.length === 0 && goods.some((good) => good.startsWith(input))}
+        transformValue={(value) => value.toUpperCase()}
+        styleOutput={(value) => chalk.bold(value)}
+        onSubmit={(value) => {
+          const product = goods.find((g) => g.startsWith(value));
+          if (product) {
+            setGood(product);
+          }
+        }}
+      />
+    </Box>
+  ) : (
+    <>
+      <Text>
+        You can afford <Text inverse> {Math.floor(context.balance / context.prices[context.currentPort][good])} </Text>{" "}
+        tons
+      </Text>
+      <Box gap={1}>
+        <Text>How much {good} would you like to buy?</Text>
+        <TextInput
+          key="buy_action_quantity"
+          checkValidity={(input) => !isNaN(+input) && +input >= 0}
+          styleOutput={(value) => value}
+          onSubmit={(value) => {
+            const amount = +value;
+            if (!isNaN(amount) && amount >= 0) {
+              if (amount > 0) {
+                actor.send({ type: "BUY_GOOD", good, quantity: amount });
+              }
+
+              onFinish();
+            }
+          }}
+        />
+      </Box>
+    </>
+  );
+}
+
+function SellingAction({ onFinish }: { onFinish: () => void }) {
+  return (
+    <Box flexDirection="column" gap={1}>
+      <Synchronize timing={[200, 800, 1400]}>
+        <Text underline>Goods Market</Text>
+        <SellMarketForm onFinish={onFinish} />
+      </Synchronize>
+    </Box>
+  );
+}
+
+function SellMarketForm({ onFinish }: { onFinish: () => void }) {
+  const actor = GameContext.useActorRef();
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const [good, setGood] = useState<Good | undefined>();
+
+  return !good ? (
+    <Box gap={1}>
+      <Text>What do you offer to sell?</Text>
+      <TextInput
+        key="sell_action_good"
+        checkValidity={(input, prevInput) => prevInput.length === 0 && goods.some((good) => good.startsWith(input))}
+        transformValue={(value) => value.toUpperCase()}
+        styleOutput={(value) => chalk.bold(value)}
+        onSubmit={(value) => {
+          const product = goods.find((g) => g.startsWith(value));
+          if (product) {
+            setGood(product);
+          }
+        }}
+      />
+    </Box>
+  ) : (
+    <Box gap={1}>
+      <Text>How much {good} would you like to sell?</Text>
+      <TextInput
+        key="sell_action_quantity"
+        checkValidity={(input) => !isNaN(+input) && +input >= 0 && +input <= (context.ship.hold.get(good) || 0)}
+        styleOutput={(value) => value}
+        onSubmit={(value) => {
+          const amount = +value;
+          if (!isNaN(amount) && amount >= 0) {
+            if (amount > 0) {
+              actor.send({ type: "SELL_GOOD", good, quantity: amount });
+            }
+
+            onFinish();
+          }
+        }}
+      />
+    </Box>
+  );
+}
+
+function RepairAction({ onFinish }: { onFinish: () => void }) {
+  const actor = GameContext.useActorRef();
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
+
+  return (
+    <Box flexDirection="column" gap={1}>
+      <Synchronize timing={[200, 800, 1400]}>
+        <Text underline>Shipyard</Text>
+        <>
+          <Text>Your ship has suffered {100 - context.ship.health} damage.</Text>
+          <Text>It&apos;ll cost ${calculateCostForRepair(100 - context.ship.health)} to repair all the damage.</Text>
+        </>
+        <Box gap={1}>
+          <Text>How much money would you like to spend?</Text>
+          <TextInput
+            checkValidity={(input) => !isNaN(+input) && +input >= 0}
+            styleOutput={(value) => chalk.bold(value)}
+            onSubmit={(value) => {
+              const sum = +value;
+              if (!isNaN(sum)) {
+                if (sum > 0) {
+                  actor.send({ type: "REPAIR_SHIP", damage: calculateRepairForCost(sum) });
+                }
+
+                onFinish();
+              }
+            }}
+          />
+        </Box>
+      </Synchronize>
+    </Box>
+  );
+}
+
+function Synchronize({ children, timing }: React.PropsWithChildren<{ timing: number[] }>) {
+  const [displayCount, setDisplayCount] = useState(0);
+  const items = useMemo(() => Children.toArray(children), [children]);
+  const timeoutId = useRef<NodeJS.Timeout>();
+
+  // Reset displayCount if children changes
+  useEffect(() => {
+    setDisplayCount(0);
+  }, [children]);
+
+  // Increment displayCount according to the timing array
+  useEffect(() => {
+    const ms = timing[displayCount];
+
+    if (typeof ms === "number") {
+      timeoutId.current = setTimeout(() => setDisplayCount((dc) => dc + 1), ms);
+    }
+
+    return () => clearTimeout(timeoutId.current);
+  }, [timing, displayCount]);
+
+  useInput((input) => {
+    if (input === " ") {
+      // Space key - skip current timeout
+      setDisplayCount((dc) => dc + 1);
+    }
+  });
+
+  return <>{items.slice(0, displayCount)}</>;
+}
+
+function After({ ms, children }: React.PropsWithChildren<{ ms: number }>) {
+  const [show, setShow] = useState(false);
+
+  useInput((input, key) => {
+    if (input === " " && !show) {
+      setShow(true);
+    }
+  });
+
+  useEffect(() => {
+    const id = setTimeout(() => setShow(true), ms);
+
+    return () => clearTimeout(id);
+  }, [ms]);
+
+  return show ? children : null;
+}
+
+// function ShipHealth({ health }: { health: number }) {
+//   const actor = GameContext.useActorRef();
+//   const status = getShipStatus(health);
+//   const cost = calculateCostForRepair(100 - health);
+//   const graphic =
+//     status === "Perfect"
+//       ? `
+//         |    |    |
+//        )_)  )_)  )_)
+//       )___))___))___)\\
+//      )____)____)_____)\\
+//    _____|____|____|____\\__
+//   \\                   /
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//     `
+//       : status === "Minor damages"
+//         ? `
+//         |    |
+//        )_)  )_)
+//       )___))___))___)\\
+//      )____)____)_____)\\
+//    _____|____|____|____\\__
+//   \\                   /
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//       `
+//         : status === "Major damages"
+//           ? `
+//         |    |
+//        )_)  )_)
+//       )___)) __) ___)\\
+//      )____)____)     )\\
+//    _____|____|____|____\\__
+//   \\                   /
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//         `
+//           : `
+
+//        )_)  )_)
+//       )_  ))_  ))_  )\\
+//      )____)____)     )\\
+//    _____|____|____|____\\__
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//         `;
