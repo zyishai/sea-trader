@@ -1,5 +1,11 @@
 # ctrader
 
+## 0.2.0
+
+### Minor Changes
+
+- e497033: New layout and messages redesigned
+
 ## 0.1.0
 
 ### Minor Changes
