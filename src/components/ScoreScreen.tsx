@@ -23,7 +23,10 @@ export function ScoreScreen() {
         </Badge>
         <Text underline>Game stats:</Text>
         <Text>
-          <Text dimColor>Net Value:</Text> ${getNetCash(context)}
+          <Text dimColor>Days played:</Text> {context.day} days
+        </Text>
+        <Text>
+          <Text dimColor>Net value:</Text> ${getNetCash(context)}
         </Text>
         <Text>
           <Text dimColor>Ship size:</Text> {context.ship.capacity} Tons
