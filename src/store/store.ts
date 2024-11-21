@@ -260,6 +260,13 @@ export const calculateScore = (context: Context) => {
   const speedBonus = Math.floor(1200 * Math.log10(context.ship.speed + 1));
   score += speedBonus;
 
+  // Calculate damage penalty
+  // The penalty increases with ship size and is more severe for lower health
+  const maxDamage = context.ship.capacity * 10;
+  const actualDamage = maxDamage * (1 - context.ship.health / 100);
+  const damagePenalty = Math.floor(actualDamage);
+  score -= damagePenalty;
+
   if (context.extendedGame) {
     const extraDays = context.day - GOAL_DAYS;
     const penaltyFactor = 1 - extraDays * EXTENDED_GAME_PENALTY;
@@ -297,7 +304,7 @@ export const gameMachine = setup({
   types: {
     context: {} as Context,
     events: {} as
-      | { type: "START_GAME" }
+      | { type: "START_GAME"; extended?: boolean }
       | { type: "TRAVEL_TO"; destination: Port }
       | BuyEvent
       | SellEvent
@@ -315,7 +322,7 @@ export const gameMachine = setup({
     introScreen: {
       id: "introScreen",
       on: {
-        START_GAME: { target: "gameScreen", actions: assign(() => initialContext()) },
+        START_GAME: { target: "gameScreen", actions: assign(({ event }) => initialContext(event.extended)) },
       },
     },
     gameScreen: {
