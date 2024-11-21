@@ -9,7 +9,12 @@ export function Screen({ children }: React.PropsWithChildren) {
   useLayoutEffect(() => {
     return () => write("\x1b[?1049l");
   }, [width, height]);
-  useInput(() => {});
+
+  useInput((input, key) => {
+    if (key.escape) {
+      process.exit();
+    }
+  });
 
   return (
     <Box height={height} width={width} justifyContent="flex-start" alignItems="flex-start">

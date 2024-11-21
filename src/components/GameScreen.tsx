@@ -11,7 +11,7 @@ import {
   goods,
   ports,
 } from "../store/store.js";
-import { Badge } from "@inkjs/ui";
+import { Alert, Badge, ConfirmInput } from "@inkjs/ui";
 import { TextInput } from "./TextInput/index.js";
 import { useMessages } from "./MessagesContext.js";
 
@@ -22,12 +22,6 @@ export function GameScreen() {
   const { messages } = useMessages();
   const machine = GameContext.useSelector((snapshot) => snapshot);
   const isIdle = machine.matches({ gameScreen: "idle" });
-
-  useInput((input, key) => {
-    if (key.escape) {
-      process.exit();
-    }
-  });
 
   return (
     <Box width="100%" flexDirection="column" alignItems="center">
@@ -222,7 +216,7 @@ function Messages() {
 
 function Actions() {
   const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const [action, setAction] = useState<"T" | "B" | "S" | "R" | null>(null);
+  const [action, setAction] = useState<"T" | "B" | "S" | "R" | "W" | null>(null);
 
   return action === "T" ? (
     <TravelAction onFinish={() => setAction(null)} />
@@ -232,17 +226,24 @@ function Actions() {
     <SellingAction onFinish={() => setAction(null)} />
   ) : action === "R" ? (
     <RepairAction onFinish={() => setAction(null)} />
+  ) : action === "W" ? (
+    <RetireAction onFinish={() => setAction(null)} />
   ) : (
     <Box flexDirection="column" gap={1}>
       <Text>Available actions:</Text>
-      <Text>(T)ravel, (B)uy goods, (S)ell goods{context.ship.health < 100 ? ", (R)epair ship" : null}</Text>
+      <Text>
+        (T)ravel, (B)uy goods, (S)ell goods{context.ship.health < 100 ? ", (R)epair ship" : null}
+        {context.canRetire ? ", (W)Retire" : null}
+      </Text>
       <Box gap={1}>
         <Text>What would you like to do?</Text>
         <TextInput
           key="no_action"
           checkValidity={(input, prevInput) =>
             prevInput.length === 0 &&
-            ["T", "B", "S", context.ship.health < 100 ? "R" : null].filter(Boolean).includes(input)
+            ["T", "B", "S", context.ship.health < 100 ? "R" : null, context.canRetire ? "W" : null]
+              .filter(Boolean)
+              .includes(input)
           }
           transformValue={(value) => value.toUpperCase()}
           styleOutput={(value) => chalk.bold(value)}
@@ -440,6 +441,27 @@ function RepairAction({ onFinish }: { onFinish: () => void }) {
           />
         </Box>
       </Synchronize>
+    </Box>
+  );
+}
+
+function RetireAction({ onFinish }: { onFinish: () => void }) {
+  const actor = GameContext.useActorRef();
+
+  return (
+    <Box flexDirection="column" gap={1}>
+      <Alert variant="warning">Retiring will end the game.</Alert>
+      <Box gap={1}>
+        <Text>Are you sure you want to retire?</Text>
+        <ConfirmInput
+          defaultChoice="cancel"
+          submitOnEnter={false}
+          onCancel={onFinish}
+          onConfirm={() => {
+            actor.send({ type: "RETIRE" });
+          }}
+        />
+      </Box>
     </Box>
   );
 }

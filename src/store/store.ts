@@ -1,4 +1,4 @@
-import { assign, emit, not, setup } from "xstate";
+import { assign, emit, setup } from "xstate";
 import { type Guard } from "xstate/guards";
 
 // ===== Constants =====
@@ -50,7 +50,7 @@ const eventTemplates: EventTemplate[] = [
     message: "A hurricane forces you back to land and damages your ship severely",
     effect: (context) => ({
       ship: { ...context.ship, health: Math.max(0, context.ship.health - 23) },
-      currentPort: context.currentPort,
+      destination: undefined,
     }),
   },
   {
@@ -108,6 +108,8 @@ const eventTemplates: EventTemplate[] = [
     },
   },
 ];
+const GOAL_DAYS = 100;
+const EXTENDED_GAME_PENALTY = 0.01;
 
 // ===== Types =====
 export type Good = (typeof goods)[number];
@@ -138,6 +140,8 @@ type Context = {
   currentEvent?: EventTemplate;
   destination?: Port;
   messages: MessageBucket;
+  canRetire: boolean;
+  extendedGame: boolean;
 };
 export type MessageSpec = { message: string } | { delay: number } | { command: "clear" | "ack" };
 class MessageBucket {
@@ -208,7 +212,7 @@ export const calculateEventChance = (template: EventTemplate, context: Context) 
 
   switch (template.type) {
     case "weather": {
-      chance *= context.day / 100; // Weather events become more likely as the game progresses
+      chance *= context.day / GOAL_DAYS; // Weather events become more likely as the game progresses
       break;
     }
     case "market": {
@@ -220,7 +224,7 @@ export const calculateEventChance = (template: EventTemplate, context: Context) 
       break;
     }
     case "discovery": {
-      chance *= context.day / 100; // Discoveries become more likely as the game progresses
+      chance *= context.day / GOAL_DAYS; // Discoveries become more likely as the game progresses
       break;
     }
   }
@@ -237,15 +241,43 @@ const checkForEvent = (context: Context) => {
 
   return;
 };
+export const getNetCash = (context: Context) =>
+  context.balance +
+  [...context.ship.hold.entries()].reduce(
+    (sum, [good, quan]) => sum + context.prices[context.currentPort][good] * quan,
+    0,
+  );
+export const calculateScore = (context: Context) => {
+  let score = Math.round(getNetCash(context) / 100);
 
-const initialContext = () => {
+  // Add a logarithmic bonus for ship capacity
+  // This provides diminishing returns for larger capacities
+  const capacityBonus = Math.floor(800 * Math.log10(context.ship.capacity + 1));
+  score += capacityBonus;
+
+  // Add a logarithmic bonus for ship speed
+  // This, too, provides diminishing returns for larger capacities
+  const speedBonus = Math.floor(1200 * Math.log10(context.ship.speed + 1));
+  score += speedBonus;
+
+  if (context.extendedGame) {
+    const extraDays = context.day - GOAL_DAYS;
+    const penaltyFactor = 1 - extraDays * EXTENDED_GAME_PENALTY;
+    return Math.floor(score * penaltyFactor);
+  } else {
+    return score;
+  }
+};
+
+// ===== Default Values =====
+const initialContext = (extendedGame = false) => {
   const trends = generateTrends();
   return {
     currentPort: "Hong Kong",
     day: 1,
     balance: 1000,
     ship: {
-      health: 81,
+      health: 100,
       speed: 500,
       capacity: 50,
       hold: goods.reduce((map, good) => map.set(good, 0), new Map()),
@@ -253,9 +285,12 @@ const initialContext = () => {
     trends,
     prices: generatePrices(trends),
     messages: new MessageBucket(),
+    canRetire: false,
+    extendedGame,
   } satisfies Context;
 };
 
+// ===== Game =====
 // See bug: https://github.com/statelyai/xstate/pull/4516
 // See workaround: https://github.com/statelyai/xstate/issues/5090#issuecomment-2388661190
 export const gameMachine = setup({
@@ -268,7 +303,9 @@ export const gameMachine = setup({
       | SellEvent
       | RepairEvent
       | { type: "RESOLVE_EVENT" }
-      | { type: "MSG_ACK"; id?: string },
+      | { type: "MSG_ACK"; id?: string }
+      | { type: "RETIRE" }
+      | { type: "RESTART_GAME" },
     emitted: {} as { type: "messages"; messages: MessageSpec[] },
   },
 }).createMachine({
@@ -276,8 +313,9 @@ export const gameMachine = setup({
   context: initialContext(),
   states: {
     introScreen: {
+      id: "introScreen",
       on: {
-        START_GAME: { target: "gameScreen", actions: assign(initialContext) },
+        START_GAME: { target: "gameScreen", actions: assign(() => initialContext()) },
       },
     },
     gameScreen: {
@@ -317,8 +355,26 @@ export const gameMachine = setup({
           },
         },
         travel: {
-          initial: "checkingEvent",
+          initial: "checkDays",
           states: {
+            checkDays: {
+              always: [
+                {
+                  guard: ({ context }) => !context.extendedGame && context.day >= 100,
+                  actions: [
+                    assign(({ context }) => ({
+                      messages: context.messages
+                        .append({ message: "You've finished your 100 days voyage." })
+                        .append({ delay: 2000 })
+                        .append({ command: "clear" }),
+                    })),
+                    emit(({ context }) => ({ type: "messages", messages: context.messages.messages })),
+                  ],
+                  target: "#idle",
+                },
+                { target: "checkingEvent" },
+              ],
+            },
             checkingEvent: {
               always: [
                 { guard: ({ context }) => !!context.currentEvent, target: "eventOccurred" },
@@ -351,18 +407,22 @@ export const gameMachine = setup({
                 MSG_ACK: {
                   target: "#idle",
                   actions: [
-                    assign(({ context }) =>
-                      context.currentEvent
-                        ? context.currentEvent.effect(context)
-                        : {
-                            currentPort: context.destination,
-                            day: Math.min(
-                              100,
-                              context.day +
-                                calculateTravelTime(context.currentPort, context.destination!, context.ship.speed),
-                            ),
-                          },
-                    ),
+                    // Apply event, if applicable
+                    assign(({ context }) => (context.currentEvent ? context.currentEvent.effect(context) : {})),
+
+                    // Adjust travel attributes
+                    assign(({ context }) => ({
+                      currentPort: context.destination ?? context.currentPort,
+                      day: Math.min(
+                        context.extendedGame ? Infinity : 100,
+                        context.day +
+                          (context.destination
+                            ? calculateTravelTime(context.currentPort, context.destination, context.ship.speed)
+                            : 1),
+                      ),
+                    })),
+
+                    // Clear plate
                     assign({ destination: undefined, currentEvent: undefined, messages: new MessageBucket() }),
                   ],
                 },
@@ -591,7 +651,19 @@ export const gameMachine = setup({
           ],
         },
       },
+      on: {
+        RETIRE: [{ guard: ({ context }) => !context.canRetire, target: "#idle" }, { target: "scoringScreen" }],
+      },
+      always: [
+        { guard: ({ context }) => !context.canRetire && context.day >= 100, actions: assign({ canRetire: true }) },
+      ],
     },
-    scoringScreen: {},
+    scoringScreen: {
+      on: {
+        RESTART_GAME: {
+          target: "#introScreen",
+        },
+      },
+    },
   },
 });
