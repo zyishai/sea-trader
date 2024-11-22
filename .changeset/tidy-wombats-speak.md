@@ -1,0 +1,5 @@
+---
+"ctrader": major
+---
+
+First version 🚀
