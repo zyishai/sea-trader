@@ -312,7 +312,9 @@ export const gameMachine = setup({
       | { type: "RESOLVE_EVENT" }
       | { type: "MSG_ACK"; id?: string }
       | { type: "RETIRE" }
-      | { type: "RESTART_GAME" },
+      | { type: "RESTART_GAME" }
+      | { type: "SHOW_HELP" }
+      | { type: "HIDE_HELP" },
     emitted: {} as { type: "messages"; messages: MessageSpec[] },
   },
 }).createMachine({
@@ -323,6 +325,7 @@ export const gameMachine = setup({
       id: "introScreen",
       on: {
         START_GAME: { target: "gameScreen", actions: assign(({ event }) => initialContext(event.extended)) },
+        SHOW_HELP: { target: "helpScreen" },
       },
     },
     gameScreen: {
@@ -670,6 +673,11 @@ export const gameMachine = setup({
         RESTART_GAME: {
           target: "#introScreen",
         },
+      },
+    },
+    helpScreen: {
+      on: {
+        HIDE_HELP: { target: "introScreen" },
       },
     },
   },

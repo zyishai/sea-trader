@@ -20,7 +20,7 @@ export function StartScreen() {
     if (key.return) {
       actor.send({ type: "START_GAME", extended: extendedGame });
     } else if (input.toUpperCase() === "H") {
-      // TODO - show "how to play"
+      actor.send({ type: "SHOW_HELP" });
     } else if (input.toUpperCase() === "M") {
       setExtendedGame((eg) => !eg);
     }
@@ -41,7 +41,7 @@ export function StartScreen() {
           </Text>
           <Box flexDirection="column" gap={1} marginTop={2}>
             <Text>Options:</Text>
-            <Text>[H] How to play</Text>
+            <Text>[H] Show &quot;How to play&quot; screen</Text>
             <Text>
               [M] Game mode:{" "}
               <Text color="grayBright" inverse>
