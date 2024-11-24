@@ -1,0 +1,5 @@
+---
+"ctrader": minor
+---
+
+Prices update
