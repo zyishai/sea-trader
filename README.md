@@ -6,6 +6,8 @@
 ███████ ███████ ██   ██        ██    ██   ██ ██   ██ ██████  ███████ ██   ██ 
 </pre>
 
+<img src="./screenshot.png" alt="Screenshot of the game in Warp terminal" />
+
 # Overview
 Sea Trader is a terminal-based trading simulation game set in the 19th-century Far East. As a maritime merchant, your goal is to amass a fortune of $25,000 within 100 days through strategic 
 trading, careful navigation, and shrewd decision-making.
