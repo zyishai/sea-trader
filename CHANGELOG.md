@@ -1,5 +1,11 @@
 # ctrader
 
+## 1.0.0
+
+### Major Changes
+
+- d2209c6: First version 🚀
+
 ## 0.2.0
 
 ### Minor Changes
