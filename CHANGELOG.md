@@ -1,5 +1,11 @@
 # ctrader
 
+## 1.1.0
+
+### Minor Changes
+
+- afc3387: Prices update
+
 ## 1.0.0
 
 ### Major Changes
