@@ -108,23 +108,10 @@ function StatusBar() {
 function PriceList() {
   const context = GameContext.useSelector((snapshot) => snapshot.context);
   return (
-    <Box>
-      <Box flexDirection="column" alignItems="stretch" flexGrow={1}>
-        <Box
-          borderStyle="single"
-          borderDimColor
-          borderTop={false}
-          borderLeft={false}
-          borderRight={false}
-          paddingRight={1}
-        >
-          <Text bold color="cyan">
-            Port
-          </Text>
-        </Box>
-        {ports.map((port) => (
+    <>
+      <Box>
+        <Box flexDirection="column" alignItems="stretch" flexGrow={1}>
           <Box
-            key={port}
             borderStyle="single"
             borderDimColor
             borderTop={false}
@@ -132,41 +119,59 @@ function PriceList() {
             borderRight={false}
             paddingRight={1}
           >
-            <Text bold={port === context.currentPort}>{port}</Text>
-          </Box>
-        ))}
-      </Box>
-      {goods.map((good) => (
-        <Box key={good} flexDirection="column" alignItems="stretch">
-          <Box
-            borderStyle="single"
-            borderDimColor
-            borderTop={false}
-            borderLeft={false}
-            borderRight={false}
-            paddingX={2}
-          >
             <Text bold color="cyan">
-              {good}
+              Port
             </Text>
           </Box>
-          {ports.map((port, index) => (
+          {ports.map((port) => (
             <Box
-              key={port + index}
+              key={port}
+              borderStyle="single"
+              borderDimColor
+              borderTop={false}
+              borderLeft={false}
+              borderRight={false}
+              paddingRight={1}
+            >
+              <Text bold={port === context.currentPort}>{port}</Text>
+            </Box>
+          ))}
+        </Box>
+        {goods.map((good) => (
+          <Box key={good} flexDirection="column" alignItems="stretch">
+            <Box
               borderStyle="single"
               borderDimColor
               borderTop={false}
               borderLeft={false}
               borderRight={false}
               paddingX={2}
-              justifyContent="flex-end"
             >
-              <Text bold={port === context.currentPort}>${context.prices[port][good]}</Text>
+              <Text bold color="cyan">
+                {good}
+              </Text>
             </Box>
-          ))}
-        </Box>
-      ))}
-    </Box>
+            {ports.map((port, index) => (
+              <Box
+                key={port + index}
+                borderStyle="single"
+                borderDimColor
+                borderTop={false}
+                borderLeft={false}
+                borderRight={false}
+                paddingX={2}
+                justifyContent="flex-end"
+              >
+                <Text bold={port === context.currentPort}>${context.prices[port][good]}</Text>
+              </Box>
+            ))}
+          </Box>
+        ))}
+      </Box>
+      <Text color="gray">
+        * Next price update in <Text inverse>{context.nextPriceUpdate} days</Text>.
+      </Text>
+    </>
   );
 }
 
@@ -177,7 +182,7 @@ function Inventory() {
     <Box flexDirection="column">
       <Box gap={1}>
         <Text underline>Ship&apos;s Hold</Text>
-        <Text>
+        <Text color="gray">
           (total: <Text inverse>{context.ship.capacity}</Text>, available:{" "}
           <Text inverse>{getAvailableStorage(context.ship)}</Text>)
         </Text>

@@ -110,6 +110,7 @@ const eventTemplates: EventTemplate[] = [
 ];
 const GOAL_DAYS = 100;
 const EXTENDED_GAME_PENALTY = 0.01;
+const PRICE_UPDATE_INTERVAL = 14;
 
 // ===== Types =====
 export type Good = (typeof goods)[number];
@@ -137,6 +138,7 @@ type Context = {
   };
   prices: Record<Port, Record<Good, number>>;
   trends: Record<Port, Record<Good, Trend>>;
+  nextPriceUpdate: number;
   currentEvent?: EventTemplate;
   destination?: Port;
   messages: MessageBucket;
@@ -291,6 +293,7 @@ const initialContext = (extendedGame = false) => {
     },
     trends,
     prices: generatePrices(trends),
+    nextPriceUpdate: PRICE_UPDATE_INTERVAL,
     messages: new MessageBucket(),
     canRetire: false,
     extendedGame,
@@ -421,16 +424,16 @@ export const gameMachine = setup({
                     assign(({ context }) => (context.currentEvent ? context.currentEvent.effect(context) : {})),
 
                     // Adjust travel attributes
-                    assign(({ context }) => ({
-                      currentPort: context.destination ?? context.currentPort,
-                      day: Math.min(
-                        context.extendedGame ? Infinity : 100,
-                        context.day +
-                          (context.destination
-                            ? calculateTravelTime(context.currentPort, context.destination, context.ship.speed)
-                            : 1),
-                      ),
-                    })),
+                    assign(({ context }) => {
+                      const travelTime = context.destination
+                        ? calculateTravelTime(context.currentPort, context.destination, context.ship.speed)
+                        : 1;
+                      return {
+                        currentPort: context.destination ?? context.currentPort,
+                        day: Math.min(context.extendedGame ? Infinity : 100, context.day + travelTime),
+                        nextPriceUpdate: Math.max(0, context.nextPriceUpdate - travelTime),
+                      };
+                    }),
 
                     // Clear plate
                     assign({ destination: undefined, currentEvent: undefined, messages: new MessageBucket() }),
@@ -666,6 +669,20 @@ export const gameMachine = setup({
       },
       always: [
         { guard: ({ context }) => !context.canRetire && context.day >= 100, actions: assign({ canRetire: true }) },
+        {
+          guard: ({ context }) => context.nextPriceUpdate <= 0,
+          actions: [
+            assign(({ context }) => ({
+              messages: new MessageBucket()
+                .append({ message: "Prices updated!" })
+                .append({ delay: 2000 })
+                .append({ command: "clear" }),
+              prices: generatePrices(context.trends),
+              nextPriceUpdate: PRICE_UPDATE_INTERVAL,
+            })),
+            emit(({ context }) => ({ type: "messages", messages: context.messages.messages })),
+          ],
+        },
       ],
     },
     scoringScreen: {
