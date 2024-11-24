@@ -1,5 +1,11 @@
 # ctrader
 
+## 1.2.0
+
+### Minor Changes
+
+- ef966b7: Update README and help screen
+
 ## 1.1.0
 
 ### Minor Changes
