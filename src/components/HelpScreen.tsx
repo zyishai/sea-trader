@@ -30,9 +30,9 @@ export function HelpScreen() {
       </Box>
       <Box flexDirection="column" width={width + 10} gap={1}>
         <Text>
-          Sea Trader is an exciting trading simulation game set in the 19th century Far East. As a merchant captain,
-          your goal is to amass a fortune of $25,000 within 100 days through strategic trading, careful navigation, and
-          shrewd decision-making.
+          Sea Trader is a trading simulation game set in the 19th-century Far East. As a maritime merchant, your goal is
+          to amass a fortune of $25,000 within 100 days through strategic trading, careful navigation, and shrewd
+          decision-making.
         </Text>
 
         <Text>Game Modes:</Text>
