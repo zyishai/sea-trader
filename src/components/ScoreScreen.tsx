@@ -31,7 +31,7 @@ export function ScoreScreen() {
         <Text>
           <Text dimColor>Ship size:</Text> {context.ship.capacity} Tons
         </Text>
-        <Text inverse>Total score is {score}.</Text>
+        <Text inverse>You&apos;ve scored {score} points</Text>
         <Box flexDirection="column" marginTop={2}>
           <Text underline>Your Rating</Text>
           <Box flexDirection="column" borderStyle="round" width={40} gap={1} paddingX={1}>
