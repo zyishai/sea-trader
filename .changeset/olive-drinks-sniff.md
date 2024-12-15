@@ -1,0 +1,5 @@
+---
+"ctrader": minor
+---
+
+Better animations
