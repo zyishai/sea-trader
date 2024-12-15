@@ -2,12 +2,14 @@ import { Box, DOMElement, measureElement, Spacer, Text, useInput } from "ink";
 import BigText from "ink-big-text";
 import React, { useEffect, useState } from "react";
 import { GameContext } from "./GameContext.js";
+import { Badge } from "@inkjs/ui";
 
 export function StartScreen() {
   const actor = GameContext.useActorRef();
   const [ref, setRef] = useState<DOMElement | null>(null);
   const [width, setWidth] = useState(0);
   const [extendedGame, setExtendedGame] = useState(false);
+  const [disableAnimations, setDisableAnimations] = useState(false);
 
   useEffect(() => {
     if (ref) {
@@ -18,11 +20,13 @@ export function StartScreen() {
 
   useInput((input, key) => {
     if (key.return) {
-      actor.send({ type: "START_GAME", extended: extendedGame });
+      actor.send({ type: "START_GAME", settings: { extendedGame, disableAnimations } });
     } else if (input.toUpperCase() === "H") {
       actor.send({ type: "SHOW_HELP" });
     } else if (input.toUpperCase() === "M") {
       setExtendedGame((eg) => !eg);
+    } else if (input.toUpperCase() === "A") {
+      setDisableAnimations((de) => !de);
     }
   });
 
@@ -44,9 +48,11 @@ export function StartScreen() {
             <Text>[H] Show &quot;How to play&quot; screen</Text>
             <Text>
               [M] Game mode:{" "}
-              <Text color="grayBright" inverse>
-                {extendedGame ? "Extended" : "Regular"}
-              </Text>
+              {extendedGame ? <Badge color="magentaBright">Extended</Badge> : <Badge color="cyan">Regular</Badge>}
+            </Text>
+            <Text>
+              [A] Game animations:{" "}
+              {disableAnimations ? <Badge color="gray">Disabled</Badge> : <Badge color="green">Enabled</Badge>}
             </Text>
             <Text>[Esc] Exit game anytime</Text>
           </Box>
@@ -55,7 +61,9 @@ export function StartScreen() {
 
       <Spacer />
       <Box marginBottom={5}>
-        <Text color="greenBright">Press ENTER to start your journey</Text>
+        <Text color="greenBright" bold>
+          Press ENTER to start your journey
+        </Text>
       </Box>
     </Box>
   );

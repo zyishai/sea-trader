@@ -2,7 +2,6 @@ import React from "react";
 import { StartScreen } from "./components/StartScreen.js";
 import { GameScreen } from "./components/GameScreen.js";
 import { GameContext } from "./components/GameContext.js";
-import { MessagesProvider } from "./components/MessagesContext.js";
 import { ScoreScreen } from "./components/ScoreScreen.js";
 import { HelpScreen } from "./components/HelpScreen.js";
 
@@ -15,9 +14,7 @@ export const App: React.FC = () => {
   return isStartScreen ? (
     <StartScreen />
   ) : isGameScreen ? (
-    <MessagesProvider>
-      <GameScreen />
-    </MessagesProvider>
+    <GameScreen />
   ) : isScoreScreen ? (
     <ScoreScreen />
   ) : isHelpScreen ? (

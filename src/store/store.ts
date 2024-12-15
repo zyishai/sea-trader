@@ -141,19 +141,13 @@ type Context = {
   nextPriceUpdate: number;
   currentEvent?: EventTemplate;
   destination?: Port;
-  messages: MessageBucket;
+  messages?: string[];
   canRetire: boolean;
   extendedGame: boolean;
+  settings: {
+    disableAnimations: boolean;
+  };
 };
-export type MessageSpec = { message: string } | { delay: number } | { command: "clear" | "ack" };
-class MessageBucket {
-  public readonly messages: MessageSpec[] = [];
-
-  append(msg: MessageSpec) {
-    this.messages.push(msg);
-    return this;
-  }
-}
 type BuyEvent = { type: "BUY_GOOD"; good: Good; quantity: number };
 type SellEvent = { type: "SELL_GOOD"; good: Good; quantity: number };
 type RepairEvent = { type: "REPAIR_SHIP"; damage: number };
@@ -279,8 +273,9 @@ export const calculateScore = (context: Context) => {
 };
 
 // ===== Default Values =====
-const initialContext = (extendedGame = false) => {
+const initialContext = (settings?: { extendedGame?: boolean; disableAnimations?: boolean }) => {
   const trends = generateTrends();
+  const { extendedGame = false, disableAnimations = false } = settings || {};
   return {
     currentPort: "Hong Kong",
     day: 1,
@@ -294,9 +289,11 @@ const initialContext = (extendedGame = false) => {
     trends,
     prices: generatePrices(trends),
     nextPriceUpdate: PRICE_UPDATE_INTERVAL,
-    messages: new MessageBucket(),
     canRetire: false,
     extendedGame,
+    settings: {
+      disableAnimations,
+    },
   } satisfies Context;
 };
 
@@ -307,7 +304,7 @@ export const gameMachine = setup({
   types: {
     context: {} as Context,
     events: {} as
-      | { type: "START_GAME"; extended?: boolean }
+      | { type: "START_GAME"; settings?: { extendedGame?: boolean; disableAnimations?: boolean } }
       | { type: "TRAVEL_TO"; destination: Port }
       | BuyEvent
       | SellEvent
@@ -318,7 +315,6 @@ export const gameMachine = setup({
       | { type: "RESTART_GAME" }
       | { type: "SHOW_HELP" }
       | { type: "HIDE_HELP" },
-    emitted: {} as { type: "messages"; messages: MessageSpec[] },
   },
 }).createMachine({
   initial: "introScreen",
@@ -327,7 +323,7 @@ export const gameMachine = setup({
     introScreen: {
       id: "introScreen",
       on: {
-        START_GAME: { target: "gameScreen", actions: assign(({ event }) => initialContext(event.extended)) },
+        START_GAME: { target: "gameScreen", actions: assign(({ event }) => initialContext(event.settings)) },
         SHOW_HELP: { target: "helpScreen" },
       },
     },
@@ -341,52 +337,33 @@ export const gameMachine = setup({
               target: "travel",
               actions: [
                 assign(({ context, event }) => ({
-                  messages: new MessageBucket(),
                   currentEvent: checkForEvent(context),
                   destination: event.destination,
                 })),
               ],
             },
-            BUY_GOOD: [
-              {
-                target: "buy",
-                actions: assign({ messages: new MessageBucket() }),
-              },
-            ],
-            SELL_GOOD: [
-              {
-                target: "sell",
-                actions: assign({ messages: new MessageBucket() }),
-              },
-            ],
-            REPAIR_SHIP: [
-              {
-                target: "repair",
-                actions: assign({ messages: new MessageBucket() }),
-              },
-            ],
+            BUY_GOOD: [{ target: "buy" }],
+            SELL_GOOD: [{ target: "sell" }],
+            REPAIR_SHIP: [{ target: "repair" }],
           },
         },
         travel: {
           initial: "checkDays",
           states: {
             checkDays: {
+              entry: [assign({ messages: ["You've finished your 100 days voyage."] })],
               always: [
                 {
-                  guard: ({ context }) => !context.extendedGame && context.day >= 100,
-                  actions: [
-                    assign(({ context }) => ({
-                      messages: context.messages
-                        .append({ message: "You've finished your 100 days voyage." })
-                        .append({ delay: 2000 })
-                        .append({ command: "clear" }),
-                    })),
-                    emit(({ context }) => ({ type: "messages", messages: context.messages.messages })),
-                  ],
+                  guard: ({ context }) => context.day < 100 || context.extendedGame,
+                  target: "checkingEvent",
+                },
+              ],
+              on: {
+                MSG_ACK: {
+                  actions: assign({ messages: undefined }),
                   target: "#idle",
                 },
-                { target: "checkingEvent" },
-              ],
+              },
             },
             checkingEvent: {
               always: [
@@ -395,27 +372,13 @@ export const gameMachine = setup({
               ],
             },
             eventOccurred: {
-              entry: [
-                assign(({ context }) => ({
-                  messages: context.messages
-                    .append({ message: context.currentEvent!.message })
-                    .append({ delay: 1000 })
-                    .append({ command: "clear" }),
-                })),
-              ],
-              always: { target: "traveling" },
+              entry: [assign(({ context }) => ({ messages: [context.currentEvent!.message] }))],
+              on: {
+                MSG_ACK: { actions: assign({ messages: undefined }), target: "traveling" },
+              },
             },
             traveling: {
-              entry: [
-                assign(({ context }) => ({
-                  messages: context.messages
-                    .append({ message: `Arrived to ${context.destination}` })
-                    .append({ delay: 1000 })
-                    .append({ command: "clear" })
-                    .append({ command: "ack" }),
-                })),
-                emit(({ context }) => ({ type: "messages", messages: context.messages.messages })),
-              ],
+              entry: [assign(({ context }) => ({ messages: [`Arrived to ${context.destination}`] }))],
               on: {
                 MSG_ACK: {
                   target: "#idle",
@@ -436,7 +399,7 @@ export const gameMachine = setup({
                     }),
 
                     // Clear plate
-                    assign({ destination: undefined, currentEvent: undefined, messages: new MessageBucket() }),
+                    assign({ destination: undefined, currentEvent: undefined, messages: undefined }),
                   ],
                 },
               },
@@ -460,16 +423,7 @@ export const gameMachine = setup({
                   target: "checkStorageAvailable",
                 },
                 {
-                  actions: [
-                    assign(({ context }) => ({
-                      messages: context.messages
-                        .append({ message: "You don't have enough cash" })
-                        .append({ delay: 1000 })
-                        .append({ command: "clear" })
-                        .append({ command: "ack" }),
-                    })),
-                    emit(({ context }) => ({ type: "messages", messages: context.messages.messages })),
-                  ],
+                  actions: [assign({ messages: ["You don't have enough cash"] })],
                   target: "fail",
                 },
               ],
@@ -481,16 +435,7 @@ export const gameMachine = setup({
                   target: "buying",
                 },
                 {
-                  actions: [
-                    assign(({ context }) => ({
-                      messages: context.messages
-                        .append({ message: "You don't have enough storage room" })
-                        .append({ delay: 1000 })
-                        .append({ command: "clear" })
-                        .append({ command: "ack" }),
-                    })),
-                    emit(({ context }) => ({ type: "messages", messages: context.messages.messages })),
-                  ],
+                  actions: [assign({ messages: ["You don't have enough storage room"] })],
                   target: "fail",
                 },
               ],
@@ -516,7 +461,10 @@ export const gameMachine = setup({
             },
             fail: {
               on: {
-                MSG_ACK: { target: "#idle" },
+                MSG_ACK: {
+                  actions: assign({ messages: undefined }),
+                  target: "#idle",
+                },
               },
             },
           },
@@ -540,16 +488,9 @@ export const gameMachine = setup({
                 },
                 {
                   actions: [
-                    assign(({ context, event }) => ({
-                      messages: context.messages
-                        .append({
-                          message: `You don't have enough ${(event as SellEvent).good.toLowerCase()} to sell.`,
-                        })
-                        .append({ delay: 1000 })
-                        .append({ command: "clear" })
-                        .append({ command: "ack" }),
+                    assign(({ event }) => ({
+                      messages: [`You don't have enough ${(event as SellEvent).good.toLowerCase()} to sell.`],
                     })),
-                    emit(({ context }) => ({ type: "messages", messages: context.messages.messages })),
                   ],
                   target: "fail",
                 },
@@ -576,7 +517,7 @@ export const gameMachine = setup({
             },
             fail: {
               on: {
-                MSG_ACK: { target: "#idle" },
+                MSG_ACK: { actions: assign({ messages: undefined }), target: "#idle" },
               },
             },
           },
@@ -600,15 +541,8 @@ export const gameMachine = setup({
                 {
                   actions: [
                     assign(({ context }) => ({
-                      messages: context.messages
-                        .append({
-                          message: `You can't repair more than ${100 - context.ship.health} damage`,
-                        })
-                        .append({ delay: 1000 })
-                        .append({ command: "clear" })
-                        .append({ command: "ack" }),
+                      messages: [`You can't repair more than ${100 - context.ship.health} damage`],
                     })),
-                    emit(({ context }) => ({ type: "messages", messages: context.messages.messages })),
                   ],
                   target: "fail",
                 },
@@ -622,16 +556,7 @@ export const gameMachine = setup({
                   target: "repairing",
                 },
                 {
-                  actions: [
-                    assign(({ context }) => ({
-                      messages: context.messages
-                        .append({ message: "You don't have enough money to repair your ship" })
-                        .append({ delay: 1000 })
-                        .append({ command: "clear" })
-                        .append({ command: "ack" }),
-                    })),
-                    emit(({ context }) => ({ type: "messages", messages: context.messages.messages })),
-                  ],
+                  actions: [assign({ messages: ["You don't have enough money to repair your ship"] })],
                   target: "fail",
                 },
               ],
@@ -641,18 +566,16 @@ export const gameMachine = setup({
                 assign(({ context, event }) => ({
                   ship: { ...context.ship, health: context.ship.health + (event as RepairEvent).damage },
                   balance: context.balance - calculateCostForRepair((event as RepairEvent).damage),
-                  messages: context.messages
-                    .append({ message: `Repaired ${(event as RepairEvent).damage} damage` })
-                    .append({ delay: 1000 })
-                    .append({ command: "clear" }),
+                  messages: [`Repaired ${(event as RepairEvent).damage} damage`],
                 })),
-                emit(({ context }) => ({ type: "messages", messages: context.messages.messages })),
               ],
-              after: { 0: { target: "#idle" } },
+              on: {
+                MSG_ACK: { actions: assign({ messages: undefined }), target: "#idle" },
+              },
             },
             fail: {
               on: {
-                MSG_ACK: { target: "#idle" },
+                MSG_ACK: { actions: assign({ messages: undefined }), target: "#idle" },
               },
             },
           },
@@ -665,6 +588,7 @@ export const gameMachine = setup({
         },
       },
       on: {
+        MSG_ACK: [{ actions: assign({ messages: undefined }) }],
         RETIRE: [{ guard: ({ context }) => !context.canRetire, target: "#idle" }, { target: "scoringScreen" }],
       },
       always: [
@@ -673,14 +597,10 @@ export const gameMachine = setup({
           guard: ({ context }) => context.nextPriceUpdate <= 0,
           actions: [
             assign(({ context }) => ({
-              messages: new MessageBucket()
-                .append({ message: "Prices updated!" })
-                .append({ delay: 2000 })
-                .append({ command: "clear" }),
+              messages: ["Prices updated!"],
               prices: generatePrices(context.trends),
               nextPriceUpdate: PRICE_UPDATE_INTERVAL,
             })),
-            emit(({ context }) => ({ type: "messages", messages: context.messages.messages })),
           ],
         },
       ],
