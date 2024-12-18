@@ -1,5 +1,11 @@
 # ctrader
 
+## 2.0.0
+
+### Major Changes
+
+- 4432499: Remodeled machine and UI messages
+
 ## 1.3.0
 
 ### Minor Changes
