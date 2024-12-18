@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from "react";
-import { Box, DOMElement, measureElement, Text, TextProps, useInput } from "ink";
+import React, { useState, useDeferredValue } from "react";
 import chalk from "chalk";
-import { GameContext } from "./GameContext.js";
+import { Box, DOMElement, Text, useInput } from "ink";
 import { Alert, Badge, ConfirmInput } from "@inkjs/ui";
+import { GameContext } from "../GameContext.js";
 import { TextInput } from "./TextInput/index.js";
-import { calculateCostForRepair, getAvailableStorage, getShipStatus } from "../store/utils.js";
-import { goods, ports } from "../store/constants.js";
-
-const dividerChar = "─";
+import { Divider } from "./Divider.js";
+import { Typed } from "./Typed.js";
+import { calculateCostForRepair, getAvailableStorage, getShipStatus } from "../../store/utils.js";
+import { goods, ports } from "../../store/constants.js";
 
 export function GameScreen() {
   const [ref, setRef] = useState<DOMElement | null>(null);
@@ -37,23 +37,6 @@ export function GameScreen() {
           {messages && messages.length > 0 ? <Messages /> : <Actions />}
         </Box>
       </Box>
-    </Box>
-  );
-}
-
-function Divider({ containerRef }: { containerRef: DOMElement | null }) {
-  const [width, setWidth] = useState(0);
-
-  useEffect(() => {
-    if (containerRef) {
-      const output = measureElement(containerRef);
-      setWidth(output.width);
-    }
-  }, [containerRef]);
-
-  return (
-    <Box>
-      <Text>{dividerChar.repeat(width)}</Text>
     </Box>
   );
 }
@@ -468,48 +451,5 @@ function RetireAction() {
         </Typed>
       </Box>
     </Box>
-  );
-}
-
-function Typed({
-  text,
-  enabled = true,
-  children,
-  ...props
-}: React.PropsWithChildren<{ text: string; enabled?: boolean } & TextProps>) {
-  const settings = GameContext.useSelector((snapshot) => snapshot.context.settings);
-  const [current, setCurrent] = useState(0);
-  const [finished, setFinished] = useState(false);
-  const shouldAnimate = !settings.disableAnimations && enabled;
-
-  useEffect(() => {
-    const id = setTimeout(() => {
-      if (shouldAnimate && current < text.length) {
-        setCurrent(current + 1);
-      } else {
-        clearTimeout(id);
-        setFinished(true);
-      }
-    }, 50);
-
-    return () => clearTimeout(id);
-  }, [text, shouldAnimate, current]);
-
-  useInput(
-    (input) => {
-      if (input === " ") {
-        setCurrent(text.length);
-      }
-    },
-    {
-      isActive: shouldAnimate && current < text.length,
-    },
-  );
-
-  return (
-    <>
-      <Text {...props}>{shouldAnimate ? text.slice(0, current) : text}</Text>
-      {shouldAnimate ? (finished ? children : null) : children}
-    </>
   );
 }

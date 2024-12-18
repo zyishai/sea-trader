@@ -1,6 +1,6 @@
 import React from "react";
 import { StartScreen } from "./components/StartScreen.js";
-import { GameScreen } from "./components/GameScreen.js";
+import { GameScreen } from "./components/GameScreen/index.js";
 import { GameContext } from "./components/GameContext.js";
 import { ScoreScreen } from "./components/ScoreScreen.js";
 import { HelpScreen } from "./components/HelpScreen.js";
