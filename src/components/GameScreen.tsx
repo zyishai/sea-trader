@@ -2,25 +2,16 @@ import React, { useEffect, useState } from "react";
 import { Box, DOMElement, measureElement, Text, TextProps, useInput } from "ink";
 import chalk from "chalk";
 import { GameContext } from "./GameContext.js";
-import {
-  calculateCostForRepair,
-  calculateRepairForCost,
-  getAvailableStorage,
-  getShipStatus,
-  Good,
-  goods,
-  ports,
-} from "../store/store.js";
 import { Alert, Badge, ConfirmInput } from "@inkjs/ui";
 import { TextInput } from "./TextInput/index.js";
-import { useCounter } from "../hooks/use-counter.js";
+import { calculateCostForRepair, getAvailableStorage, getShipStatus } from "../store/utils.js";
+import { goods, ports } from "../store/constants.js";
 
 const dividerChar = "─";
 
 export function GameScreen() {
   const [ref, setRef] = useState<DOMElement | null>(null);
   const machine = GameContext.useSelector((snapshot) => snapshot);
-  const isIdle = machine.matches({ gameScreen: "idle" });
   const messages = machine.context.messages;
 
   return (
@@ -43,7 +34,7 @@ export function GameScreen() {
         </Box>
 
         <Box flexDirection="column" height={10}>
-          {(messages && messages.length > 0) || !isIdle ? <Messages /> : <Actions />}
+          {messages && messages.length > 0 ? <Messages /> : <Actions />}
         </Box>
       </Box>
     </Box>
@@ -202,15 +193,6 @@ function Inventory() {
 
 function Messages() {
   const messages = GameContext.useSelector((snapshot) => snapshot.context.messages);
-  const actor = GameContext.useActorRef();
-  const { current, next } = useCounter(1);
-
-  useInput((input) => {
-    if (input === " " && messages && current >= messages.length + 1) {
-      // Space key
-      actor.send({ type: "MSG_ACK" });
-    }
-  });
 
   if (!messages) return null;
 
@@ -220,72 +202,45 @@ function Messages() {
         {" "}
         NEW MESSAGE{" "}
       </Text>
-      {messages.slice(0, current).map((message, index) => (
-        <TypedText key={index} onFinish={next}>
-          {message}
-        </TypedText>
-      ))}
-      {current >= messages.length + 1 ? <Text dimColor>Press SPACE to continue</Text> : null}
+      {messages.reduceRight(
+        (el, message) => (
+          <Typed text={message}>{el}</Typed>
+        ),
+        <ContinueMessage />,
+      )}
     </Box>
   );
 }
 
-function TypedText({
-  children,
-  onFinish,
-  ...props
-}: {
-  onFinish: () => void;
-  children: string | string[];
-} & TextProps) {
-  const settings = GameContext.useSelector((snapshot) => snapshot.context.settings);
-  const [index, setIndex] = useState(0);
-  const c = Array.isArray(children) ? children.join("") : children;
-
-  useEffect(() => {
-    if (settings.disableAnimations) {
-      onFinish();
-      return;
-    }
-
-    const id = setTimeout(() => {
-      if (index < c.length) {
-        setIndex((i) => i + 1);
-      } else {
-        clearInterval(id);
-        onFinish();
-      }
-    }, 50);
-
-    return () => clearInterval(id);
-  }, [c, index]);
+function ContinueMessage() {
+  const actor = GameContext.useActorRef();
 
   useInput((input) => {
-    // SPACE key
-    if (settings.disableAnimations) return;
-
-    if (input === " " && index < c.length) {
-      setIndex(c.length);
+    if (input === " ") {
+      actor.send({ type: "MSG_ACK" });
     }
   });
 
-  return <Text {...props}>{settings.disableAnimations ? children : c.slice(0, index)}</Text>;
+  return <Text dimColor>Press SPACE to continue</Text>;
 }
 
 function Actions() {
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const [action, setAction] = useState<"T" | "B" | "S" | "R" | "W" | null>(null);
+  const actor = GameContext.useActorRef();
+  const snapshot = GameContext.useSelector((snapshot) => snapshot);
+  const { context } = snapshot;
+  const isAtPort = snapshot.matches({ gameScreen: "at_port" });
+  const isAtMarket = snapshot.matches({ gameScreen: "at_market" });
+  const isAtShipyard = snapshot.matches({ gameScreen: "at_shipyard" });
+  const isAtRetirement = snapshot.matches({ gameScreen: "at_retirement" });
 
-  return action === "T" ? (
-    <TravelAction onFinish={() => setAction(null)} />
-  ) : action === "B" ? (
-    <BuyingAction onFinish={() => setAction(null)} />
-  ) : action === "S" ? (
-    <SellingAction onFinish={() => setAction(null)} />
-  ) : action === "R" ? (
-    <RepairAction onFinish={() => setAction(null)} />
-  ) : action === "W" ? (
-    <RetireAction onFinish={() => setAction(null)} />
+  return isAtPort ? (
+    <TravelAction />
+  ) : isAtMarket ? (
+    <MarketAction />
+  ) : isAtShipyard ? (
+    <ShipyardAction />
+  ) : isAtRetirement ? (
+    <RetireAction />
   ) : (
     <Box flexDirection="column" gap={1}>
       <Text backgroundColor="black" color="whiteBright">
@@ -309,244 +264,252 @@ function Actions() {
           }
           transformValue={(value) => value.toUpperCase()}
           styleOutput={(value) => chalk.bold(value)}
-          // @ts-expect-error type not inferred
-          onSubmit={setAction}
+          onSubmit={(value) => {
+            if (value === "T") {
+              actor.send({ type: "GO_TO_PORT" });
+            } else if (value === "B") {
+              actor.send({ type: "GO_TO_MARKET", action: "buy" });
+            } else if (value === "S") {
+              actor.send({ type: "GO_TO_MARKET", action: "sell" });
+            } else if (value === "R") {
+              actor.send({ type: "GO_TO_SHIPYARD" });
+            } else if (value === "W") {
+              actor.send({ type: "GO_TO_RETIREMENT" });
+            }
+          }}
         />
       </Box>
     </Box>
   );
 }
 
-function TravelAction({ onFinish }: { onFinish: () => void }) {
+function TravelAction() {
   const actor = GameContext.useActorRef();
   const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const { current, next } = useCounter(0);
+
+  useInput((input) => {
+    if (input === "c" || input === "C") {
+      actor.send({ type: "CANCEL" });
+    }
+  });
 
   return (
-    <Box flexDirection="column" gap={1}>
+    <Box display="flex" flexDirection="column" gap={1}>
       <Text underline>{context.currentPort}&apos;s Port</Text>
-      <TypedText wrap="wrap" onFinish={next}>
-        You can visit:
-        {`\n\n`}
-        {ports.map((port, index) => `${index + 1}) ${port}`).join(", ")}
-      </TypedText>
-      {current >= 1 ? (
+      <Typed
+        text={`You can visit:\n\n${context.availablePorts.map((port, index) => `${index + 1}) ${port}`).join(", ")}`}
+        wrap="wrap"
+      >
         <Box gap={1}>
-          <TypedText onFinish={next}>Where would you like to go?</TypedText>
-          {current >= 2 ? (
-            <TextInput
-              key="travel_action"
-              checkValidity={(input, prevInput) => {
-                const index = +input;
-                return (
-                  prevInput.length === 0 &&
-                  index >= 1 &&
-                  index <= ports.length &&
-                  index !== ports.indexOf(context.currentPort) + 1
-                );
-              }}
-              styleOutput={(value) => chalk.bold(value)}
-              onSubmit={(i) => {
-                const destination = !isNaN(+i) ? ports[+i - 1] : null;
+          <Typed text="Where would you like to go?">
+            <Typed dimColor text="(press C to go back)">
+              <TextInput
+                key="travel_action"
+                checkValidity={(input, prevInput) => {
+                  const index = +input;
+                  return prevInput.length === 0 && index >= 1 && index <= context.availablePorts.length;
+                }}
+                styleOutput={(value) => chalk.bold(value)}
+                onSubmit={(i) => {
+                  const destination = !isNaN(+i) ? context.availablePorts[+i - 1] : null;
 
-                if (destination) {
-                  actor.send({ type: "TRAVEL_TO", destination });
-                  onFinish();
-                }
-              }}
-            />
-          ) : null}
-        </Box>
-      ) : null}
-    </Box>
-  );
-}
-
-function BuyingAction({ onFinish }: { onFinish: () => void }) {
-  const { current, next } = useCounter(0);
-
-  return (
-    <Box flexDirection="column" gap={1}>
-      <Text underline>Goods Market</Text>
-      <TypedText onFinish={next}>
-        Available goods: {goods.map((good) => `(${good.at(0)?.toUpperCase()})${good.slice(1)}`).join(" ")}
-      </TypedText>
-      {current >= 1 ? <BuyMarketForm onFinish={onFinish} /> : null}
-    </Box>
-  );
-}
-
-function BuyMarketForm({ onFinish }: { onFinish: () => void }) {
-  const actor = GameContext.useActorRef();
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const [good, setGood] = useState<Good | undefined>();
-  const { current, next } = useCounter(0);
-
-  return !good ? (
-    <Box gap={1}>
-      <TypedText onFinish={next}>What do you wish to buy?</TypedText>
-      {current >= 1 ? (
-        <TextInput
-          key="buy_action_good"
-          checkValidity={(input, prevInput) => prevInput.length === 0 && goods.some((good) => good.startsWith(input))}
-          transformValue={(value) => value.toUpperCase()}
-          styleOutput={(value) => chalk.bold(value)}
-          onSubmit={(value) => {
-            const product = goods.find((g) => g.startsWith(value));
-            if (product) {
-              setGood(product);
-            }
-          }}
-        />
-      ) : null}
-    </Box>
-  ) : (
-    <>
-      <TypedText onFinish={next}>
-        You can afford {chalk.inverse(Math.floor(context.balance / context.prices[context.currentPort][good]))} tons
-      </TypedText>
-      {current >= 2 ? (
-        <Box gap={1}>
-          <TypedText onFinish={next}>How much {good} would you like to buy?</TypedText>
-          {current >= 3 ? (
-            <TextInput
-              key="buy_action_quantity"
-              checkValidity={(input) => !isNaN(+input) && +input >= 0}
-              styleOutput={(value) => value}
-              onSubmit={(value) => {
-                const amount = +value;
-                if (!isNaN(amount) && amount >= 0) {
-                  if (amount > 0) {
-                    actor.send({ type: "BUY_GOOD", good, quantity: amount });
+                  if (destination) {
+                    actor.send({ type: "TRAVEL_TO", destination });
                   }
-
-                  onFinish();
-                }
-              }}
-            />
-          ) : null}
+                }}
+              />
+            </Typed>
+          </Typed>
         </Box>
-      ) : null}
-    </>
+      </Typed>
+    </Box>
   );
 }
 
-function SellingAction({ onFinish }: { onFinish: () => void }) {
+function MarketAction() {
+  const actor = GameContext.useActorRef();
+  const snapshot = GameContext.useSelector((snapshot) => snapshot);
+  const { context } = snapshot;
+  const isGoodStep =
+    snapshot.matches({ gameScreen: { at_market: { buyAction: "pickGood" } } }) ||
+    snapshot.matches({ gameScreen: { at_market: { sellAction: "pickGood" } } });
+  const isQuantityStep =
+    snapshot.matches({
+      gameScreen: { at_market: { buyAction: "selectQuantity" } },
+    }) ||
+    snapshot.matches({
+      gameScreen: { at_market: { sellAction: "selectQuantity" } },
+    });
+  const isBuyAction = snapshot.matches({ gameScreen: { at_market: "buyAction" } });
+
+  useInput((input) => {
+    if (input === "c" || input === "C") {
+      actor.send({ type: "CANCEL" });
+    }
+  });
+
   return (
-    <Box flexDirection="column" gap={1}>
+    <Box display="flex" flexDirection="column" gap={1}>
       <Text underline>Goods Market</Text>
-      <SellMarketForm onFinish={onFinish} />
+      {isGoodStep ? (
+        <Typed
+          text={`Available goods:\n\n${context.availableGoods.map((good, index) => `${index + 1}) ${good}`).join(", ")}`}
+        >
+          <Box gap={1} key="pick_good">
+            <Typed text={`Which good do you wish to ${isBuyAction ? "purchase" : "sell"}?`}>
+              <Typed dimColor text="(press C to go back)">
+                <TextInput
+                  key="pick_good"
+                  checkValidity={(input, prevInput) => {
+                    const index = +input;
+                    return prevInput.length === 0 && index >= 1 && index <= context.availableGoods.length;
+                  }}
+                  styleOutput={(value) => chalk.bold(value)}
+                  onSubmit={(value) => {
+                    const good = !isNaN(+value) ? context.availableGoods[+value - 1] : null;
+                    if (good) {
+                      actor.send({ type: "PICK_GOOD", good });
+                    }
+                  }}
+                />
+              </Typed>
+            </Typed>
+          </Box>
+        </Typed>
+      ) : isQuantityStep ? (
+        <Typed text={`You've picked ${context.good}.`}>
+          <Box gap={1} key="select_quantity">
+            <Typed text="How many tons?">
+              <Typed dimColor text="(press C to go back)">
+                <TextInput
+                  key="select_quantity"
+                  checkValidity={(input) => input.toUpperCase() === "C" || +input >= 0}
+                  styleOutput={(value) => chalk.bold(value)}
+                  onSubmit={(value) => {
+                    if (value.toUpperCase() === "C") {
+                      actor.send({ type: "CANCEL" });
+                    } else {
+                      const quantity = !isNaN(+value) ? +value : null;
+                      if (quantity) {
+                        actor.send({ type: "SELECT_QUANTITY", quantity });
+                        if (context.marketAction === "buy") {
+                          actor.send({ type: "PURCHASE" });
+                        } else if (context.marketAction === "sell") {
+                          actor.send({ type: "SELL" });
+                        }
+                      }
+                    }
+                  }}
+                />
+              </Typed>
+            </Typed>
+          </Box>
+        </Typed>
+      ) : null}
     </Box>
   );
 }
 
-function SellMarketForm({ onFinish }: { onFinish: () => void }) {
+function ShipyardAction() {
   const actor = GameContext.useActorRef();
   const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const [good, setGood] = useState<Good | undefined>();
-  const { current, next } = useCounter(0);
+  const damage = 100 - context.ship.health;
+  const costForRepair = calculateCostForRepair(damage);
 
-  return !good ? (
-    <Box gap={1}>
-      <TypedText onFinish={next}>What do you offer to sell?</TypedText>
-      {current >= 1 ? (
-        <TextInput
-          key="sell_action_good"
-          checkValidity={(input, prevInput) => prevInput.length === 0 && goods.some((good) => good.startsWith(input))}
-          transformValue={(value) => value.toUpperCase()}
-          styleOutput={(value) => chalk.bold(value)}
-          onSubmit={(value) => {
-            const product = goods.find((g) => g.startsWith(value));
-            if (product) {
-              setGood(product);
-            }
-          }}
-        />
-      ) : null}
-    </Box>
-  ) : (
-    <Box gap={1}>
-      <TypedText onFinish={next}>How much {good} would you like to sell?</TypedText>
-      {current >= 2 ? (
-        <TextInput
-          key="sell_action_quantity"
-          checkValidity={(input) => !isNaN(+input) && +input >= 0 && +input <= (context.ship.hold.get(good) || 0)}
-          styleOutput={(value) => value}
-          onSubmit={(value) => {
-            const amount = +value;
-            if (!isNaN(amount) && amount >= 0) {
-              if (amount > 0) {
-                actor.send({ type: "SELL_GOOD", good, quantity: amount });
-              }
-
-              onFinish();
-            }
-          }}
-        />
-      ) : null}
-    </Box>
-  );
-}
-
-function RepairAction({ onFinish }: { onFinish: () => void }) {
-  const actor = GameContext.useActorRef();
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const { current, next, set } = useCounter(0);
+  useInput((input) => {
+    if (input === "c" || input === "C") {
+      actor.send({ type: "CANCEL" });
+    }
+  });
 
   return (
-    <Box flexDirection="column" gap={1}>
+    <Box display="flex" flexDirection="column" gap={1}>
       <Text underline>Shipyard</Text>
-      <TypedText onFinish={next}>Your ship has suffered {String(100 - context.ship.health)} damage.</TypedText>
-      {current >= 1 ? (
-        <TypedText onFinish={next}>
-          It&apos;ll cost ${calculateCostForRepair(100 - context.ship.health).toString()} to repair all the damage.
-        </TypedText>
-      ) : null}
-      {current >= 2 ? (
-        <Box gap={1}>
-          <TypedText onFinish={next}>How much money would you like to spend?</TypedText>
-          {current >= 3 ? (
-            <TextInput
-              checkValidity={(input) => !isNaN(+input) && +input >= 0}
-              styleOutput={(value) => chalk.bold(value)}
-              onSubmit={(value) => {
-                const sum = +value;
-                if (!isNaN(sum)) {
-                  if (sum > 0) {
-                    actor.send({ type: "REPAIR_SHIP", damage: calculateRepairForCost(sum) });
-                  }
-
-                  onFinish();
-                }
-              }}
-            />
-          ) : null}
-        </Box>
-      ) : null}
+      {context.ship.health === 100 ? (
+        <Typed text="Your ship is in perfect condition." />
+      ) : (
+        <Typed text={`Your ship has suffered ${damage} damage. It'll cost $${costForRepair} to repair it.`}>
+          <Box gap={1}>
+            <Typed text="How much would you like to spend?">
+              <Typed dimColor text="(press C to go back)">
+                <TextInput
+                  checkValidity={(input) => !isNaN(+input) && +input >= 0}
+                  styleOutput={(value) => chalk.bold(value)}
+                  onSubmit={(value) => {
+                    const sum = +value;
+                    if (!isNaN(sum)) {
+                      actor.send({ type: "REPAIR", cash: sum });
+                    }
+                  }}
+                />
+              </Typed>
+            </Typed>
+          </Box>
+        </Typed>
+      )}
     </Box>
   );
 }
 
-function RetireAction({ onFinish }: { onFinish: () => void }) {
+function RetireAction() {
   const actor = GameContext.useActorRef();
-  const { current, next } = useCounter(0);
 
   return (
-    <Box flexDirection="column" gap={1}>
+    <Box display="flex" flexDirection="column" gap={1}>
       <Alert variant="warning">Retiring will end the game.</Alert>
       <Box gap={1}>
-        <TypedText onFinish={next}>Are you sure you want to retire?</TypedText>
-        {current >= 1 ? (
+        <Typed text="Are you sure you want to retire?">
           <ConfirmInput
             defaultChoice="cancel"
             submitOnEnter={false}
-            onCancel={onFinish}
-            onConfirm={() => {
-              actor.send({ type: "RETIRE" });
-            }}
+            onCancel={() => actor.send({ type: "CANCEL" })}
+            onConfirm={() => actor.send({ type: "RETIRE" })}
           />
-        ) : null}
+        </Typed>
       </Box>
     </Box>
+  );
+}
+
+function Typed({
+  text,
+  enabled = true,
+  children,
+  ...props
+}: React.PropsWithChildren<{ text: string; enabled?: boolean } & TextProps>) {
+  const settings = GameContext.useSelector((snapshot) => snapshot.context.settings);
+  const [current, setCurrent] = useState(0);
+  const [finished, setFinished] = useState(false);
+  const shouldAnimate = !settings.disableAnimations && enabled;
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (shouldAnimate && current < text.length) {
+        setCurrent(current + 1);
+      } else {
+        clearTimeout(id);
+        setFinished(true);
+      }
+    }, 50);
+
+    return () => clearTimeout(id);
+  }, [text, shouldAnimate, current]);
+
+  useInput(
+    (input) => {
+      if (input === " ") {
+        setCurrent(text.length);
+      }
+    },
+    {
+      isActive: shouldAnimate && current < text.length,
+    },
+  );
+
+  return (
+    <>
+      <Text {...props}>{shouldAnimate ? text.slice(0, current) : text}</Text>
+      {shouldAnimate ? (finished ? children : null) : children}
+    </>
   );
 }

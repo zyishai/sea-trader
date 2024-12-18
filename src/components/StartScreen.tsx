@@ -10,6 +10,7 @@ export function StartScreen() {
   const [width, setWidth] = useState(0);
   const [extendedGame, setExtendedGame] = useState(false);
   const [disableAnimations, setDisableAnimations] = useState(false);
+  const [controls, setControls] = useState<"keyboard" | "arrows">("keyboard");
 
   useEffect(() => {
     if (ref) {
@@ -27,6 +28,8 @@ export function StartScreen() {
       setExtendedGame((eg) => !eg);
     } else if (input.toUpperCase() === "A") {
       setDisableAnimations((de) => !de);
+    } else if (input.toUpperCase() === "C") {
+      setControls((c) => (c === "keyboard" ? "arrows" : "keyboard"));
     }
   });
 
@@ -49,6 +52,9 @@ export function StartScreen() {
             <Text>
               [M] Game mode:{" "}
               {extendedGame ? <Badge color="magentaBright">Extended</Badge> : <Badge color="cyan">Regular</Badge>}
+            </Text>
+            <Text>
+              [C] Controls: <Badge color="white">{controls === "keyboard" ? "Keyboard" : "Arrows"}</Badge>
             </Text>
             <Text>
               [A] Game animations:{" "}
