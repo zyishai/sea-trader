@@ -51,7 +51,7 @@ export function StartScreen() {
             <Text>[H] Show &quot;How to play&quot; screen</Text>
             <Text>
               [M] Game mode:{" "}
-              {extendedGame ? <Badge color="magentaBright">Extended</Badge> : <Badge color="cyan">Regular</Badge>}
+              {extendedGame ? <Badge color="magentaBright">Extended</Badge> : <Badge color="cyan">Classic</Badge>}
             </Text>
             <Text>
               [C] Controls: <Badge color="white">{controls === "keyboard" ? "Keyboard" : "Arrows"}</Badge>
