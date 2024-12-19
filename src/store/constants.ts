@@ -1,6 +1,6 @@
 import { EventTemplate, Good, Port } from "./types.js";
 
-export const goods = ["Wheat", "Tea", "Spices", "Opium", "Clay"] as const;
+export const goods = ["Wheat", "Tea", "Spices", "Opium", "Porcelain"] as const;
 export const ports = ["Hong Kong", "Shanghai", "Nagasaki", "Singapore", "Manila"] as const;
 export const GOAL_DAYS = 100;
 export const eventTemplates: EventTemplate[] = [
@@ -94,7 +94,7 @@ export const goodsInfo: { name: Good; basePrice: number; volatility: number }[] 
   { name: "Tea", basePrice: 50, volatility: 0.15 },
   { name: "Spices", basePrice: 80, volatility: 0.2 },
   { name: "Opium", basePrice: 150, volatility: 0.25 },
-  { name: "Clay", basePrice: 30, volatility: 0.05 },
+  { name: "Porcelain", basePrice: 30, volatility: 0.05 },
 ] as const;
 export const EXTENDED_GAME_PENALTY = 0.01;
 export const PRICE_UPDATE_INTERVAL = 14;

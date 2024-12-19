@@ -323,6 +323,8 @@ function MarketAction() {
       gameScreen: { at_market: { sellAction: "selectQuantity" } },
     });
   const isBuyAction = snapshot.matches({ gameScreen: { at_market: "buyAction" } });
+  const affordance = context.good ? Math.floor(context.balance / context.prices[context.currentPort][context.good]) : 0;
+  const inHold = context.good ? context.ship.hold.get(context.good) : 0;
 
   useInput((input) => {
     if (input === "c" || input === "C") {
@@ -338,7 +340,7 @@ function MarketAction() {
           <Text>
             Available goods: <Newline />
             <Newline />
-            {context.availableGoods.map((good, index) => `${index + 1}) ${good}`).join(", ")}
+            {context.availableGoods.map((good) => `(${good.at(0)?.toUpperCase()})${good.slice(1)}`).join(", ")}
           </Text>
           <Box gap={1}>
             <Text>
@@ -347,13 +349,13 @@ function MarketAction() {
             </Text>
             <TextInput
               key="pick_good"
-              checkValidity={(input, prevInput) => {
-                const index = +input;
-                return prevInput.length === 0 && index >= 1 && index <= context.availableGoods.length;
-              }}
+              checkValidity={(input, prevInput) =>
+                prevInput.length === 0 && context.availableGoods.some((good) => good.startsWith(input.toUpperCase()))
+              }
+              transformValue={(value) => value.toUpperCase()}
               styleOutput={(value) => chalk.bold(value)}
               onSubmit={(value) => {
-                const good = !isNaN(+value) ? context.availableGoods[+value - 1] : null;
+                const good = context.availableGoods.find((good) => good.startsWith(value.toUpperCase()));
                 if (good) {
                   actor.send({ type: "PICK_GOOD", good });
                 }
@@ -363,7 +365,18 @@ function MarketAction() {
         </>
       ) : isQuantityStep ? (
         <>
-          <Text>You&apos;ve picked {context.good}.</Text>
+          <Text>
+            You&apos;ve picked <Text underline>{context.good}</Text>.{" "}
+            {isBuyAction ? (
+              <Text>
+                You can afford <Text inverse>{affordance}</Text> tons.
+              </Text>
+            ) : (
+              <Text>
+                You have <Text inverse>{inHold}</Text> in hold.
+              </Text>
+            )}
+          </Text>
           <Box gap={1}>
             <Text>
               How many tons? <Text dimColor>(press C to cancel this action)</Text>
