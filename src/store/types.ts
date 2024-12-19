@@ -47,7 +47,7 @@ export type Context = {
   quantity?: number;
 
   // Misc
-  messages?: string[];
+  messages: string[][];
   canRetire: boolean;
 
   // Settings

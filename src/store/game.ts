@@ -20,7 +20,8 @@ export const gameMachine = setup({
     events: {} as GameEvents,
   },
   actions: {
-    displayMessages: assign((_, messages: string[]) => ({ messages })),
+    displayMessages: assign(({ context }, messages: string[]) => ({ messages: [...context.messages, messages] })),
+    acknoledgeMessage: assign(({ context }) => ({ messages: context.messages.slice(1) })),
   },
 }).createMachine({
   initial: "introScreen",
@@ -37,7 +38,7 @@ export const gameMachine = setup({
       states: {
         idle: {
           id: "idle",
-          entry: assign({ messages: undefined }),
+          // entry: assign({ messages: [] }),
           on: {
             GO_TO_PORT: [
               {
@@ -81,7 +82,7 @@ export const gameMachine = setup({
             eventOccurred: {
               entry: [{ type: "displayMessages", params: ({ context }) => [context.currentEvent!.message] }],
               on: {
-                MSG_ACK: { target: "traveling" },
+                MSG_ACK: { actions: { type: "acknoledgeMessage" }, target: "traveling" },
               },
             },
             traveling: {
@@ -105,9 +106,7 @@ export const gameMachine = setup({
                   params: ({ context }) => [`Arrived to ${context.currentPort}`],
                 },
               ],
-              on: {
-                MSG_ACK: { target: "#idle" },
-              },
+              always: { target: "#idle" },
             },
           },
         },
@@ -274,15 +273,10 @@ export const gameMachine = setup({
                         };
                       }),
                     ],
-                    target: "repairsCompleted",
+                    target: "#idle",
                   },
                 ],
                 CANCEL: { target: "#idle" },
-              },
-            },
-            repairsCompleted: {
-              on: {
-                MSG_ACK: { target: "#idle" },
               },
             },
           },
@@ -294,8 +288,7 @@ export const gameMachine = setup({
         },
       },
       on: {
-        MESSAGE: { actions: assign(({ event }) => ({ messages: event.messages })) },
-        MSG_ACK: { actions: assign({ messages: undefined }) },
+        MSG_ACK: { actions: { type: "acknoledgeMessage" } },
         RETIRE: [
           {
             guard: ({ context }) => !context.canRetire || !stateIn({ gamescreen: "at_retirement" }),
@@ -310,8 +303,8 @@ export const gameMachine = setup({
         {
           guard: ({ context }) => context.nextPriceUpdate <= 0,
           actions: [
+            { type: "displayMessages", params: ["Prices updated!"] },
             assign(({ context }) => ({
-              messages: ["Prices updated!"],
               prices: generatePrices(context.trends),
               nextPriceUpdate: PRICE_UPDATE_INTERVAL,
             })),

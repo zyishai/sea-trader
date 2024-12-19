@@ -14,7 +14,6 @@ export type GameEvents =
   | { type: "GO_TO_RETIREMENT" }
   | { type: "RETIRE" }
   | { type: "CANCEL" }
-  | { type: "MESSAGE"; messages: string[] }
   | { type: "MSG_ACK"; id?: string }
   | { type: "RESTART_GAME" }
   | { type: "SHOW_HELP" }

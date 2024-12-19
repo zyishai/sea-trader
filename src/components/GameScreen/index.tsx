@@ -177,7 +177,7 @@ function Inventory() {
 function Messages() {
   const messages = GameContext.useSelector((snapshot) => snapshot.context.messages);
 
-  if (!messages) return null;
+  if (messages.length === 0) return null;
 
   return (
     <Box flexDirection="column" gap={1}>
@@ -185,12 +185,7 @@ function Messages() {
         {" "}
         NEW MESSAGE{" "}
       </Text>
-      {messages.reduceRight(
-        (el, message) => (
-          <Typed text={message}>{el}</Typed>
-        ),
-        <ContinueMessage />,
-      )}
+      {messages[0]?.reduceRight((el, message) => <Typed text={message}>{el}</Typed>, <ContinueMessage />)}
     </Box>
   );
 }

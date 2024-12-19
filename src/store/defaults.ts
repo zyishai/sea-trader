@@ -20,6 +20,7 @@ export const initialContext = (settings?: GameSettings) => {
     trends,
     prices: generatePrices(trends),
     nextPriceUpdate: PRICE_UPDATE_INTERVAL,
+    messages: [],
     canRetire: false,
     extendedGame,
     settings: {
