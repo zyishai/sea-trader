@@ -1,6 +1,6 @@
-import React, { useState, useDeferredValue } from "react";
+import React, { useState } from "react";
 import chalk from "chalk";
-import { Box, DOMElement, Text, useInput } from "ink";
+import { Box, DOMElement, Newline, Text, useInput } from "ink";
 import { Alert, Badge, ConfirmInput } from "@inkjs/ui";
 import { GameContext } from "../GameContext.js";
 import { TextInput } from "./TextInput/index.js";
@@ -279,32 +279,31 @@ function TravelAction() {
   return (
     <Box display="flex" flexDirection="column" gap={1}>
       <Text underline>{context.currentPort}&apos;s Port</Text>
-      <Typed
-        text={`You can visit:\n\n${context.availablePorts.map((port, index) => `${index + 1}) ${port}`).join(", ")}`}
-        wrap="wrap"
-      >
-        <Box gap={1}>
-          <Typed text="Where would you like to go?">
-            <Typed dimColor text="(press C to go back)">
-              <TextInput
-                key="travel_action"
-                checkValidity={(input, prevInput) => {
-                  const index = +input;
-                  return prevInput.length === 0 && index >= 1 && index <= context.availablePorts.length;
-                }}
-                styleOutput={(value) => chalk.bold(value)}
-                onSubmit={(i) => {
-                  const destination = !isNaN(+i) ? context.availablePorts[+i - 1] : null;
+      <Text wrap="wrap">
+        You can visit: <Newline />
+        <Newline />
+        {context.availablePorts.map((port, index) => `${index + 1}) ${port}`).join(", ")}
+      </Text>
+      <Box gap={1}>
+        <Text>
+          Where would you like to go? <Text dimColor>(press C to cancel this action)</Text>
+        </Text>
+        <TextInput
+          key="travel_action"
+          checkValidity={(input, prevInput) => {
+            const index = +input;
+            return prevInput.length === 0 && index >= 1 && index <= context.availablePorts.length;
+          }}
+          styleOutput={(value) => chalk.bold(value)}
+          onSubmit={(i) => {
+            const destination = !isNaN(+i) ? context.availablePorts[+i - 1] : null;
 
-                  if (destination) {
-                    actor.send({ type: "TRAVEL_TO", destination });
-                  }
-                }}
-              />
-            </Typed>
-          </Typed>
-        </Box>
-      </Typed>
+            if (destination) {
+              actor.send({ type: "TRAVEL_TO", destination });
+            }
+          }}
+        />
+      </Box>
     </Box>
   );
 }
@@ -335,59 +334,62 @@ function MarketAction() {
     <Box display="flex" flexDirection="column" gap={1}>
       <Text underline>Goods Market</Text>
       {isGoodStep ? (
-        <Typed
-          text={`Available goods:\n\n${context.availableGoods.map((good, index) => `${index + 1}) ${good}`).join(", ")}`}
-        >
-          <Box gap={1} key="pick_good">
-            <Typed text={`Which good do you wish to ${isBuyAction ? "purchase" : "sell"}?`}>
-              <Typed dimColor text="(press C to go back)">
-                <TextInput
-                  key="pick_good"
-                  checkValidity={(input, prevInput) => {
-                    const index = +input;
-                    return prevInput.length === 0 && index >= 1 && index <= context.availableGoods.length;
-                  }}
-                  styleOutput={(value) => chalk.bold(value)}
-                  onSubmit={(value) => {
-                    const good = !isNaN(+value) ? context.availableGoods[+value - 1] : null;
-                    if (good) {
-                      actor.send({ type: "PICK_GOOD", good });
-                    }
-                  }}
-                />
-              </Typed>
-            </Typed>
+        <>
+          <Text>
+            Available goods: <Newline />
+            <Newline />
+            {context.availableGoods.map((good, index) => `${index + 1}) ${good}`).join(", ")}
+          </Text>
+          <Box gap={1}>
+            <Text>
+              Which good do you wish to {isBuyAction ? "purchase" : "sell"}?{" "}
+              <Text dimColor>(press C to cancel this action)</Text>
+            </Text>
+            <TextInput
+              key="pick_good"
+              checkValidity={(input, prevInput) => {
+                const index = +input;
+                return prevInput.length === 0 && index >= 1 && index <= context.availableGoods.length;
+              }}
+              styleOutput={(value) => chalk.bold(value)}
+              onSubmit={(value) => {
+                const good = !isNaN(+value) ? context.availableGoods[+value - 1] : null;
+                if (good) {
+                  actor.send({ type: "PICK_GOOD", good });
+                }
+              }}
+            />
           </Box>
-        </Typed>
+        </>
       ) : isQuantityStep ? (
-        <Typed text={`You've picked ${context.good}.`}>
-          <Box gap={1} key="select_quantity">
-            <Typed text="How many tons?">
-              <Typed dimColor text="(press C to go back)">
-                <TextInput
-                  key="select_quantity"
-                  checkValidity={(input) => input.toUpperCase() === "C" || +input >= 0}
-                  styleOutput={(value) => chalk.bold(value)}
-                  onSubmit={(value) => {
-                    if (value.toUpperCase() === "C") {
-                      actor.send({ type: "CANCEL" });
-                    } else {
-                      const quantity = !isNaN(+value) ? +value : null;
-                      if (quantity) {
-                        actor.send({ type: "SELECT_QUANTITY", quantity });
-                        if (context.marketAction === "buy") {
-                          actor.send({ type: "PURCHASE" });
-                        } else if (context.marketAction === "sell") {
-                          actor.send({ type: "SELL" });
-                        }
-                      }
+        <>
+          <Text>You&apos;ve picked {context.good}.</Text>
+          <Box gap={1}>
+            <Text>
+              How many tons? <Text dimColor>(press C to cancel this action)</Text>
+            </Text>
+            <TextInput
+              key="choose_amount"
+              checkValidity={(input) => input.toUpperCase() === "C" || +input >= 0}
+              styleOutput={(value) => chalk.bold(value)}
+              onSubmit={(value) => {
+                if (value.toUpperCase() === "C") {
+                  actor.send({ type: "CANCEL" });
+                } else {
+                  const quantity = !isNaN(+value) ? +value : null;
+                  if (quantity) {
+                    actor.send({ type: "SELECT_QUANTITY", quantity });
+                    if (context.marketAction === "buy") {
+                      actor.send({ type: "PURCHASE" });
+                    } else if (context.marketAction === "sell") {
+                      actor.send({ type: "SELL" });
                     }
-                  }}
-                />
-              </Typed>
-            </Typed>
+                  }
+                }
+              }}
+            />
           </Box>
-        </Typed>
+        </>
       ) : null}
     </Box>
   );
@@ -411,24 +413,26 @@ function ShipyardAction() {
       {context.ship.health === 100 ? (
         <Typed text="Your ship is in perfect condition." />
       ) : (
-        <Typed text={`Your ship has suffered ${damage} damage. It'll cost $${costForRepair} to repair it.`}>
+        <>
+          <Text>
+            Your ship has suffered {damage} damage. It&apos;ll cost ${costForRepair} to repair it.
+          </Text>
           <Box gap={1}>
-            <Typed text="How much would you like to spend?">
-              <Typed dimColor text="(press C to go back)">
-                <TextInput
-                  checkValidity={(input) => !isNaN(+input) && +input >= 0}
-                  styleOutput={(value) => chalk.bold(value)}
-                  onSubmit={(value) => {
-                    const sum = +value;
-                    if (!isNaN(sum)) {
-                      actor.send({ type: "REPAIR", cash: sum });
-                    }
-                  }}
-                />
-              </Typed>
-            </Typed>
+            <Text>
+              How much would you like to spend? <Text dimColor>(press C to cancel this action)</Text>
+            </Text>
+            <TextInput
+              checkValidity={(input) => !isNaN(+input) && +input >= 0}
+              styleOutput={(value) => chalk.bold(value)}
+              onSubmit={(value) => {
+                const sum = +value;
+                if (!isNaN(sum)) {
+                  actor.send({ type: "REPAIR", cash: sum });
+                }
+              }}
+            />
           </Box>
-        </Typed>
+        </>
       )}
     </Box>
   );
@@ -441,14 +445,13 @@ function RetireAction() {
     <Box display="flex" flexDirection="column" gap={1}>
       <Alert variant="warning">Retiring will end the game.</Alert>
       <Box gap={1}>
-        <Typed text="Are you sure you want to retire?">
-          <ConfirmInput
-            defaultChoice="cancel"
-            submitOnEnter={false}
-            onCancel={() => actor.send({ type: "CANCEL" })}
-            onConfirm={() => actor.send({ type: "RETIRE" })}
-          />
-        </Typed>
+        <Text>Are you sure you want to retire?</Text>
+        <ConfirmInput
+          defaultChoice="cancel"
+          submitOnEnter={false}
+          onCancel={() => actor.send({ type: "CANCEL" })}
+          onConfirm={() => actor.send({ type: "RETIRE" })}
+        />
       </Box>
     </Box>
   );
