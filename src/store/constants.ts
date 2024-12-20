@@ -98,3 +98,4 @@ export const goodsInfo: { name: Good; basePrice: number; volatility: number }[] 
 ] as const;
 export const EXTENDED_GAME_PENALTY = 0.01;
 export const PRICE_UPDATE_INTERVAL = 14;
+export const TREND_UPDATE_INTERVAL = 21;

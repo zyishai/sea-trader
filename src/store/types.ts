@@ -34,6 +34,7 @@ export type Context = {
   prices: Record<Port, Record<Good, number>>;
   trends: Record<Port, Record<Good, Trend>>;
   nextPriceUpdate: number;
+  nextTrendUpdate: number;
 
   // Port context
   availablePorts: readonly Port[];

@@ -9,9 +9,10 @@ import {
   calculateTravelTime,
   checkForEvent,
   generatePrices,
+  generateTrends,
   getAvailableStorage,
 } from "./utils.js";
-import { goods, ports, PRICE_UPDATE_INTERVAL } from "./constants.js";
+import { goods, ports, PRICE_UPDATE_INTERVAL, TREND_UPDATE_INTERVAL } from "./constants.js";
 import { type Guard } from "xstate/guards";
 
 export const gameMachine = setup({
@@ -95,6 +96,7 @@ export const gameMachine = setup({
                   return {
                     day: Math.min(context.extendedGame ? Infinity : 100, context.day + travelTime),
                     nextPriceUpdate: Math.max(0, context.nextPriceUpdate - travelTime),
+                    nextTrendUpdate: Math.max(0, context.nextTrendUpdate - travelTime),
                   };
                 }),
                 // Update current port and apply effect, if applicable
@@ -106,7 +108,10 @@ export const gameMachine = setup({
                   params: ({ context }) => [`Arrived to ${context.currentPort}`],
                 },
               ],
-              always: { target: "#idle" },
+              always: [
+                // TODO: check for mission
+                { target: "#idle" },
+              ],
             },
           },
         },
@@ -308,6 +313,15 @@ export const gameMachine = setup({
               prices: generatePrices(context.trends),
               nextPriceUpdate: PRICE_UPDATE_INTERVAL,
             })),
+          ],
+        },
+        {
+          guard: ({ context }) => context.nextTrendUpdate <= 0,
+          actions: [
+            assign({
+              trends: generateTrends(),
+              nextTrendUpdate: TREND_UPDATE_INTERVAL,
+            }),
           ],
         },
       ],

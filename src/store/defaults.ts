@@ -1,4 +1,4 @@
-import { goods, ports, PRICE_UPDATE_INTERVAL } from "./constants.js";
+import { goods, ports, PRICE_UPDATE_INTERVAL, TREND_UPDATE_INTERVAL } from "./constants.js";
 import { Context, GameSettings } from "./types.js";
 import { generatePrices, generateTrends } from "./utils.js";
 
@@ -20,6 +20,7 @@ export const initialContext = (settings?: GameSettings) => {
     trends,
     prices: generatePrices(trends),
     nextPriceUpdate: PRICE_UPDATE_INTERVAL,
+    nextTrendUpdate: TREND_UPDATE_INTERVAL,
     messages: [],
     canRetire: false,
     extendedGame,
