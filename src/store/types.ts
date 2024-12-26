@@ -39,6 +39,7 @@ export type Context = {
   // Port context
   availablePorts: readonly Port[];
   destination?: Port;
+  guardShips: number;
   currentEvent?: EventTemplate;
 
   // Market context

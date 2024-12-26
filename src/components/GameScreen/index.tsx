@@ -7,7 +7,7 @@ import { TextInput } from "./TextInput/index.js";
 import { Divider } from "./Divider.js";
 import { Typed } from "./Typed.js";
 import { calculateCostForRepair, getAvailableStorage, getShipStatus } from "../../store/utils.js";
-import { goods, ports } from "../../store/constants.js";
+import { goods, GUARD_SHIP_COST, ports } from "../../store/constants.js";
 
 export function GameScreen() {
   const [ref, setRef] = useState<DOMElement | null>(null);
@@ -263,7 +263,10 @@ function Actions() {
 
 function TravelAction() {
   const actor = GameContext.useActorRef();
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const snapshot = GameContext.useSelector((snapshot) => snapshot);
+  const { context } = snapshot;
+  const isHiringGuardShips = snapshot.matches({ gameScreen: { at_port: "hireGuardShips" } });
+  const isPiratesEncounter = snapshot.matches({ gameScreen: { at_port: "piratesEncountered" } });
 
   useInput((input) => {
     if (input === "c" || input === "C") {
@@ -271,7 +274,59 @@ function TravelAction() {
     }
   });
 
-  return (
+  return isHiringGuardShips ? (
+    <Box display="flex" flexDirection="column" gap={1}>
+      <Text underline>{context.currentPort}&apos;s Port</Text>
+      <Text>You can hire guard ships to protect you during your travel.</Text>
+      <Text>Each guard ships costs ${GUARD_SHIP_COST}.</Text>
+      <Box gap={1}>
+        <Text wrap="wrap">How many guard ships would you like to hire?</Text>
+        <TextInput
+          key="hire_guard_ships"
+          defaultValue="0"
+          checkValidity={(input) => input === "" || (!isNaN(+input) && +input >= 0)}
+          styleOutput={(value) => chalk.bold(value)}
+          onSubmit={(i) => {
+            actor.send({ type: "HIRE_GUARD_SHIPS", ships: +i });
+          }}
+        />
+      </Box>
+    </Box>
+  ) : isPiratesEncounter ? (
+    <Box display="flex" flexDirection="column" gap={1}>
+      <Text underline>{context.currentPort}&apos;s Port</Text>
+      <Text bold>Pirates Attack!</Text>
+      <Text>Pirates attack your ship. You have {context.guardShips} guard ships.</Text>
+      <Text>You can: 1) attack them, 2) try to escape, 3) bribe them with money</Text>
+      <Box gap={1}>
+        <Text>What would you do?</Text>
+        <TextInput
+          key="pirates_encounter"
+          checkValidity={(input, prevInput) => prevInput.length === 0 && !isNaN(+input) && +input >= 1 && +input <= 3}
+          styleOutput={(value) => chalk.bold(value)}
+          onSubmit={(value) => {
+            const choice = +value;
+            if (!isNaN(choice)) {
+              switch (choice) {
+                case 1: {
+                  actor.send({ type: "PIRATES_ENCOUNTER_FIGHT" });
+                  break;
+                }
+                case 2: {
+                  actor.send({ type: "PIRATES_ENCOUNTER_FLEE" });
+                  break;
+                }
+                case 3: {
+                  actor.send({ type: "PIRATES_ENCOUNTER_OFFER" });
+                  break;
+                }
+              }
+            }
+          }}
+        />
+      </Box>
+    </Box>
+  ) : (
     <Box display="flex" flexDirection="column" gap={1}>
       <Text underline>{context.currentPort}&apos;s Port</Text>
       <Text wrap="wrap">

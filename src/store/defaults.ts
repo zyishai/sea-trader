@@ -8,6 +8,7 @@ export const initialContext = (settings?: GameSettings) => {
   return {
     currentPort: "Hong Kong",
     availablePorts: ports,
+    guardShips: 0,
     availableGoods: goods,
     day: 1,
     balance: 1000,

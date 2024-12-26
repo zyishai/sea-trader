@@ -4,6 +4,10 @@ export type GameEvents =
   | { type: "START_GAME"; settings?: GameSettings }
   | { type: "GO_TO_PORT" }
   | { type: "TRAVEL_TO"; destination: Port }
+  | { type: "HIRE_GUARD_SHIPS"; ships: number }
+  | { type: "PIRATES_ENCOUNTER_FIGHT" }
+  | { type: "PIRATES_ENCOUNTER_FLEE" }
+  | { type: "PIRATES_ENCOUNTER_OFFER" }
   | { type: "GO_TO_MARKET"; action: "buy" | "sell" }
   | { type: "PICK_GOOD"; good: Good }
   | { type: "SELECT_QUANTITY"; quantity: number }
