@@ -1,5 +1,11 @@
 # ctrader
 
+## 2.1.0
+
+### Minor Changes
+
+- 31d5db3: Pirates encounter
+
 ## 2.0.0
 
 ### Major Changes
