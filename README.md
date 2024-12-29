@@ -9,10 +9,11 @@
 <img src="./screenshot.png" alt="Screenshot of the game in Warp terminal" />
 
 # Overview
-Sea Trader is a terminal-based trading simulation game set in the 19th-century Far East. As a maritime merchant, your goal is to amass a fortune of $25,000 within 100 days through strategic 
-trading, careful navigation, and shrewd decision-making.
+In *Sea Trader* you, a sea merchant, set out on a 100-day voyage (in regular mode, see [Game Mode](#game-modes)) to sail between ports, visit markets, and gain wealth and popularity to score the most points at the end of the game.
 
 # Quick Start
+No installation is required! Run the game directly from your terminal:
+
 ```bash
 $ npx ctrader
 ```
@@ -20,29 +21,23 @@ $ npx ctrader
 > Tested on: *iTerm version 3.5.10* and *Warp version 2024.11.21*.
 
 # How to Play
-On the start screen, you can toggle between "Regular" and "Extended" game modes by pressing the `M` key. Press Enter to begin your journey.
+*Sea Trader* is played entirely in your terminal, using only the keyboard.
 
 ## Game Modes
-- **Regular:** Default mode with a 100-day limit for your voyage.
-- **Extended:** Continue playing beyond 100 days, but incur score penalties for each extra day.
-
-## Available commands
-- **Travel:** Move between ports. Type the number next to your desired destination and press Enter to confirm. Each travel takes 3-10 days.
-- **Buy/Sell:** Purchase or sell goods from the local market. Type the initial of the good and how many tons you'd like to buy/sell, then press Enter to confirm.
-- **Repair:** Available only if your ship is damaged. Enter the amount of money you wish to invest in repairs and press Enter to confirm.
-- **Retire:** This option is available only after 100 days. End the game and display your score.
+The game has two modes: classic mode, and extended mode. The difference between these modes is that classic mode lasts for 100 days only. Extended mode allows you to keep sailing for more than 100 days, but your score will have a penalty for the extra days.
 
 ## Scoring
-Your score is influenced by the following factors:  
-1. Total wealth accumulated.
-1. Condition and upgrades of your ship.
-1. Number of days taken to reach your goal (extra days incur penalties).
+Your score is calculated based on:
+- **Total wealth** accumulated
+- **Ship upgrades** that influence its capacity and speed
+- **Ship's condition**: Damage to your ship harms your score
+- **Days played:** Additional days in extended mode reduce your score
 
 ## Gameplay Tips
-- Keep an eye on the price list. Prices are updated every 14 days.
-- Maintain your ship in good condition to avoid negatively impacting your final score.
-- Plan efficient routes to maximize trading time and opportunities.
-- Events are more likely to occur during the late stages of your voyage and as you get richer.
+- **Watch market trends:** Prices are updated every 14 days. Buy low and sell high!
+- **Plan efficient routes:** Save time and maximize trade opportunities.
+- **Avoid overloading your ship:** Too much cargo slows you down.
+- **Be prepared for events:** They are more likely as your wealth grow or during the late stages of your voyage.
 
 # Feedback and Contributions
 Your feedback is very appreciated! Please let me know if you want something new implemented or if you have an idea for improving the gameplay.  
