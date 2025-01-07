@@ -85,10 +85,13 @@ export const gameMachine = setup({
                   },
                   {
                     guard: ({ context, event }) => context.balance >= event.ships * GUARD_SHIP_COST,
-                    actions: assign(({ context, event }) => ({
-                      guardShips: event.ships,
-                      balance: context.balance - event.ships * GUARD_SHIP_COST,
-                    })),
+                    actions: [
+                      assign(({ context, event }) => ({
+                        guardShips: event.ships,
+                        balance: context.balance - event.ships * GUARD_SHIP_COST,
+                      })),
+                      { type: "displayMessages", params: ({ event }) => [`Hired ${event.ships} guard ships`] },
+                    ],
                     target: "checkPiratesEncounter",
                   },
                   {
