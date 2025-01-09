@@ -3,6 +3,7 @@ import { goods, ports } from "./constants.js";
 export type GameSettings = {
   extendedGame?: boolean;
   disableAnimations?: boolean;
+  controls?: "keyboard" | "arrows";
 };
 export type EventType = "weather" | "market" | "encounter" | "discovery";
 export type EventSeverity = "minor" | "moderate" | "major";
@@ -25,6 +26,12 @@ export type Context = {
   currentPort: Port;
   day: number;
   balance: number;
+  guardFleet: {
+    ships: number;
+    quality: number; // 1-3
+    lastMaintenanceDay: number;
+  };
+  reputation: number; // 0-100
   ship: {
     health: number;
     speed: number;
@@ -39,7 +46,6 @@ export type Context = {
   // Port context
   availablePorts: readonly Port[];
   destination?: Port;
-  guardShips: number;
   currentEvent?: EventTemplate;
 
   // Market context
@@ -54,7 +60,5 @@ export type Context = {
 
   // Settings
   extendedGame: boolean;
-  settings: {
-    disableAnimations: boolean;
-  };
+  settings: Omit<Required<GameSettings>, "extendedGame">;
 };

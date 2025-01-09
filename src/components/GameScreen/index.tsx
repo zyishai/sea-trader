@@ -7,7 +7,13 @@ import { TextInput } from "./TextInput/index.js";
 import { Divider } from "./Divider.js";
 import { Typed } from "./Typed.js";
 import { calculateCostForRepair, getAvailableStorage, getShipStatus } from "../../store/utils.js";
-import { goods, GUARD_SHIP_COST, ports } from "../../store/constants.js";
+import { goods, MAINTENANCE_COST_PER_SHIP, MAX_GUARD_QUALITY, MAX_GUARD_SHIPS, ports } from "../../store/constants.js";
+import { ActionPrompt as ActionPromptArrows } from "../prompts/arrows/ActionPrompt.js";
+import { ActionPrompt as ActionPromptKeyboard } from "../prompts/keyboard/ActionPrompt.js";
+import { InputPrompt as InputPromptArrows } from "../prompts/arrows/InputPrompt.js";
+import { InputPrompt as InputPromptKeyboard } from "../prompts/keyboard/InputPrompt.js";
+import { ConfirmPrompt as ConfirmPromptArrows } from "../prompts/arrows/ConfirmPrompt.js";
+import { ConfirmPrompt as ConfirmPromptKeyboard } from "../prompts/keyboard/ConfirmPrompt.js";
 
 export function GameScreen() {
   const [ref, setRef] = useState<DOMElement | null>(null);
@@ -73,6 +79,13 @@ function StatusBar() {
           }
         >
           {context.ship.health}% ({shipHealth})
+        </Badge>
+      </Text>
+      <Text> | </Text>
+      <Text>
+        Guard Fleet:{" "}
+        <Badge color={context.guardFleet.ships > 0 ? "blueBright" : "gray"}>
+          {context.guardFleet.ships} ships (Lvl {context.guardFleet.quality})
         </Badge>
       </Text>
     </Box>
@@ -206,15 +219,35 @@ function Actions() {
   const actor = GameContext.useActorRef();
   const snapshot = GameContext.useSelector((snapshot) => snapshot);
   const { context } = snapshot;
+  const controls = context.settings.controls;
   const isAtPort = snapshot.matches({ gameScreen: "at_port" });
   const isAtMarket = snapshot.matches({ gameScreen: "at_market" });
+  const isManagingFleet = snapshot.matches({ gameScreen: "managing_fleet" });
   const isAtShipyard = snapshot.matches({ gameScreen: "at_shipyard" });
   const isAtRetirement = snapshot.matches({ gameScreen: "at_retirement" });
+
+  const handleSelect = (value: string) => {
+    if (value === "T") {
+      actor.send({ type: "GO_TO_PORT" });
+    } else if (value === "B") {
+      actor.send({ type: "GO_TO_MARKET", action: "buy" });
+    } else if (value === "S") {
+      actor.send({ type: "GO_TO_MARKET", action: "sell" });
+    } else if (value === "F") {
+      actor.send({ type: "MANAGE_FLEET" });
+    } else if (value === "R") {
+      actor.send({ type: "GO_TO_SHIPYARD" });
+    } else if (value === "W") {
+      actor.send({ type: "GO_TO_RETIREMENT" });
+    }
+  };
 
   return isAtPort ? (
     <TravelAction />
   ) : isAtMarket ? (
     <MarketAction />
+  ) : isManagingFleet ? (
+    <ManageFleetAction />
   ) : isAtShipyard ? (
     <ShipyardAction />
   ) : isAtRetirement ? (
@@ -225,38 +258,33 @@ function Actions() {
         {" "}
         ACTIONS{" "}
       </Text>
-      <Text>Available actions:</Text>
-      <Text>
-        (T)ravel, (B)uy goods, (S)ell goods{context.ship.health < 100 ? ", (R)epair ship" : null}
-        {context.canRetire ? ", (W)Retire" : null}
-      </Text>
-      <Box gap={1}>
-        <Text>What would you like to do?</Text>
-        <TextInput
-          key="no_action"
-          checkValidity={(input, prevInput) =>
-            prevInput.length === 0 &&
-            ["T", "B", "S", context.ship.health < 100 ? "R" : null, context.canRetire ? "W" : null]
-              .filter(Boolean)
-              .includes(input)
-          }
-          transformValue={(value) => value.toUpperCase()}
-          styleOutput={(value) => chalk.bold(value)}
-          onSubmit={(value) => {
-            if (value === "T") {
-              actor.send({ type: "GO_TO_PORT" });
-            } else if (value === "B") {
-              actor.send({ type: "GO_TO_MARKET", action: "buy" });
-            } else if (value === "S") {
-              actor.send({ type: "GO_TO_MARKET", action: "sell" });
-            } else if (value === "R") {
-              actor.send({ type: "GO_TO_SHIPYARD" });
-            } else if (value === "W") {
-              actor.send({ type: "GO_TO_RETIREMENT" });
-            }
-          }}
+      {controls === "keyboard" ? (
+        <ActionPromptKeyboard
+          message="What would you like to do?"
+          actions={[
+            { label: "Travel", value: "T", key: "T" },
+            { label: "Buy goods", value: "B", key: "B" },
+            { label: "Sell goods", value: "S", key: "S" },
+            { label: "Fleet management", value: "F", key: "F" },
+            { label: "Repair ship", value: "R", disabled: context.ship.health === 100, key: "R" },
+            { label: "Retire", value: "W", disabled: !context.canRetire, key: "W" },
+          ]}
+          onSelect={handleSelect}
         />
-      </Box>
+      ) : (
+        <ActionPromptArrows
+          message="What would you like to do?"
+          actions={[
+            { label: "Travel", value: "T" },
+            { label: "Buy goods", value: "B" },
+            { label: "Sell goods", value: "S" },
+            { label: "Fleet management", value: "F" },
+            { label: "Repair ship", value: "R", disabled: context.ship.health === 100 },
+            { label: "Retire", value: "W", disabled: !context.canRetire },
+          ]}
+          onSelect={handleSelect}
+        />
+      )}
     </Box>
   );
 }
@@ -265,7 +293,7 @@ function TravelAction() {
   const actor = GameContext.useActorRef();
   const snapshot = GameContext.useSelector((snapshot) => snapshot);
   const { context } = snapshot;
-  const isHiringGuardShips = snapshot.matches({ gameScreen: { at_port: "hireGuardShips" } });
+  const controls = context.settings.controls;
   const isPiratesEncounter = snapshot.matches({ gameScreen: { at_port: "piratesEncountered" } });
 
   useInput((input) => {
@@ -274,29 +302,11 @@ function TravelAction() {
     }
   });
 
-  return isHiringGuardShips ? (
-    <Box display="flex" flexDirection="column" gap={1}>
-      <Text underline>{context.currentPort}&apos;s Port</Text>
-      <Text>You can hire guard ships to protect you during your travel.</Text>
-      <Text>Each guard ships costs ${GUARD_SHIP_COST}.</Text>
-      <Box gap={1}>
-        <Text wrap="wrap">How many guard ships would you like to hire?</Text>
-        <TextInput
-          key="hire_guard_ships"
-          defaultValue="0"
-          checkValidity={(input) => input === "" || (!isNaN(+input) && +input >= 0)}
-          styleOutput={(value) => chalk.bold(value)}
-          onSubmit={(i) => {
-            actor.send({ type: "HIRE_GUARD_SHIPS", ships: +i });
-          }}
-        />
-      </Box>
-    </Box>
-  ) : isPiratesEncounter ? (
+  return isPiratesEncounter ? (
     <Box display="flex" flexDirection="column" gap={1}>
       <Text underline>{context.currentPort}&apos;s Port</Text>
       <Text bold>Pirates Attack!</Text>
-      <Text>Pirates attack your ship. You have {context.guardShips} guard ships.</Text>
+      <Text>Pirates attack your ship. You have {context.guardFleet.ships} guard ships.</Text>
       <Text>You can: 1) attack them, 2) try to escape, 3) bribe them with money</Text>
       <Box gap={1}>
         <Text>What would you do?</Text>
@@ -454,6 +464,55 @@ function MarketAction() {
           </Box>
         </>
       ) : null}
+    </Box>
+  );
+}
+
+function ManageFleetAction() {
+  const actor = GameContext.useActorRef();
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
+
+  useInput((input) => {
+    if (input === "c" || input === "C") {
+      actor.send({ type: "CANCEL" });
+    }
+  });
+
+  return (
+    <Box display="flex" flexDirection="column" gap={1}>
+      <Text underline>Fleet Management</Text>
+      <Text>Current fleet status:</Text>
+      <Text>
+        Ships: <Text inverse>{context.guardFleet.ships}</Text> / {MAX_GUARD_SHIPS}
+      </Text>
+      <Text>
+        Quality Level: <Text inverse>{context.guardFleet.quality}</Text> / {MAX_GUARD_QUALITY}
+      </Text>
+      <Text>
+        Daily Maintenance: $
+        <Text inverse>{context.guardFleet.ships * MAINTENANCE_COST_PER_SHIP * context.guardFleet.quality}</Text>
+      </Text>
+      <Text>Available actions:</Text>
+      <Text>(H)ire ships, (U)pgrade fleet, (D)ismiss ships, (C)ancel</Text>
+      <Box gap={1}>
+        <Text>What would you like to do?</Text>
+        <TextInput
+          checkValidity={(input, prevInput) =>
+            prevInput.length === 0 && ["H", "U", "D", "C"].includes(input.toUpperCase())
+          }
+          transformValue={(value) => value.toUpperCase()}
+          styleOutput={(value) => chalk.bold(value)}
+          onSubmit={(value) => {
+            if (value === "H") {
+              actor.send({ type: "HIRE_PERMANENT_GUARDS", amount: 1 });
+            } else if (value === "U") {
+              actor.send({ type: "UPGRADE_GUARDS" });
+            } else if (value === "D") {
+              actor.send({ type: "DISMISS_GUARDS", amount: 1 });
+            }
+          }}
+        />
+      </Box>
     </Box>
   );
 }

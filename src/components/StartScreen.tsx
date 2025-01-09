@@ -21,7 +21,7 @@ export function StartScreen() {
 
   useInput((input, key) => {
     if (key.return) {
-      actor.send({ type: "START_GAME", settings: { extendedGame, disableAnimations } });
+      actor.send({ type: "START_GAME", settings: { extendedGame, disableAnimations, controls } });
     } else if (input.toUpperCase() === "H") {
       actor.send({ type: "SHOW_HELP" });
     } else if (input.toUpperCase() === "M") {

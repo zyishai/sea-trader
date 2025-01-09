@@ -99,4 +99,7 @@ export const goodsInfo: { name: Good; basePrice: number; volatility: number }[] 
 export const EXTENDED_GAME_PENALTY = 0.01;
 export const PRICE_UPDATE_INTERVAL = 14;
 export const TREND_UPDATE_INTERVAL = 21;
-export const GUARD_SHIP_COST = 125;
+export const MAX_GUARD_SHIPS = 10;
+export const MAX_GUARD_QUALITY = 3;
+export const BASE_GUARD_COST = 300;
+export const MAINTENANCE_COST_PER_SHIP = 8;

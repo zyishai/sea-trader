@@ -1,4 +1,5 @@
 import {
+  BASE_GUARD_COST,
   distanceMatrix,
   eventTemplates,
   EXTENDED_GAME_PENALTY,
@@ -10,6 +11,18 @@ import {
 import { Context, EventTemplate, Good, Port, ShipStatus, Trend } from "./types.js";
 
 // ~~ PORT ~~
+export const calculatePirateEncounterChance = (context: Context) => {
+  const baseChance = 0.2;
+  const reputationFactor = Math.max(0.5, (100 - context.reputation) / 100);
+  const guardFactor = context.guardFleet.ships * 0.01 * context.guardFleet.quality;
+  return Math.max(0.05, Math.min(0.3, baseChance * reputationFactor - guardFactor));
+};
+export const calculateGuardEffectiveness = (context: Context) => {
+  const baseEffectiveness = 0.4;
+  const qualityBonus = (context.guardFleet.quality - 1) * 0.1;
+  const fleetBonus = Math.min(0.3, context.guardFleet.ships * 0.05);
+  return Math.min(0.9, baseEffectiveness + qualityBonus + fleetBonus);
+};
 export const calculateEventChance = (template: EventTemplate, context: Context) => {
   let chance = template.baseChance;
 
@@ -49,6 +62,20 @@ export const calculateTravelTime = (from: Port, to: Port, shipSpeed: number) => 
   const baseTime = 3; // base time
   const speedFactor = 1000 / shipSpeed; // Adjust this value to balance the impact of ship speed
   return Math.max(baseTime, Math.ceil(baseTime + (distance / 500) * speedFactor));
+};
+
+// -~ GUARD FLEET ~-
+export const calculateGuardShipCost = (context: Context, amount: number) => {
+  const basePrice = BASE_GUARD_COST;
+  const fleetSizeFactor = 1 + context.guardFleet.ships * 0.15;
+  const qualityFactor = 1 + (context.guardFleet.quality - 1) * 0.25;
+  return Math.round(basePrice * fleetSizeFactor * qualityFactor * amount);
+};
+export const calculateUpgradeCost = (context: Context) => {
+  const baseUpgradeCost = BASE_GUARD_COST * 2;
+  const fleetSizeFactor = 1 + context.guardFleet.ships * 0.2;
+  const qualityFactor = 1 + context.guardFleet.quality * 0.5;
+  return Math.round(baseUpgradeCost * fleetSizeFactor * qualityFactor);
 };
 
 // +- MARKET +-

@@ -4,15 +4,27 @@ import { Context } from "./types.js";
 import { GameEvents } from "./events.js";
 import {
   calculateCostForRepair,
+  calculateGuardEffectiveness,
+  calculateGuardShipCost,
+  calculatePirateEncounterChance,
   calculatePrice,
   calculateRepairForCost,
   calculateTravelTime,
+  calculateUpgradeCost,
   checkForEvent,
   generatePrices,
   generateTrends,
   getAvailableStorage,
 } from "./utils.js";
-import { goods, GUARD_SHIP_COST, ports, PRICE_UPDATE_INTERVAL, TREND_UPDATE_INTERVAL } from "./constants.js";
+import {
+  goods,
+  MAINTENANCE_COST_PER_SHIP,
+  MAX_GUARD_QUALITY,
+  MAX_GUARD_SHIPS,
+  ports,
+  PRICE_UPDATE_INTERVAL,
+  TREND_UPDATE_INTERVAL,
+} from "./constants.js";
 import { type Guard } from "xstate/guards";
 
 export const gameMachine = setup({
@@ -39,7 +51,6 @@ export const gameMachine = setup({
       states: {
         idle: {
           id: "idle",
-          // entry: assign({ messages: [] }),
           on: {
             GO_TO_PORT: [
               {
@@ -56,6 +67,7 @@ export const gameMachine = setup({
             },
             GO_TO_SHIPYARD: { target: "at_shipyard" },
             GO_TO_RETIREMENT: { target: "at_retirement" },
+            MANAGE_FLEET: { target: "managing_fleet" },
           },
         },
         at_port: {
@@ -65,7 +77,7 @@ export const gameMachine = setup({
             pickDestination: {
               on: {
                 TRAVEL_TO: {
-                  target: "hireGuardShips",
+                  target: "checkPiratesEncounter",
                   actions: assign(({ event, context }) => ({
                     destination: event.destination,
                     currentEvent: checkForEvent(context),
@@ -74,43 +86,10 @@ export const gameMachine = setup({
                 CANCEL: { target: "#idle" },
               },
             },
-            hireGuardShips: {
-              on: {
-                HIRE_GUARD_SHIPS: [
-                  {
-                    guard: ({ event }) => event.ships > 5,
-                    actions: { type: "displayMessages", params: ["You can't hire more than 5 guard ships"] },
-                    target: "hireGuardShips",
-                    reenter: true,
-                  },
-                  {
-                    guard: ({ context, event }) => context.balance >= event.ships * GUARD_SHIP_COST,
-                    actions: [
-                      assign(({ context, event }) => ({
-                        guardShips: event.ships,
-                        balance: context.balance - event.ships * GUARD_SHIP_COST,
-                      })),
-                      { type: "displayMessages", params: ({ event }) => [`Hired ${event.ships} guard ships`] },
-                    ],
-                    target: "checkPiratesEncounter",
-                  },
-                  {
-                    actions: { type: "displayMessages", params: ["You don't have enough money"] },
-                    target: "hireGuardShips",
-                    reenter: true,
-                  },
-                ],
-              },
-            },
             checkPiratesEncounter: {
               always: [
                 {
-                  guard: ({ context }) => {
-                    const baseChance = 0.2;
-                    const guardReduction = context.guardShips * 0.03;
-                    const encounterChance = Math.max(0.05, baseChance - guardReduction);
-                    return Math.random() < encounterChance;
-                  },
+                  guard: ({ context }) => Math.random() < calculatePirateEncounterChance(context),
                   target: "piratesEncountered",
                 },
                 { target: "checkEvent" },
@@ -120,80 +99,192 @@ export const gameMachine = setup({
               on: {
                 PIRATES_ENCOUNTER_FIGHT: {
                   actions: enqueueActions(({ enqueue, context }) => {
-                    const baseChance = 0.5;
-                    const guardBonus = context.guardShips * 0.1;
-                    const successChance = Math.min(0.9, baseChance + guardBonus);
+                    const successChance = calculateGuardEffectiveness(context);
                     const success = Math.random() < successChance;
 
-                    const cargoValue = [...context.ship.hold.entries()].reduce(
-                      (sum, [good, quantity]) => sum + context.prices[context.currentPort][good] * quantity,
-                      0,
-                    );
-                    const baseLoot = Math.floor(Math.random() * 200) + 301; // [$200, $500]
-                    const factor = Math.floor(50_000 / Math.max(1, context.balance + cargoValue));
-                    const potentialLoot = Math.max(150, Math.floor(baseLoot * factor));
-                    const actualLoot = success ? Math.min(6300, potentialLoot) : 0;
-                    const damageTaken = success
-                      ? context.ship.health <= 10
-                        ? 0
-                        : 10
-                      : 20 + Math.floor(Math.random() * 10);
+                    if (success) {
+                      // Even when winning, ship might take some damage
+                      const takeDamage = Math.random() < 0.7; // 70% chance to take damage
+                      const damage = takeDamage ? Math.floor(Math.random() * 10) + 5 : 0;
 
-                    enqueue({
-                      type: "displayMessages",
-                      params: success
-                        ? [
-                            "You won!",
-                            `You've captured $${actualLoot}${damageTaken ? ` but your ship has taken ${damageTaken} damage.` : "."}`,
-                          ]
-                        : ["You've lost...", `Your ship has taken ${damageTaken} damage.`],
-                    });
+                      // Chance to lose guard ships
+                      const loseGuards = Math.random() < 0.15; // 15% chance to lose guards
+                      const guardsLost = loseGuards ? Math.floor(Math.random() * 2) + 1 : 0;
 
-                    enqueue.assign({
-                      balance: context.balance + actualLoot,
-                      ship: {
-                        ...context.ship,
-                        health: context.ship.health - damageTaken,
-                      },
-                    });
+                      // Loot from pirates
+                      const cargoValue = [...context.ship.hold.entries()].reduce(
+                        (sum, [good, quantity]) => sum + context.prices[context.currentPort][good] * quantity,
+                        0,
+                      );
+                      const baseLoot = Math.floor(Math.random() * 200) + 301; // [$200, $500]
+                      const factor = Math.floor(50_000 / Math.max(1, context.balance + cargoValue));
+                      const potentialLoot = Math.max(150, Math.floor(baseLoot * factor));
+                      const actualLoot = Math.min(6300, potentialLoot);
+
+                      const messages = [
+                        "Your guard fleet successfully fought off the pirates!",
+                        `You looted $${actualLoot} from the pirates' ship.`,
+                      ];
+
+                      if (damage > 0) {
+                        messages.push(`Your ship took ${damage} damage in the battle.`);
+                      }
+
+                      if (loseGuards && guardsLost > 0) {
+                        messages.push(
+                          `Lost ${Math.min(guardsLost, context.guardFleet.ships)} guard ship${
+                            Math.min(guardsLost, context.guardFleet.ships) > 1 ? "s" : ""
+                          } in the battle.`,
+                        );
+                      }
+
+                      messages.push(`Gained 5 reputation points for your bravery.`);
+
+                      enqueue({ type: "displayMessages", params: messages });
+                      enqueue.assign({
+                        ship: {
+                          ...context.ship,
+                          health: Math.max(0, context.ship.health - damage),
+                        },
+                        guardFleet: {
+                          ...context.guardFleet,
+                          ships: Math.max(0, context.guardFleet.ships - guardsLost),
+                        },
+                        balance: context.balance + actualLoot,
+                        reputation: Math.min(100, context.reputation + 5),
+                      });
+                    } else {
+                      // Lost the fight - more severe consequences
+                      const damage = Math.floor(Math.random() * 20) + 15;
+                      const stolenGoods = Math.floor(Math.random() * 10) + 5;
+                      const guardsLost = Math.floor(Math.random() * 3) + 1;
+
+                      const randomGood = [...context.ship.hold.entries()]
+                        .filter(([_, amount]) => amount > 0)
+                        .map(([good]) => good)[Math.floor(Math.random() * context.ship.hold.size)];
+
+                      const newHold = new Map(context.ship.hold);
+                      if (randomGood) {
+                        const currentAmount = newHold.get(randomGood) || 0;
+                        newHold.set(randomGood, Math.max(0, currentAmount - stolenGoods));
+                      }
+
+                      enqueue({
+                        type: "displayMessages",
+                        params: [
+                          "Despite your guard fleet's efforts, the pirates prevailed!",
+                          `Your ship took ${Math.min(damage, context.ship.health)} damage`,
+                          randomGood
+                            ? `Pirates stole ${Math.min(stolenGoods, context.ship.hold.get(randomGood)!)} ${randomGood}`
+                            : "",
+                          `Lost ${Math.min(guardsLost, context.guardFleet.ships)} guard ship${
+                            Math.min(guardsLost, context.guardFleet.ships) > 1 ? "s" : ""
+                          } in the battle.`,
+                          `Lost ${guardsLost * 2} reputation points.`,
+                        ],
+                      });
+                      enqueue.assign({
+                        ship: {
+                          ...context.ship,
+                          health: Math.max(0, context.ship.health - damage),
+                          hold: newHold,
+                        },
+                        guardFleet: {
+                          ...context.guardFleet,
+                          ships: Math.max(0, context.guardFleet.ships - guardsLost),
+                        },
+                        reputation: Math.max(0, context.reputation - guardsLost * 2),
+                      });
+                    }
                   }),
                   target: "traveling",
                 },
                 PIRATES_ENCOUNTER_FLEE: {
                   actions: enqueueActions(({ enqueue, context }) => {
-                    const baseChance = 0.6;
-                    const guardBonus = context.guardShips * 0.05;
-                    const successChance = Math.min(0.9, baseChance + guardBonus);
-                    const success = Math.random() < successChance;
+                    const fleeChance = 0.6 + calculateGuardEffectiveness(context) * 0.2;
+                    const success = Math.random() < fleeChance;
 
-                    const damageTaken = success ? 5 : 15 + Math.floor(Math.random() * 10);
-
-                    enqueue({
-                      type: "displayMessages",
-                      params: ["You've escaped", `Your ship has taken ${damageTaken} damage.`],
-                    });
-
-                    enqueue.assign({
-                      ship: {
-                        ...context.ship,
-                        health: Math.max(0, context.ship.health - damageTaken),
-                      },
-                    });
+                    if (success) {
+                      const noDamage = Math.random() < 0.3; // 30% chance to escape without any damage
+                      if (noDamage) {
+                        enqueue({
+                          type: "displayMessages",
+                          params: ["You masterfully maneuvered away from the pirates without a scratch!"],
+                        });
+                      } else {
+                        const damage = Math.floor(Math.random() * 8) + 3; // Less damage when successfully fleeing
+                        enqueue({
+                          type: "displayMessages",
+                          params: [
+                            "You've successfully escaped from the pirates!",
+                            `Your ship took ${damage} damage while fleeing.`,
+                          ],
+                        });
+                        enqueue.assign({
+                          ship: {
+                            ...context.ship,
+                            health: Math.max(0, context.ship.health - damage),
+                          },
+                        });
+                      }
+                    } else {
+                      const damage = Math.floor(Math.random() * 15) + 10; // More damage then successful flee, less than losing a fight
+                      enqueue({
+                        type: "displayMessages",
+                        params: [
+                          "Failed to escape from the pirates!",
+                          `Your ship took ${damage} damage while attempting to flee.`,
+                          `Lost 2 reputation points.`,
+                        ],
+                      });
+                      enqueue.assign({
+                        ship: {
+                          ...context.ship,
+                          health: Math.max(0, context.ship.health - damage),
+                        },
+                        reputation: Math.max(0, context.reputation - 2),
+                      });
+                    }
                   }),
                   target: "traveling",
                 },
                 PIRATES_ENCOUNTER_OFFER: {
                   actions: enqueueActions(({ enqueue, context }) => {
-                    const minOffer = Math.max(100, Math.floor(context.balance * 0.05));
-                    const maxOffer = Math.floor(context.balance * 0.2);
-                    const offerAmount = Math.min(maxOffer, Math.max(minOffer, Math.floor(context.balance * 0.1)));
+                    const bribeCost = Math.round(context.balance * 0.15);
+                    const actualBribe = Math.floor(Math.random() * (context.balance + 1));
+                    const success = actualBribe >= bribeCost;
 
-                    enqueue({
-                      type: "displayMessages",
-                      params: ["The pirates let you go", `They've taken $${offerAmount} from you.`],
-                    });
-
-                    enqueue.assign({ balance: context.balance - offerAmount });
+                    if (success) {
+                      enqueue({
+                        type: "displayMessages",
+                        params: [
+                          `You paid the pirates $${bribeCost} to let you go your merry way.`,
+                          `Lost 1 reputation point.`,
+                        ],
+                      });
+                      enqueue.assign({
+                        balance: context.balance - bribeCost,
+                        reputation: Math.max(0, context.reputation - 1),
+                      });
+                    } else {
+                      const damage = Math.floor(Math.random() * 25) + 15;
+                      enqueue({
+                        type: "displayMessages",
+                        params: [
+                          "You couldn't afford to bribe the pirates!",
+                          "They attacked in anger!",
+                          `Your ship took ${damage} damage.`,
+                          `Lost 5 reputation points.`,
+                        ],
+                      });
+                      enqueue.assign({
+                        ship: {
+                          ...context.ship,
+                          health: Math.max(0, context.ship.health - damage),
+                        },
+                        reputation: Math.max(0, context.reputation - 5),
+                      });
+                    }
                   }),
                   target: "traveling",
                 },
@@ -227,7 +318,7 @@ export const gameMachine = setup({
                 // Update current port and apply effect, if applicable
                 assign(({ context }) => context.currentEvent?.effect(context) ?? { currentPort: context.destination }),
                 // Reset temporary context attributes
-                assign({ destination: undefined, currentEvent: undefined, guardShips: 0 }),
+                assign({ destination: undefined, currentEvent: undefined }),
                 {
                   type: "displayMessages",
                   params: ({ context }) => [`Arrived to ${context.currentPort}`],
@@ -413,6 +504,122 @@ export const gameMachine = setup({
             CANCEL: { target: "#idle" },
           },
         },
+        managing_fleet: {
+          initial: "menu",
+          states: {
+            menu: {
+              on: {
+                HIRE_PERMANENT_GUARDS: [
+                  {
+                    guard: ({ context }) => context.guardFleet.ships >= MAX_GUARD_SHIPS,
+                    actions: {
+                      type: "displayMessages",
+                      params: [`Your fleet is at maximum capacity (${MAX_GUARD_SHIPS} ships)`],
+                    },
+                  },
+                  {
+                    guard: ({ context, event }) => {
+                      const totalShips = context.guardFleet.ships + event.amount;
+                      return totalShips > MAX_GUARD_SHIPS;
+                    },
+                    actions: {
+                      type: "displayMessages",
+                      params: [`Cannot hire that many ships. Maximum fleet size is ${MAX_GUARD_SHIPS} ships`],
+                    },
+                  },
+                  {
+                    guard: ({ context, event }) => {
+                      const cost = calculateGuardShipCost(context, event.amount);
+                      return context.balance < cost;
+                    },
+                    actions: {
+                      type: "displayMessages",
+                      params: ({ context, event }) => {
+                        const cost = calculateGuardShipCost(context, event.amount);
+                        return [`Not enough money. Need $${cost} to hire ${event.amount} ships`];
+                      },
+                    },
+                  },
+                  {
+                    actions: [
+                      assign(({ context, event }) => {
+                        const cost = calculateGuardShipCost(context, event.amount);
+                        return {
+                          guardFleet: {
+                            ...context.guardFleet,
+                            ships: context.guardFleet.ships + event.amount,
+                          },
+                          balance: context.balance - cost,
+                          reputation: Math.min(100, context.reputation + event.amount),
+                        };
+                      }),
+                      {
+                        type: "displayMessages",
+                        params: ({ event }) => [`Hired ${event.amount} permanent guard ships`],
+                      },
+                    ],
+                  },
+                ],
+                UPGRADE_GUARDS: [
+                  {
+                    guard: ({ context }) => context.guardFleet.quality >= MAX_GUARD_QUALITY,
+                    actions: {
+                      type: "displayMessages",
+                      params: ["Your fleet is already at maximum quality"],
+                    },
+                  },
+                  {
+                    guard: ({ context }) => {
+                      const cost = calculateUpgradeCost(context);
+                      return context.balance < cost;
+                    },
+                    actions: {
+                      type: "displayMessages",
+                      params: ({ context }) => {
+                        const cost = calculateUpgradeCost(context);
+                        return [`Not enough money. Need $${cost} to upgrade fleet`];
+                      },
+                    },
+                  },
+                  {
+                    actions: [
+                      assign(({ context }) => {
+                        const cost = calculateUpgradeCost(context);
+                        return {
+                          guardFleet: {
+                            ...context.guardFleet,
+                            quality: context.guardFleet.quality + 1,
+                          },
+                          balance: context.balance - cost,
+                        };
+                      }),
+                      {
+                        type: "displayMessages",
+                        params: ({ context }) => [`Fleet upgraded to quality level ${context.guardFleet.quality}`],
+                      },
+                    ],
+                  },
+                ],
+                DISMISS_GUARDS: {
+                  actions: [
+                    assign(({ context, event }) => ({
+                      guardFleet: {
+                        ...context.guardFleet,
+                        ships: Math.max(0, context.guardFleet.ships - event.amount),
+                      },
+                      reputation: Math.max(0, context.reputation - event.amount * 2),
+                    })),
+                    {
+                      type: "displayMessages",
+                      params: ({ event }) => [`Dismissed ${event.amount} guard ships`],
+                    },
+                  ],
+                },
+                CANCEL: { target: "#idle" },
+              },
+            },
+          },
+        },
       },
       on: {
         MSG_ACK: { actions: { type: "acknoledgeMessage" } },
@@ -425,8 +632,12 @@ export const gameMachine = setup({
           { target: "scoringScreen" },
         ],
       },
+      // TODO: Add a check for health dropping to 0 and update the scoring screen accordingly
+      // TODO: Add a check to take interest on the balance if the player is in overdraft
       always: [
+        // Set canRetire to true if the player has finished the game
         { guard: ({ context }) => !context.canRetire && context.day >= 100, actions: assign({ canRetire: true }) },
+        // Update prices if the next price update is due
         {
           guard: ({ context }) => context.nextPriceUpdate <= 0,
           actions: [
@@ -437,6 +648,7 @@ export const gameMachine = setup({
             })),
           ],
         },
+        // Update trends if the next trend update is due
         {
           guard: ({ context }) => context.nextTrendUpdate <= 0,
           actions: [
@@ -444,6 +656,34 @@ export const gameMachine = setup({
               trends: generateTrends(),
               nextTrendUpdate: TREND_UPDATE_INTERVAL,
             }),
+          ],
+        },
+        // Pay for fleet maintenance if the player has any guard ships and it's time to do so
+        {
+          guard: ({ context }) => context.guardFleet.ships > 0 && context.day > context.guardFleet.lastMaintenanceDay,
+          actions: [
+            assign(({ context }) => {
+              const daysPassed = context.day - context.guardFleet.lastMaintenanceDay;
+              const dailyCost = context.guardFleet.ships * MAINTENANCE_COST_PER_SHIP * context.guardFleet.quality;
+              const totalCost = daysPassed * dailyCost;
+
+              return {
+                balance: context.balance - totalCost,
+                guardFleet: {
+                  ...context.guardFleet,
+                  lastMaintenanceDay: context.day,
+                },
+              };
+            }),
+            {
+              type: "displayMessages",
+              params: ({ context }) => {
+                const daysPassed = context.day - context.guardFleet.lastMaintenanceDay;
+                const dailyCost = context.guardFleet.ships * MAINTENANCE_COST_PER_SHIP * context.guardFleet.quality;
+                const totalCost = daysPassed * dailyCost;
+                return [`Paid $${totalCost} for fleet maintenance`];
+              },
+            },
           ],
         },
       ],

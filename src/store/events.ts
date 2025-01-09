@@ -4,10 +4,13 @@ export type GameEvents =
   | { type: "START_GAME"; settings?: GameSettings }
   | { type: "GO_TO_PORT" }
   | { type: "TRAVEL_TO"; destination: Port }
-  | { type: "HIRE_GUARD_SHIPS"; ships: number }
   | { type: "PIRATES_ENCOUNTER_FIGHT" }
   | { type: "PIRATES_ENCOUNTER_FLEE" }
   | { type: "PIRATES_ENCOUNTER_OFFER" }
+  | { type: "MANAGE_FLEET" }
+  | { type: "HIRE_PERMANENT_GUARDS"; amount: number }
+  | { type: "UPGRADE_GUARDS" }
+  | { type: "DISMISS_GUARDS"; amount: number }
   | { type: "GO_TO_MARKET"; action: "buy" | "sell" }
   | { type: "PICK_GOOD"; good: Good }
   | { type: "SELECT_QUANTITY"; quantity: number }
@@ -22,4 +25,3 @@ export type GameEvents =
   | { type: "RESTART_GAME" }
   | { type: "SHOW_HELP" }
   | { type: "HIDE_HELP" };
-type RepairEvent = { type: "REPAIR_SHIP"; damage: number };

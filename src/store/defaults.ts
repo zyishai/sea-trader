@@ -4,14 +4,19 @@ import { generatePrices, generateTrends } from "./utils.js";
 
 export const initialContext = (settings?: GameSettings) => {
   const trends = generateTrends();
-  const { extendedGame = false, disableAnimations = false } = settings || {};
+  const { extendedGame = false, disableAnimations = false, controls = "keyboard" } = settings || {};
   return {
     currentPort: "Hong Kong",
     availablePorts: ports,
-    guardShips: 0,
     availableGoods: goods,
     day: 1,
     balance: 1000,
+    guardFleet: {
+      ships: 0,
+      quality: 1,
+      lastMaintenanceDay: 1,
+    },
+    reputation: 50,
     ship: {
       health: 100,
       speed: 500,
@@ -27,6 +32,7 @@ export const initialContext = (settings?: GameSettings) => {
     extendedGame,
     settings: {
       disableAnimations,
+      controls,
     },
   } satisfies Context;
 };
