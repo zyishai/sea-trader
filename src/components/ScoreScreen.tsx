@@ -9,9 +9,11 @@ export function ScoreScreen() {
   const context = GameContext.useSelector((snapshot) => snapshot.context);
   const score = calculateScore(context);
 
-  useInput((input) => {
+  useInput((input, key) => {
     if (input.toUpperCase() === "R") {
       actor.send({ type: "RESTART_GAME" });
+    } else if (key.escape) {
+      process.exit();
     }
   });
 

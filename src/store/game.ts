@@ -4,6 +4,7 @@ import { Context } from "./types.js";
 import { GameEvents } from "./events.js";
 import {
   calculateCostForRepair,
+  calculateDailyMaintenanceCost,
   calculateGuardEffectiveness,
   calculateGuardShipCost,
   calculatePirateEncounterChance,
@@ -18,7 +19,6 @@ import {
 } from "./utils.js";
 import {
   goods,
-  MAINTENANCE_COST_PER_SHIP,
   MAX_GUARD_QUALITY,
   MAX_GUARD_SHIPS,
   ports,
@@ -61,11 +61,38 @@ export const gameMachine = setup({
                 actions: { type: "displayMessages", params: ["You've finished your 100 days voyage."] },
               },
             ],
-            GO_TO_MARKET: {
-              actions: assign(({ event }) => ({ marketAction: event.action })),
-              target: "at_market",
-            },
-            GO_TO_SHIPYARD: { target: "at_shipyard" },
+            GO_TO_MARKET: [
+              {
+                guard: ({ context, event }) =>
+                  event.action === "buy" &&
+                  context.availableGoods.every((good) => context.balance < context.prices[context.currentPort][good]),
+                actions: {
+                  type: "displayMessages",
+                  params: ["You don't have enough money to buy any goods."],
+                },
+              },
+              {
+                guard: ({ context, event }) =>
+                  event.action === "sell" && [...context.ship.hold.values()].every((value) => value === 0),
+                actions: {
+                  type: "displayMessages",
+                  params: ["You don't have any goods to sell."],
+                },
+              },
+              {
+                actions: assign(({ event }) => ({ marketAction: event.action })),
+                target: "at_market",
+              },
+            ],
+            GO_TO_SHIPYARD: [
+              {
+                guard: ({ context }) => context.ship.health < 100,
+                target: "at_shipyard",
+              },
+              {
+                actions: { type: "displayMessages", params: ["Your ship is in perfect condition."] },
+              },
+            ],
             GO_TO_RETIREMENT: { target: "at_retirement" },
             MANAGE_FLEET: { target: "managing_fleet" },
           },
@@ -173,7 +200,7 @@ export const gameMachine = setup({
                         type: "displayMessages",
                         params: [
                           "Despite your guard fleet's efforts, the pirates prevailed!",
-                          `Your ship took ${Math.min(damage, context.ship.health)} damage`,
+                          `Your ship took ${Math.min(damage, context.ship.health)} damage.`,
                           randomGood
                             ? `Pirates stole ${Math.min(stolenGoods, context.ship.hold.get(randomGood)!)} ${randomGood}`
                             : "",
@@ -340,119 +367,88 @@ export const gameMachine = setup({
               ],
             },
             buyAction: {
-              initial: "pickGood",
-              states: {
-                pickGood: {
-                  on: {
-                    PICK_GOOD: {
-                      actions: assign(({ event }) => ({ good: event.good })),
-                      target: "selectQuantity",
-                    },
+              on: {
+                PURCHASE: [
+                  {
+                    guard: ({ context, event }) => calculatePrice({ ...context, ...event }) > context.balance,
+                    actions: { type: "displayMessages", params: ["You don't have enough money."] },
+                    target: "buyAction",
                   },
-                },
-                selectQuantity: {
-                  on: {
-                    SELECT_QUANTITY: {
-                      actions: assign(({ event }) => ({ quantity: event.quantity })),
-                      target: "commit",
-                    },
+                  {
+                    guard: ({ context, event }) => getAvailableStorage(context.ship) < event.quantity,
+                    actions: { type: "displayMessages", params: ["You don't have enough storage room."] },
+                    target: "buyAction",
                   },
-                },
-                commit: {
-                  on: {
-                    PURCHASE: [
+                  {
+                    actions: [
+                      assign(({ context, event }) => ({
+                        ship: {
+                          ...context.ship,
+                          hold: context.ship.hold.set(
+                            event.good,
+                            (context.ship.hold.get(event.good) ?? 0) + event.quantity,
+                          ),
+                        },
+                        balance: context.balance - calculatePrice({ ...context, ...event }),
+                      })),
                       {
-                        // @ts-expect-error: `good` and `quantity` might be undefined, but in this state we know they're set already from previous states.
-                        guard: ({ context }) => calculatePrice(context) > context.balance,
-                        actions: { type: "displayMessages", params: ["You don't have enough money."] },
-                        target: "pickGood",
-                      },
-                      {
-                        guard: ({ context }) => getAvailableStorage(context.ship) < context.quantity!,
-                        actions: { type: "displayMessages", params: ["You don't have enough storage room"] },
-                        target: "pickGood",
-                      },
-                      {
-                        actions: [
-                          assign(({ context }) => ({
-                            ship: {
-                              ...context.ship,
-                              hold: context.ship.hold.set(
-                                context.good!,
-                                (context.ship.hold.get(context.good!) ?? 0) + context.quantity!,
-                              ),
-                            },
-                            // @ts-expect-error: see above
-                            balance: context.balance - calculatePrice(context),
-                          })),
-                          assign({ good: undefined, quantity: undefined }),
+                        type: "displayMessages",
+                        params: ({ context, event }) => [
+                          `Purchased ${event.quantity} ${event.good} for $${calculatePrice({
+                            ...context,
+                            ...event,
+                          })}.`,
                         ],
-                        target: "#idle",
                       },
                     ],
+                    target: "#idle",
                   },
-                },
+                ],
               },
             },
             sellAction: {
-              initial: "pickGood",
-              states: {
-                pickGood: {
-                  on: {
-                    PICK_GOOD: {
-                      actions: assign(({ event }) => ({ good: event.good })),
-                      target: "selectQuantity",
+              on: {
+                SELL: [
+                  {
+                    guard: ({ context, event }) => (context.ship.hold.get(event.good) ?? 0) < event.quantity,
+                    actions: {
+                      type: "displayMessages",
+                      params: ({ event }) => [`You don't have enought ${event.good.toLowerCase()} in your hold.`],
                     },
+                    target: "sellAction",
                   },
-                },
-                selectQuantity: {
-                  on: {
-                    SELECT_QUANTITY: {
-                      actions: assign(({ event }) => ({ quantity: event.quantity })),
-                      target: "commit",
-                    },
-                  },
-                },
-                commit: {
-                  on: {
-                    SELL: [
-                      {
-                        // @ts-expect-error: `good` and `quantity` might be undefined, but in this state we know they're set already from previous states.
-                        guard: ({ context }) => context.ship.hold.get(context.good) < context.quantity,
-                        actions: {
-                          type: "displayMessages",
-                          params: ({ context }) => [
-                            `You don't have enought ${context.good?.toLowerCase()} in your hold`,
-                          ],
+                  {
+                    actions: [
+                      assign(({ context, event }) => ({
+                        ship: {
+                          ...context.ship,
+                          hold: context.ship.hold.set(
+                            event.good,
+                            (context.ship.hold.get(event.good) ?? 0) - event.quantity,
+                          ),
                         },
-                        target: "pickGood",
-                      },
+                        balance: context.balance + calculatePrice({ ...context, ...event }),
+                      })),
                       {
-                        actions: [
-                          assign(({ context }) => ({
-                            ship: {
-                              ...context.ship,
-                              hold: context.ship.hold.set(
-                                context.good!,
-                                (context.ship.hold.get(context.good!) ?? 0) - context.quantity!,
-                              ),
-                            },
-                            // @ts-expect-error: see above
-                            balance: context.balance + calculatePrice(context),
-                          })),
-                          assign({ good: undefined, quantity: undefined }),
+                        type: "displayMessages",
+                        params: ({ context, event }) => [
+                          `Sold ${event.quantity} ${event.good} for $${calculatePrice({
+                            ...context,
+                            ...event,
+                          })}.`,
                         ],
-                        target: "#idle",
                       },
                     ],
+                    target: "#idle",
                   },
-                },
+                ],
               },
             },
           },
           on: {
             CANCEL: { target: "#idle" },
           },
+          exit: assign({ marketAction: undefined }),
         },
         at_shipyard: {
           initial: "idle",
@@ -509,6 +505,48 @@ export const gameMachine = setup({
           states: {
             menu: {
               on: {
+                GO_TO_GUARD_HALL_HIRE: [
+                  {
+                    guard: ({ context }) => context.guardFleet.ships >= MAX_GUARD_SHIPS,
+                    actions: {
+                      type: "displayMessages",
+                      params: [`Your fleet is at maximum capacity (${MAX_GUARD_SHIPS} ships)`],
+                    },
+                  },
+                  { target: "hireShips" },
+                ],
+                GO_TO_GUARD_HALL_UPGRADE: [
+                  {
+                    guard: ({ context }) => context.guardFleet.quality >= MAX_GUARD_QUALITY,
+                    actions: {
+                      type: "displayMessages",
+                      params: ["Your fleet is already at maximum quality"],
+                    },
+                  },
+                  {
+                    guard: ({ context }) => context.guardFleet.ships === 0,
+                    actions: {
+                      type: "displayMessages",
+                      params: ["You don't have any guard ships to upgrade"],
+                    },
+                  },
+                  { target: "upgradeFleet" },
+                ],
+                GO_TO_GUARD_HALL_DISMISS: [
+                  {
+                    guard: ({ context }) => context.guardFleet.ships === 0,
+                    actions: {
+                      type: "displayMessages",
+                      params: ["You don't have any guard ships to dismiss"],
+                    },
+                  },
+                  { target: "dismissShips" },
+                ],
+                CANCEL: { target: "#idle" },
+              },
+            },
+            hireShips: {
+              on: {
                 HIRE_PERMANENT_GUARDS: [
                   {
                     guard: ({ context }) => context.guardFleet.ships >= MAX_GUARD_SHIPS,
@@ -516,6 +554,7 @@ export const gameMachine = setup({
                       type: "displayMessages",
                       params: [`Your fleet is at maximum capacity (${MAX_GUARD_SHIPS} ships)`],
                     },
+                    target: "menu",
                   },
                   {
                     guard: ({ context, event }) => {
@@ -558,16 +597,15 @@ export const gameMachine = setup({
                         params: ({ event }) => [`Hired ${event.amount} permanent guard ships`],
                       },
                     ],
+                    target: "#idle",
                   },
                 ],
+                CANCEL: { target: "menu" },
+              },
+            },
+            upgradeFleet: {
+              on: {
                 UPGRADE_GUARDS: [
-                  {
-                    guard: ({ context }) => context.guardFleet.quality >= MAX_GUARD_QUALITY,
-                    actions: {
-                      type: "displayMessages",
-                      params: ["Your fleet is already at maximum quality"],
-                    },
-                  },
                   {
                     guard: ({ context }) => {
                       const cost = calculateUpgradeCost(context);
@@ -580,6 +618,7 @@ export const gameMachine = setup({
                         return [`Not enough money. Need $${cost} to upgrade fleet`];
                       },
                     },
+                    target: "menu",
                   },
                   {
                     actions: [
@@ -598,8 +637,14 @@ export const gameMachine = setup({
                         params: ({ context }) => [`Fleet upgraded to quality level ${context.guardFleet.quality}`],
                       },
                     ],
+                    target: "#idle",
                   },
                 ],
+                CANCEL: { target: "menu" },
+              },
+            },
+            dismissShips: {
+              on: {
                 DISMISS_GUARDS: {
                   actions: [
                     assign(({ context, event }) => ({
@@ -614,8 +659,9 @@ export const gameMachine = setup({
                       params: ({ event }) => [`Dismissed ${event.amount} guard ships`],
                     },
                   ],
+                  target: "#idle",
                 },
-                CANCEL: { target: "#idle" },
+                CANCEL: { target: "menu" },
               },
             },
           },
@@ -664,7 +710,7 @@ export const gameMachine = setup({
           actions: [
             assign(({ context }) => {
               const daysPassed = context.day - context.guardFleet.lastMaintenanceDay;
-              const dailyCost = context.guardFleet.ships * MAINTENANCE_COST_PER_SHIP * context.guardFleet.quality;
+              const dailyCost = calculateDailyMaintenanceCost(context);
               const totalCost = daysPassed * dailyCost;
 
               return {
@@ -679,7 +725,7 @@ export const gameMachine = setup({
               type: "displayMessages",
               params: ({ context }) => {
                 const daysPassed = context.day - context.guardFleet.lastMaintenanceDay;
-                const dailyCost = context.guardFleet.ships * MAINTENANCE_COST_PER_SHIP * context.guardFleet.quality;
+                const dailyCost = calculateDailyMaintenanceCost(context);
                 const totalCost = daysPassed * dailyCost;
                 return [`Paid $${totalCost} for fleet maintenance`];
               },

@@ -1,19 +1,25 @@
 import React, { useState } from "react";
-import chalk from "chalk";
-import { Box, DOMElement, Newline, Text, useInput } from "ink";
-import { Alert, Badge, ConfirmInput } from "@inkjs/ui";
+import { Box, DOMElement, Text, useInput } from "ink";
+import { Alert, Badge } from "@inkjs/ui";
 import { GameContext } from "../GameContext.js";
-import { TextInput } from "./TextInput/index.js";
 import { Divider } from "./Divider.js";
 import { Typed } from "./Typed.js";
-import { calculateCostForRepair, getAvailableStorage, getShipStatus } from "../../store/utils.js";
-import { goods, MAINTENANCE_COST_PER_SHIP, MAX_GUARD_QUALITY, MAX_GUARD_SHIPS, ports } from "../../store/constants.js";
+import {
+  calculateCostForRepair,
+  calculateDailyMaintenanceCost,
+  calculateGuardShipCost,
+  getAvailableStorage,
+  getShipStatus,
+} from "../../store/utils.js";
+import { goods, ports } from "../../store/constants.js";
 import { ActionPrompt as ActionPromptArrows } from "../prompts/arrows/ActionPrompt.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../prompts/keyboard/ActionPrompt.js";
 import { InputPrompt as InputPromptArrows } from "../prompts/arrows/InputPrompt.js";
 import { InputPrompt as InputPromptKeyboard } from "../prompts/keyboard/InputPrompt.js";
 import { ConfirmPrompt as ConfirmPromptArrows } from "../prompts/arrows/ConfirmPrompt.js";
 import { ConfirmPrompt as ConfirmPromptKeyboard } from "../prompts/keyboard/ConfirmPrompt.js";
+import { Good, Port } from "../../store/types.js";
+import assert from "assert";
 
 export function GameScreen() {
   const [ref, setRef] = useState<DOMElement | null>(null);
@@ -39,7 +45,7 @@ export function GameScreen() {
           <Divider containerRef={ref} />
         </Box>
 
-        <Box flexDirection="column" height={10}>
+        <Box flexDirection="column" minHeight={10}>
           {messages && messages.length > 0 ? <Messages /> : <Actions />}
         </Box>
       </Box>
@@ -285,8 +291,19 @@ function Actions() {
           onSelect={handleSelect}
         />
       )}
+      <ExitGame />
     </Box>
   );
+}
+
+function ExitGame() {
+  useInput((_, key) => {
+    if (key.escape) {
+      process.exit();
+    }
+  });
+
+  return null;
 }
 
 function TravelAction() {
@@ -296,74 +313,67 @@ function TravelAction() {
   const controls = context.settings.controls;
   const isPiratesEncounter = snapshot.matches({ gameScreen: { at_port: "piratesEncountered" } });
 
-  useInput((input) => {
-    if (input === "c" || input === "C") {
-      actor.send({ type: "CANCEL" });
+  const handleSelectPort = (value: string) => {
+    assert(ports.includes(value as Port), "Invalid port");
+    actor.send({ type: "TRAVEL_TO", destination: value as Port });
+  };
+
+  const handleSelectPiratesEncounterAction = (value: string) => {
+    if (value === "1") {
+      actor.send({ type: "PIRATES_ENCOUNTER_FIGHT" });
+    } else if (value === "2") {
+      actor.send({ type: "PIRATES_ENCOUNTER_FLEE" });
+    } else if (value === "3") {
+      actor.send({ type: "PIRATES_ENCOUNTER_OFFER" });
     }
-  });
+  };
 
   return isPiratesEncounter ? (
     <Box display="flex" flexDirection="column" gap={1}>
       <Text underline>{context.currentPort}&apos;s Port</Text>
       <Text bold>Pirates Attack!</Text>
       <Text>Pirates attack your ship. You have {context.guardFleet.ships} guard ships.</Text>
-      <Text>You can: 1) attack them, 2) try to escape, 3) bribe them with money</Text>
-      <Box gap={1}>
-        <Text>What would you do?</Text>
-        <TextInput
-          key="pirates_encounter"
-          checkValidity={(input, prevInput) => prevInput.length === 0 && !isNaN(+input) && +input >= 1 && +input <= 3}
-          styleOutput={(value) => chalk.bold(value)}
-          onSubmit={(value) => {
-            const choice = +value;
-            if (!isNaN(choice)) {
-              switch (choice) {
-                case 1: {
-                  actor.send({ type: "PIRATES_ENCOUNTER_FIGHT" });
-                  break;
-                }
-                case 2: {
-                  actor.send({ type: "PIRATES_ENCOUNTER_FLEE" });
-                  break;
-                }
-                case 3: {
-                  actor.send({ type: "PIRATES_ENCOUNTER_OFFER" });
-                  break;
-                }
-              }
-            }
-          }}
+      {controls === "keyboard" ? (
+        <ActionPromptKeyboard
+          message="What would you do?"
+          actions={[
+            { label: "Attack them", value: "1", key: "1" },
+            { label: "Attempt to flee", value: "2", key: "2" },
+            { label: "Bribe them with money", value: "3", key: "3" },
+          ]}
+          onSelect={handleSelectPiratesEncounterAction}
         />
-      </Box>
+      ) : (
+        <ActionPromptArrows
+          message="What would you do?"
+          actions={[
+            { label: "Attack them", value: "1" },
+            { label: "Attempt to flee", value: "2" },
+            { label: "Bribe them with money", value: "3" },
+          ]}
+          onSelect={handleSelectPiratesEncounterAction}
+        />
+      )}
+      <ExitGame />
     </Box>
   ) : (
     <Box display="flex" flexDirection="column" gap={1}>
       <Text underline>{context.currentPort}&apos;s Port</Text>
-      <Text wrap="wrap">
-        You can visit: <Newline />
-        <Newline />
-        {context.availablePorts.map((port, index) => `${index + 1}) ${port}`).join(", ")}
-      </Text>
-      <Box gap={1}>
-        <Text>
-          Where would you like to go? <Text dimColor>(press C to cancel this action)</Text>
-        </Text>
-        <TextInput
-          key="travel_action"
-          checkValidity={(input, prevInput) => {
-            const index = +input;
-            return prevInput.length === 0 && index >= 1 && index <= context.availablePorts.length;
-          }}
-          styleOutput={(value) => chalk.bold(value)}
-          onSubmit={(i) => {
-            const destination = !isNaN(+i) ? context.availablePorts[+i - 1] : null;
-
-            if (destination) {
-              actor.send({ type: "TRAVEL_TO", destination });
-            }
-          }}
+      {controls === "keyboard" ? (
+        <ActionPromptKeyboard
+          message="Where would you like to go?"
+          actions={context.availablePorts.map((port, index) => ({ label: port, value: port, key: String(index + 1) }))}
+          onSelect={handleSelectPort}
+          onCancel={() => actor.send({ type: "CANCEL" })}
         />
-      </Box>
+      ) : (
+        <ActionPromptArrows
+          message="Where would you like to go?"
+          actions={context.availablePorts.map((port) => ({ label: port, value: port }))}
+          onSelect={handleSelectPort}
+          onCancel={() => actor.send({ type: "CANCEL" })}
+        />
+      )}
     </Box>
   );
 }
@@ -372,189 +382,290 @@ function MarketAction() {
   const actor = GameContext.useActorRef();
   const snapshot = GameContext.useSelector((snapshot) => snapshot);
   const { context } = snapshot;
-  const isGoodStep =
-    snapshot.matches({ gameScreen: { at_market: { buyAction: "pickGood" } } }) ||
-    snapshot.matches({ gameScreen: { at_market: { sellAction: "pickGood" } } });
-  const isQuantityStep =
-    snapshot.matches({
-      gameScreen: { at_market: { buyAction: "selectQuantity" } },
-    }) ||
-    snapshot.matches({
-      gameScreen: { at_market: { sellAction: "selectQuantity" } },
-    });
-  const isBuyAction = snapshot.matches({ gameScreen: { at_market: "buyAction" } });
-  const affordance = context.good ? Math.floor(context.balance / context.prices[context.currentPort][context.good]) : 0;
-  const inHold = context.good ? context.ship.hold.get(context.good) : 0;
+  const controls = context.settings.controls;
+  const [good, setGood] = useState<Good | undefined>(undefined);
+  const affordance = good ? Math.floor(context.balance / context.prices[context.currentPort][good]) : 0;
+  const inHold = good ? context.ship.hold.get(good) : 0;
 
-  useInput((input) => {
-    if (input === "c" || input === "C") {
-      actor.send({ type: "CANCEL" });
+  const handleSubmit = (values: Record<string, string>) => {
+    const { good, quantity } = values;
+    if (good && quantity && !isNaN(+quantity)) {
+      if (context.marketAction === "buy") {
+        actor.send({
+          type: "PURCHASE",
+          good: good as Good,
+          quantity: +quantity,
+        });
+      } else if (context.marketAction === "sell") {
+        actor.send({
+          type: "SELL",
+          good: good as Good,
+          quantity: +quantity,
+        });
+      }
     }
-  });
+  };
+  const validateQuantity = (value: string) => {
+    const quantity = +value;
+    return isNaN(quantity) || quantity <= 0 ? "Please enter a valid number" : undefined;
+  };
 
   return (
     <Box display="flex" flexDirection="column" gap={1}>
       <Text underline>Goods Market</Text>
-      {isGoodStep ? (
+      {good ? (
         <>
           <Text>
-            Available goods: <Newline />
-            <Newline />
-            {context.availableGoods.map((good) => `(${good.at(0)?.toUpperCase()})${good.slice(1)}`).join(", ")}
+            {good} - ${context.prices[context.currentPort][good]} per unit
           </Text>
-          <Box gap={1}>
-            <Text>
-              Which good do you wish to {isBuyAction ? "purchase" : "sell"}?{" "}
-              <Text dimColor>(press C to cancel this action)</Text>
-            </Text>
-            <TextInput
-              key="pick_good"
-              checkValidity={(input, prevInput) =>
-                prevInput.length === 0 && context.availableGoods.some((good) => good.startsWith(input.toUpperCase()))
-              }
-              transformValue={(value) => value.toUpperCase()}
-              styleOutput={(value) => chalk.bold(value)}
-              onSubmit={(value) => {
-                const good = context.availableGoods.find((good) => good.startsWith(value.toUpperCase()));
-                if (good) {
-                  actor.send({ type: "PICK_GOOD", good });
-                }
-              }}
-            />
-          </Box>
-        </>
-      ) : isQuantityStep ? (
-        <>
-          <Text>
-            You&apos;ve picked <Text underline>{context.good}</Text>.{" "}
-            {isBuyAction ? (
-              <Text>
-                You can afford <Text inverse>{affordance}</Text> tons.
-              </Text>
-            ) : (
-              <Text>
-                You have <Text inverse>{inHold}</Text> in hold.
-              </Text>
-            )}
-          </Text>
-          <Box gap={1}>
-            <Text>
-              How many tons? <Text dimColor>(press C to cancel this action)</Text>
-            </Text>
-            <TextInput
-              key="choose_amount"
-              checkValidity={(input) => input.toUpperCase() === "C" || +input >= 0}
-              styleOutput={(value) => chalk.bold(value)}
-              onSubmit={(value) => {
-                if (value.toUpperCase() === "C") {
-                  actor.send({ type: "CANCEL" });
-                } else {
-                  const quantity = !isNaN(+value) ? +value : null;
-                  if (quantity) {
-                    actor.send({ type: "SELECT_QUANTITY", quantity });
-                    if (context.marketAction === "buy") {
-                      actor.send({ type: "PURCHASE" });
-                    } else if (context.marketAction === "sell") {
-                      actor.send({ type: "SELL" });
-                    }
-                  }
-                }
-              }}
-            />
-          </Box>
+          {context.marketAction === "buy" ? (
+            <Text>You can afford {affordance} units.</Text>
+          ) : (
+            <Text>You have {inHold} units in your hold.</Text>
+          )}
         </>
       ) : null}
+      {controls === "keyboard" ? (
+        <InputPromptKeyboard
+          steps={[
+            {
+              type: "enum",
+              id: "good",
+              message: `Which good do you wish to ${context.marketAction === "buy" ? "purchase" : "sell"}?`,
+              actions: context.availableGoods.map((good) => ({
+                label: good,
+                value: good,
+                key: good.charAt(0).toUpperCase(),
+              })),
+              onSelect: (value) => setGood(value as Good),
+              onEnter: () => setGood(undefined),
+            },
+            {
+              type: "text",
+              id: "quantity",
+              message: `How many tons of ${good}?`,
+              validate: validateQuantity,
+            },
+          ]}
+          onComplete={handleSubmit}
+          onCancel={() => actor.send({ type: "CANCEL" })}
+        />
+      ) : (
+        <InputPromptArrows
+          steps={[
+            {
+              type: "enum",
+              id: "good",
+              message: `Which good do you wish to ${context.marketAction === "buy" ? "purchase" : "sell"}?`,
+              actions: context.availableGoods.map((good) => ({ label: good, value: good })),
+              onSelect: (value) => setGood(value as Good),
+              onEnter: () => setGood(undefined),
+            },
+            {
+              type: "text",
+              id: "quantity",
+              message: `How many tons of ${good}?`,
+              validate: validateQuantity,
+            },
+          ]}
+          onComplete={handleSubmit}
+          onCancel={() => actor.send({ type: "CANCEL" })}
+        />
+      )}
     </Box>
   );
 }
 
 function ManageFleetAction() {
   const actor = GameContext.useActorRef();
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const snapshot = GameContext.useSelector((snapshot) => snapshot);
+  const { context } = snapshot;
+  const controls = context.settings.controls;
+  const dailyMaintenanceCost = calculateDailyMaintenanceCost(context);
+  const isMenu = snapshot.matches({ gameScreen: { managing_fleet: "menu" } });
+  const isHire = snapshot.matches({ gameScreen: { managing_fleet: "hireShips" } });
+  const isUpgrade = snapshot.matches({ gameScreen: { managing_fleet: "upgradeFleet" } });
+  const isDismiss = snapshot.matches({ gameScreen: { managing_fleet: "dismissShips" } });
 
-  useInput((input) => {
-    if (input === "c" || input === "C") {
-      actor.send({ type: "CANCEL" });
+  const pickAction = (value: string) => {
+    if (value === "hire") {
+      actor.send({ type: "GO_TO_GUARD_HALL_HIRE" });
+    } else if (value === "upgrade") {
+      actor.send({ type: "GO_TO_GUARD_HALL_UPGRADE" });
+    } else if (value === "dismiss") {
+      actor.send({ type: "GO_TO_GUARD_HALL_DISMISS" });
     }
-  });
+  };
+  const validateQuantityOfShipsToHire = (value: string) => {
+    const quantity = +value;
+    return isNaN(quantity) || quantity <= 0 ? "Please enter a valid number" : undefined;
+  };
+  const hireShips = ({ quantity }: { quantity?: string }) => {
+    if (quantity) {
+      actor.send({ type: "HIRE_PERMANENT_GUARDS", amount: +quantity });
+    }
+  };
+  const validateQuantityOfShipsToDismiss = (value: string) => {
+    const quantity = +value;
+    return isNaN(quantity) || quantity <= 0 ? "Please enter a valid number" : undefined;
+  };
+  const dismissShips = ({ quantity }: { quantity?: string }) => {
+    if (quantity) {
+      actor.send({ type: "DISMISS_GUARDS", amount: +quantity });
+    }
+  };
 
   return (
     <Box display="flex" flexDirection="column" gap={1}>
       <Text underline>Fleet Management</Text>
-      <Text>Current fleet status:</Text>
-      <Text>
-        Ships: <Text inverse>{context.guardFleet.ships}</Text> / {MAX_GUARD_SHIPS}
-      </Text>
-      <Text>
-        Quality Level: <Text inverse>{context.guardFleet.quality}</Text> / {MAX_GUARD_QUALITY}
-      </Text>
-      <Text>
-        Daily Maintenance: $
-        <Text inverse>{context.guardFleet.ships * MAINTENANCE_COST_PER_SHIP * context.guardFleet.quality}</Text>
-      </Text>
-      <Text>Available actions:</Text>
-      <Text>(H)ire ships, (U)pgrade fleet, (D)ismiss ships, (C)ancel</Text>
-      <Box gap={1}>
-        <Text>What would you like to do?</Text>
-        <TextInput
-          checkValidity={(input, prevInput) =>
-            prevInput.length === 0 && ["H", "U", "D", "C"].includes(input.toUpperCase())
-          }
-          transformValue={(value) => value.toUpperCase()}
-          styleOutput={(value) => chalk.bold(value)}
-          onSubmit={(value) => {
-            if (value === "H") {
-              actor.send({ type: "HIRE_PERMANENT_GUARDS", amount: 1 });
-            } else if (value === "U") {
-              actor.send({ type: "UPGRADE_GUARDS" });
-            } else if (value === "D") {
-              actor.send({ type: "DISMISS_GUARDS", amount: 1 });
-            }
-          }}
+      {isMenu && dailyMaintenanceCost > 0 ? <Text>Daily Maintenance: ${dailyMaintenanceCost}</Text> : null}
+      {isHire ? (
+        <Text dimColor>Hiring a ship costs ${calculateGuardShipCost(context, 1)} and cannot be refunded.</Text>
+      ) : null}
+      {isDismiss ? <Text dimColor>Dismissing a ship reduces the daily maintenance cost of your fleet.</Text> : null}
+      {controls === "keyboard" ? (
+        isMenu ? (
+          <ActionPromptKeyboard
+            message="What would you like to do?"
+            actions={[
+              { label: "Hire ships", value: "hire", key: "H" },
+              { label: "Upgrade fleet", value: "upgrade", key: "U" },
+              { label: "Dismiss ships", value: "dismiss", key: "D" },
+            ]}
+            onSelect={pickAction}
+            onCancel={() => actor.send({ type: "CANCEL" })}
+          />
+        ) : isHire ? (
+          <InputPromptKeyboard
+            steps={[
+              {
+                type: "text",
+                id: "quantity",
+                message: `How many ships do you wish to hire?`,
+                validate: validateQuantityOfShipsToHire,
+              },
+            ]}
+            onComplete={hireShips}
+            onCancel={() => actor.send({ type: "CANCEL" })}
+          />
+        ) : isUpgrade ? (
+          <ConfirmPromptKeyboard
+            message="Are you sure you want to upgrade the quality of your fleet?"
+            onConfirm={() => actor.send({ type: "UPGRADE_GUARDS" })}
+            onCancel={() => actor.send({ type: "CANCEL" })}
+          />
+        ) : isDismiss ? (
+          <InputPromptKeyboard
+            steps={[
+              {
+                type: "text",
+                id: "quantity",
+                message: `How many ships do you wish to dismiss?`,
+                validate: validateQuantityOfShipsToDismiss,
+              },
+            ]}
+            onComplete={dismissShips}
+            onCancel={() => actor.send({ type: "CANCEL" })}
+          />
+        ) : null
+      ) : isMenu ? (
+        <ActionPromptArrows
+          message="What would you like to do?"
+          actions={[
+            { label: "Hire ships", value: "hire" },
+            { label: "Upgrade fleet", value: "upgrade" },
+            { label: "Dismiss ships", value: "dismiss" },
+          ]}
+          onSelect={pickAction}
+          onCancel={() => actor.send({ type: "CANCEL" })}
         />
-      </Box>
+      ) : isHire ? (
+        <InputPromptArrows
+          steps={[
+            {
+              type: "text",
+              id: "quantity",
+              message: `How many ships do you wish to hire?`,
+              validate: validateQuantityOfShipsToHire,
+            },
+          ]}
+          onComplete={hireShips}
+          onCancel={() => actor.send({ type: "CANCEL" })}
+        />
+      ) : isUpgrade ? (
+        <ConfirmPromptArrows
+          message="Are you sure you want to upgrade the quality of your fleet?"
+          onConfirm={() => actor.send({ type: "UPGRADE_GUARDS" })}
+          onCancel={() => actor.send({ type: "CANCEL" })}
+        />
+      ) : isDismiss ? (
+        <InputPromptArrows
+          steps={[
+            {
+              type: "text",
+              id: "quantity",
+              message: `How many ships do you wish to dismiss?`,
+              validate: validateQuantityOfShipsToDismiss,
+            },
+          ]}
+          onComplete={dismissShips}
+          onCancel={() => actor.send({ type: "CANCEL" })}
+        />
+      ) : null}
     </Box>
   );
 }
 
 function ShipyardAction() {
   const actor = GameContext.useActorRef();
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const snapshot = GameContext.useSelector((snapshot) => snapshot);
+  const { context } = snapshot;
+  const controls = context.settings.controls;
   const damage = 100 - context.ship.health;
   const costForRepair = calculateCostForRepair(damage);
 
-  useInput((input) => {
-    if (input === "c" || input === "C") {
-      actor.send({ type: "CANCEL" });
+  const validateAmount = (value: string) => {
+    const amount = +value;
+    return isNaN(amount) || amount <= 0 ? "Please enter a valid amount of money" : undefined;
+  };
+  const repairShip = ({ amount }: { amount?: string }) => {
+    if (amount) {
+      actor.send({ type: "REPAIR", cash: +amount });
     }
-  });
+  };
 
   return (
     <Box display="flex" flexDirection="column" gap={1}>
       <Text underline>Shipyard</Text>
-      {context.ship.health === 100 ? (
-        <Typed text="Your ship is in perfect condition." />
+      <Text>
+        Your ship has suffered {damage} damage. It&apos;ll cost ${costForRepair} to repair it.
+      </Text>
+      {controls === "keyboard" ? (
+        <InputPromptKeyboard
+          steps={[
+            {
+              type: "text",
+              id: "amount",
+              message: `How much would you like to spend?`,
+              validate: validateAmount,
+            },
+          ]}
+          onComplete={repairShip}
+          onCancel={() => actor.send({ type: "CANCEL" })}
+        />
       ) : (
-        <>
-          <Text>
-            Your ship has suffered {damage} damage. It&apos;ll cost ${costForRepair} to repair it.
-          </Text>
-          <Box gap={1}>
-            <Text>
-              How much would you like to spend? <Text dimColor>(press C to cancel this action)</Text>
-            </Text>
-            <TextInput
-              checkValidity={(input) => !isNaN(+input) && +input >= 0}
-              styleOutput={(value) => chalk.bold(value)}
-              onSubmit={(value) => {
-                const sum = +value;
-                if (!isNaN(sum)) {
-                  actor.send({ type: "REPAIR", cash: sum });
-                }
-              }}
-            />
-          </Box>
-        </>
+        <InputPromptArrows
+          steps={[
+            {
+              type: "text",
+              id: "amount",
+              message: `How much would you like to spend?`,
+              validate: validateAmount,
+            },
+          ]}
+          onComplete={repairShip}
+          onCancel={() => actor.send({ type: "CANCEL" })}
+        />
       )}
     </Box>
   );
@@ -562,19 +673,25 @@ function ShipyardAction() {
 
 function RetireAction() {
   const actor = GameContext.useActorRef();
+  const snapshot = GameContext.useSelector((snapshot) => snapshot);
+  const controls = snapshot.context.settings.controls;
 
   return (
     <Box display="flex" flexDirection="column" gap={1}>
       <Alert variant="warning">Retiring will end the game.</Alert>
-      <Box gap={1}>
-        <Text>Are you sure you want to retire?</Text>
-        <ConfirmInput
-          defaultChoice="cancel"
-          submitOnEnter={false}
-          onCancel={() => actor.send({ type: "CANCEL" })}
+      {controls === "keyboard" ? (
+        <ConfirmPromptKeyboard
+          message="Are you sure you want to retire?"
           onConfirm={() => actor.send({ type: "RETIRE" })}
+          onCancel={() => actor.send({ type: "CANCEL" })}
         />
-      </Box>
+      ) : (
+        <ConfirmPromptArrows
+          message="Are you sure you want to retire?"
+          onConfirm={() => actor.send({ type: "RETIRE" })}
+          onCancel={() => actor.send({ type: "CANCEL" })}
+        />
+      )}
     </Box>
   );
 }

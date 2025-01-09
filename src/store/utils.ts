@@ -6,6 +6,7 @@ import {
   GOAL_DAYS,
   goods,
   goodsInfo,
+  MAINTENANCE_COST_PER_SHIP,
   ports,
 } from "./constants.js";
 import { Context, EventTemplate, Good, Port, ShipStatus, Trend } from "./types.js";
@@ -15,7 +16,7 @@ export const calculatePirateEncounterChance = (context: Context) => {
   const baseChance = 0.2;
   const reputationFactor = Math.max(0.5, (100 - context.reputation) / 100);
   const guardFactor = context.guardFleet.ships * 0.01 * context.guardFleet.quality;
-  return Math.max(0.05, Math.min(0.3, baseChance * reputationFactor - guardFactor));
+  return Math.max(0.05, Math.min(0.3, baseChance * reputationFactor - guardFactor)); // 5%-30% chance
 };
 export const calculateGuardEffectiveness = (context: Context) => {
   const baseEffectiveness = 0.4;
@@ -77,6 +78,8 @@ export const calculateUpgradeCost = (context: Context) => {
   const qualityFactor = 1 + context.guardFleet.quality * 0.5;
   return Math.round(baseUpgradeCost * fleetSizeFactor * qualityFactor);
 };
+export const calculateDailyMaintenanceCost = (context: Context) =>
+  context.guardFleet.ships * MAINTENANCE_COST_PER_SHIP * context.guardFleet.quality;
 
 // +- MARKET +-
 export const generateTrends = () =>

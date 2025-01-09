@@ -30,6 +30,8 @@ export function StartScreen() {
       setDisableAnimations((de) => !de);
     } else if (input.toUpperCase() === "C") {
       setControls((c) => (c === "keyboard" ? "arrows" : "keyboard"));
+    } else if (key.escape) {
+      process.exit();
     }
   });
 

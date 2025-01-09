@@ -51,8 +51,6 @@ export type Context = {
   // Market context
   marketAction?: "buy" | "sell";
   availableGoods: readonly Good[];
-  good?: Good;
-  quantity?: number;
 
   // Misc
   messages: string[][];

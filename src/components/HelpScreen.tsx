@@ -16,9 +16,11 @@ export function HelpScreen() {
     }
   }, [ref]);
 
-  useInput((input) => {
+  useInput((input, key) => {
     if (input.toUpperCase() === "H") {
       actor.send({ type: "HIDE_HELP" });
+    } else if (key.escape) {
+      process.exit();
     }
   });
 
