@@ -1,5 +1,11 @@
 # ctrader
 
+## 2.2.0
+
+### Minor Changes
+
+- d7966e7: New UI, new hiring system, and debt handling
+
 ## 2.1.0
 
 ### Minor Changes
