@@ -21,6 +21,8 @@ export type GameEvents =
   | { type: "REPAIR"; cash: number }
   | { type: "GO_TO_RETIREMENT" }
   | { type: "RETIRE" }
+  | { type: "GO_TO_BANKRUPTCY" }
+  | { type: "DECLARE_BANKRUPTCY" }
   | { type: "CANCEL" }
   | { type: "MSG_ACK"; id?: string }
   | { type: "RESTART_GAME" }

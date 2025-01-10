@@ -22,7 +22,8 @@ export const calculateGuardEffectiveness = (context: Context) => {
   const baseEffectiveness = 0.4;
   const qualityBonus = (context.guardFleet.quality - 1) * 0.1;
   const fleetBonus = Math.min(0.3, context.guardFleet.ships * 0.05);
-  return Math.min(0.9, baseEffectiveness + qualityBonus + fleetBonus);
+  const overdraftPenalty = context.inOverdraft ? 0.5 : 0; // Apply penalty if in overdraft
+  return Math.min(0.9, (baseEffectiveness + qualityBonus + fleetBonus) * overdraftPenalty);
 };
 export const calculateEventChance = (template: EventTemplate, context: Context) => {
   let chance = template.baseChance;

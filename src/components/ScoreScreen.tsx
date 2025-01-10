@@ -7,7 +7,8 @@ import { calculateScore, getNetCash } from "../store/utils.js";
 export function ScoreScreen() {
   const actor = GameContext.useActorRef();
   const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const score = calculateScore(context);
+  const bankrupcy = context.balance < 0;
+  const score = bankrupcy ? 0 : calculateScore(context);
 
   useInput((input, key) => {
     if (input.toUpperCase() === "R") {
@@ -17,7 +18,20 @@ export function ScoreScreen() {
     }
   });
 
-  return (
+  return bankrupcy ? (
+    <Box width="100%" height="100%" flexDirection="column" alignItems="center">
+      <Box flexDirection="column" borderStyle="round" padding={1} gap={1} minWidth={60}>
+        <Badge color="gray">
+          <Text color="whiteBright">YOU WENT BANKRUPT!</Text>
+        </Badge>
+        <Text>You&apos;ve lost everything. Better luck next time!</Text>
+
+        <Box flexGrow={1} justifyContent="center" marginTop={4}>
+          <Text color="greenBright">Press R to play again</Text>
+        </Box>
+      </Box>
+    </Box>
+  ) : (
     <Box width="100%" height="100%" flexDirection="column" alignItems="center">
       <Box flexDirection="column" borderStyle="round" padding={1} gap={1} minWidth={60}>
         <Badge color={context.extendedGame ? "blueBright" : "cyanBright"}>

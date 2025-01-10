@@ -11,7 +11,7 @@ import {
   getAvailableStorage,
   getShipStatus,
 } from "../../store/utils.js";
-import { goods, ports } from "../../store/constants.js";
+import { goods, OVERDRAFT_TRADING_LIMIT, ports } from "../../store/constants.js";
 import { ActionPrompt as ActionPromptArrows } from "../prompts/arrows/ActionPrompt.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../prompts/keyboard/ActionPrompt.js";
 import { InputPrompt as InputPromptArrows } from "../prompts/arrows/InputPrompt.js";
@@ -64,7 +64,11 @@ function StatusBar() {
       </Text>
       <Text> | </Text>
       <Text>
-        Balance: <Text inverse>${context.balance}</Text>
+        Balance:{" "}
+        <Text backgroundColor="black" color="whiteBright" inverse={context.balance > 0}>
+          {context.balance >= 0 ? `$${context.balance}` : `-$${Math.abs(context.balance)}`}
+          {context.balance < 0 ? " (OVERDRAWN)" : null}
+        </Text>
       </Text>
       <Text> | </Text>
       <Text>
@@ -231,6 +235,7 @@ function Actions() {
   const isManagingFleet = snapshot.matches({ gameScreen: "managing_fleet" });
   const isAtShipyard = snapshot.matches({ gameScreen: "at_shipyard" });
   const isAtRetirement = snapshot.matches({ gameScreen: "at_retirement" });
+  const isAtBankruptcy = snapshot.matches({ gameScreen: "at_bankruptcy" });
 
   const handleSelect = (value: string) => {
     if (value === "T") {
@@ -245,6 +250,8 @@ function Actions() {
       actor.send({ type: "GO_TO_SHIPYARD" });
     } else if (value === "W") {
       actor.send({ type: "GO_TO_RETIREMENT" });
+    } else if (value === "D") {
+      actor.send({ type: "GO_TO_BANKRUPTCY" });
     }
   };
 
@@ -258,6 +265,8 @@ function Actions() {
     <ShipyardAction />
   ) : isAtRetirement ? (
     <RetireAction />
+  ) : isAtBankruptcy ? (
+    <BankruptcyAction />
   ) : (
     <Box flexDirection="column" gap={1}>
       <Text backgroundColor="black" color="whiteBright">
@@ -274,6 +283,7 @@ function Actions() {
             { label: "Fleet management", value: "F", key: "F" },
             { label: "Repair ship", value: "R", disabled: context.ship.health === 100, key: "R" },
             { label: "Retire", value: "W", disabled: !context.canRetire, key: "W" },
+            { label: "Declare bankruptcy", value: "D", key: "D", disabled: context.balance >= 0 },
           ]}
           onSelect={handleSelect}
         />
@@ -384,9 +394,14 @@ function MarketAction() {
   const { context } = snapshot;
   const controls = context.settings.controls;
   const [good, setGood] = useState<Good | undefined>(undefined);
-  const affordance = good ? Math.floor(context.balance / context.prices[context.currentPort][good]) : 0;
+  const inDebt = context.balance < 0;
+  const affordance = good
+    ? Math.floor(
+        (inDebt ? context.balance + OVERDRAFT_TRADING_LIMIT : context.balance) /
+          context.prices[context.currentPort][good],
+      )
+    : 0;
   const inHold = good ? context.ship.hold.get(good) : 0;
-
   const handleSubmit = (values: Record<string, string>) => {
     const { good, quantity } = values;
     if (good && quantity && !isNaN(+quantity)) {
@@ -689,6 +704,30 @@ function RetireAction() {
         <ConfirmPromptArrows
           message="Are you sure you want to retire?"
           onConfirm={() => actor.send({ type: "RETIRE" })}
+          onCancel={() => actor.send({ type: "CANCEL" })}
+        />
+      )}
+    </Box>
+  );
+}
+
+function BankruptcyAction() {
+  const actor = GameContext.useActorRef();
+  const snapshot = GameContext.useSelector((snapshot) => snapshot);
+  const controls = snapshot.context.settings.controls;
+
+  return (
+    <Box display="flex" flexDirection="column" gap={1}>
+      {controls === "keyboard" ? (
+        <ConfirmPromptKeyboard
+          message="Are you sure you want to declare bankruptcy?"
+          onConfirm={() => actor.send({ type: "DECLARE_BANKRUPTCY" })}
+          onCancel={() => actor.send({ type: "CANCEL" })}
+        />
+      ) : (
+        <ConfirmPromptArrows
+          message="Are you sure you want to declare bankruptcy?"
+          onConfirm={() => actor.send({ type: "DECLARE_BANKRUPTCY" })}
           onCancel={() => actor.send({ type: "CANCEL" })}
         />
       )}

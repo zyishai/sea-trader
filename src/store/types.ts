@@ -53,6 +53,8 @@ export type Context = {
   availableGoods: readonly Good[];
 
   // Misc
+  inOverdraft: boolean;
+  lastOverdraftChargeDay: number;
   messages: string[][];
   canRetire: boolean;
 

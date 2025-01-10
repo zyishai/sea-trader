@@ -10,7 +10,7 @@ export const initialContext = (settings?: GameSettings) => {
     availablePorts: ports,
     availableGoods: goods,
     day: 1,
-    balance: 1000,
+    balance: -900,
     guardFleet: {
       ships: 0,
       quality: 1,
@@ -27,6 +27,8 @@ export const initialContext = (settings?: GameSettings) => {
     prices: generatePrices(trends),
     nextPriceUpdate: PRICE_UPDATE_INTERVAL,
     nextTrendUpdate: TREND_UPDATE_INTERVAL,
+    inOverdraft: false,
+    lastOverdraftChargeDay: 1,
     messages: [],
     canRetire: false,
     extendedGame,

@@ -18,9 +18,14 @@ import {
   getAvailableStorage,
 } from "./utils.js";
 import {
+  BANKRUPTCY_THRESHOLD,
+  BASE_GUARD_COST,
+  BASE_INTEREST_RATE,
   goods,
+  MAX_DAILY_OVERDRAFT,
   MAX_GUARD_QUALITY,
   MAX_GUARD_SHIPS,
+  OVERDRAFT_TRADING_LIMIT,
   ports,
   PRICE_UPDATE_INTERVAL,
   TREND_UPDATE_INTERVAL,
@@ -65,7 +70,11 @@ export const gameMachine = setup({
               {
                 guard: ({ context, event }) =>
                   event.action === "buy" &&
-                  context.availableGoods.every((good) => context.balance < context.prices[context.currentPort][good]),
+                  context.availableGoods.every(
+                    (good) =>
+                      context.prices[context.currentPort][good] >
+                      context.balance + (context.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0),
+                  ),
                 actions: {
                   type: "displayMessages",
                   params: ["You don't have enough money to buy any goods."],
@@ -80,7 +89,19 @@ export const gameMachine = setup({
                 },
               },
               {
-                actions: assign(({ event }) => ({ marketAction: event.action })),
+                actions: [
+                  assign(({ event }) => ({ marketAction: event.action })),
+                  {
+                    type: "displayMessages",
+                    params: ({ context, event }) =>
+                      context.inOverdraft && event.action === "buy"
+                        ? [
+                            "You're in overdraft.",
+                            `You're allowed to buy goods for up to $${context.balance + OVERDRAFT_TRADING_LIMIT}.`,
+                          ]
+                        : [],
+                  },
+                ],
                 target: "at_market",
               },
             ],
@@ -94,6 +115,7 @@ export const gameMachine = setup({
               },
             ],
             GO_TO_RETIREMENT: { target: "at_retirement" },
+            GO_TO_BANKRUPTCY: { target: "at_bankruptcy" },
             MANAGE_FLEET: { target: "managing_fleet" },
           },
         },
@@ -370,7 +392,9 @@ export const gameMachine = setup({
               on: {
                 PURCHASE: [
                   {
-                    guard: ({ context, event }) => calculatePrice({ ...context, ...event }) > context.balance,
+                    guard: ({ context, event }) =>
+                      calculatePrice({ ...context, ...event }) >
+                      context.balance + (context.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0),
                     actions: { type: "displayMessages", params: ["You don't have enough money."] },
                     target: "buyAction",
                   },
@@ -496,6 +520,11 @@ export const gameMachine = setup({
           },
         },
         at_retirement: {
+          on: {
+            CANCEL: { target: "#idle" },
+          },
+        },
+        at_bankruptcy: {
           on: {
             CANCEL: { target: "#idle" },
           },
@@ -669,6 +698,14 @@ export const gameMachine = setup({
       },
       on: {
         MSG_ACK: { actions: { type: "acknoledgeMessage" } },
+        DECLARE_BANKRUPTCY: [
+          {
+            guard: ({ context }) => context.balance > 0,
+            actions: { type: "displayMessages", params: ["You're not bankrupt!"] },
+            target: "#idle",
+          },
+          { target: "scoringScreen" },
+        ],
         RETIRE: [
           {
             guard: ({ context }) => !context.canRetire || !stateIn({ gamescreen: "at_retirement" }),
@@ -679,8 +716,90 @@ export const gameMachine = setup({
         ],
       },
       // TODO: Add a check for health dropping to 0 and update the scoring screen accordingly
-      // TODO: Add a check to take interest on the balance if the player is in overdraft
+      /**NOTE
+       * When the player is in overdraft:
+       * - Interest is charged at 3% per day or $25 per day, whichever is less
+       * - He doesn't pay maintenance fee, but his fleet's quality is halved
+       * - He can trade unless is debt is greater than -$1000
+       *
+       * Time-based opportunities:
+       * - When an opportunity is accepted - for every trip, reduce the trip duration from the `timeLimit` and if the result is <= 0
+       * and the player has not fullfilled the opportunity, the opportunity is failed.
+       */
       always: [
+        // Check if the player is bankrupt
+        {
+          guard: ({ context }) => context.balance < BANKRUPTCY_THRESHOLD,
+          actions: {
+            type: "displayMessages",
+            params: ["You have gone bankrupt! Your creditors have seized your assets."],
+          },
+          target: "scoringScreen",
+        },
+        // If the player is in overdraft and his debt is greater than -$1000, sell his fleet
+        {
+          guard: ({ context }) => context.balance < OVERDRAFT_TRADING_LIMIT && context.guardFleet.ships > 0,
+          actions: [
+            assign(({ context }) => ({
+              balance: context.balance + context.guardFleet.ships * BASE_GUARD_COST * 1.5,
+              guardFleet: {
+                ...context.guardFleet,
+                ships: 0,
+              },
+              reputation: Math.max(0, context.reputation - 10),
+            })),
+            {
+              type: "displayMessages",
+              params: [
+                "In a desperate attempt to pay your debts, you've sold your entire fleet.",
+                "Your reputation has suffered significantly.",
+              ],
+            },
+          ],
+        },
+        // Charge interest if the player is in overdraft
+        {
+          guard: ({ context }) => context.inOverdraft && context.day > context.lastOverdraftChargeDay,
+          actions: [
+            assign(({ context }) => ({
+              // 3% daily interest or $25 per day, whichever is less
+              balance: Math.max(
+                Math.floor(
+                  context.balance * Math.pow(1 + BASE_INTEREST_RATE, context.day - context.lastOverdraftChargeDay),
+                ),
+                context.balance - MAX_DAILY_OVERDRAFT,
+              ),
+              lastOverdraftChargeDay: context.day,
+            })),
+          ],
+        },
+        // Notify the player if they're in overdraft
+        {
+          guard: ({ context }) => context.balance < 0 && !context.inOverdraft,
+          actions: [
+            assign({ inOverdraft: true }),
+            {
+              type: "displayMessages",
+              params: ({ context }) =>
+                [
+                  "You're in overdraft.",
+                  "Interest will be charged at 3% per day.",
+                  context.guardFleet.ships > 0
+                    ? "Since you can't pay fleet maintenance fee, you fleet effectiveness is reduced."
+                    : "",
+                  `Be carefull your debt won't exceed $${BANKRUPTCY_THRESHOLD}, otherwise you'll go bankrupt!`,
+                ].filter(Boolean),
+            },
+          ],
+        },
+        // Notify the player if they're no longer in overdraft
+        {
+          guard: ({ context }) => context.inOverdraft && context.balance >= 0,
+          actions: [
+            assign({ inOverdraft: false }),
+            { type: "displayMessages", params: ["You're no longer in overdraft!"] },
+          ],
+        },
         // Set canRetire to true if the player has finished the game
         { guard: ({ context }) => !context.canRetire && context.day >= 100, actions: assign({ canRetire: true }) },
         // Update prices if the next price update is due
@@ -704,10 +823,20 @@ export const gameMachine = setup({
             }),
           ],
         },
-        // Pay for fleet maintenance if the player has any guard ships and it's time to do so
+        // Pay for fleet maintenance if the player has any guard ships and it's time to do so and the player is not in debt
         {
-          guard: ({ context }) => context.guardFleet.ships > 0 && context.day > context.guardFleet.lastMaintenanceDay,
+          guard: ({ context }) =>
+            context.guardFleet.ships > 0 && context.day > context.guardFleet.lastMaintenanceDay && !context.inOverdraft,
           actions: [
+            {
+              type: "displayMessages",
+              params: ({ context }) => {
+                const daysPassed = context.day - context.guardFleet.lastMaintenanceDay;
+                const dailyCost = calculateDailyMaintenanceCost(context);
+                const totalCost = daysPassed * dailyCost;
+                return [`Paid $${totalCost} for fleet maintenance`];
+              },
+            },
             assign(({ context }) => {
               const daysPassed = context.day - context.guardFleet.lastMaintenanceDay;
               const dailyCost = calculateDailyMaintenanceCost(context);
@@ -721,15 +850,6 @@ export const gameMachine = setup({
                 },
               };
             }),
-            {
-              type: "displayMessages",
-              params: ({ context }) => {
-                const daysPassed = context.day - context.guardFleet.lastMaintenanceDay;
-                const dailyCost = calculateDailyMaintenanceCost(context);
-                const totalCost = daysPassed * dailyCost;
-                return [`Paid $${totalCost} for fleet maintenance`];
-              },
-            },
           ],
         },
       ],
