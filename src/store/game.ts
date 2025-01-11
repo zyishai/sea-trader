@@ -616,6 +616,7 @@ export const gameMachine = setup({
                           guardFleet: {
                             ...context.guardFleet,
                             ships: context.guardFleet.ships + event.amount,
+                            lastMaintenanceDay: context.day,
                           },
                           balance: context.balance - cost,
                           reputation: Math.min(100, context.reputation + event.amount),
@@ -716,6 +717,9 @@ export const gameMachine = setup({
         ],
       },
       // TODO: Add a check for health dropping to 0 and update the scoring screen accordingly
+      // TODO: Add to pirates encounter ship's own strength, and allow upgrading the ship's cannons to increase the chance of success
+      // TODO: Spread the pirate's damage between the ship and its fleet (most damage is taken by the fleet),
+      // and if enough damage is done to the fleet, the player loses one of his guard ships
       /**NOTE
        * When the player is in overdraft:
        * - Interest is charged at 3% per day or $25 per day, whichever is less
@@ -727,6 +731,35 @@ export const gameMachine = setup({
        * and the player has not fullfilled the opportunity, the opportunity is failed.
        */
       always: [
+        // Pay for fleet maintenance if the player has any guard ships and it's time to do so and the player is not in debt
+        {
+          guard: ({ context }) =>
+            context.guardFleet.ships > 0 && context.day > context.guardFleet.lastMaintenanceDay && !context.inOverdraft,
+          actions: [
+            {
+              type: "displayMessages",
+              params: ({ context }) => {
+                const daysPassed = context.day - context.guardFleet.lastMaintenanceDay;
+                const dailyCost = calculateDailyMaintenanceCost(context);
+                const totalCost = daysPassed * dailyCost;
+                return [`Paid $${totalCost} for fleet maintenance`];
+              },
+            },
+            assign(({ context }) => {
+              const daysPassed = context.day - context.guardFleet.lastMaintenanceDay;
+              const dailyCost = calculateDailyMaintenanceCost(context);
+              const totalCost = daysPassed * dailyCost;
+
+              return {
+                balance: context.balance - totalCost,
+                guardFleet: {
+                  ...context.guardFleet,
+                  lastMaintenanceDay: context.day,
+                },
+              };
+            }),
+          ],
+        },
         // Check if the player is bankrupt
         {
           guard: ({ context }) => context.balance < BANKRUPTCY_THRESHOLD,
@@ -738,7 +771,7 @@ export const gameMachine = setup({
         },
         // If the player is in overdraft and his debt is greater than -$1000, sell his fleet
         {
-          guard: ({ context }) => context.balance < OVERDRAFT_TRADING_LIMIT && context.guardFleet.ships > 0,
+          guard: ({ context }) => context.balance < -OVERDRAFT_TRADING_LIMIT && context.guardFleet.ships > 0,
           actions: [
             assign(({ context }) => ({
               balance: context.balance + context.guardFleet.ships * BASE_GUARD_COST * 1.5,
@@ -787,7 +820,7 @@ export const gameMachine = setup({
                   context.guardFleet.ships > 0
                     ? "Since you can't pay fleet maintenance fee, you fleet effectiveness is reduced."
                     : "",
-                  `Be carefull your debt won't exceed $${BANKRUPTCY_THRESHOLD}, otherwise you'll go bankrupt!`,
+                  `Be carefull your debt won't exceed -$${Math.abs(BANKRUPTCY_THRESHOLD)}, otherwise you'll go bankrupt!`,
                 ].filter(Boolean),
             },
           ],
@@ -820,35 +853,6 @@ export const gameMachine = setup({
             assign({
               trends: generateTrends(),
               nextTrendUpdate: TREND_UPDATE_INTERVAL,
-            }),
-          ],
-        },
-        // Pay for fleet maintenance if the player has any guard ships and it's time to do so and the player is not in debt
-        {
-          guard: ({ context }) =>
-            context.guardFleet.ships > 0 && context.day > context.guardFleet.lastMaintenanceDay && !context.inOverdraft,
-          actions: [
-            {
-              type: "displayMessages",
-              params: ({ context }) => {
-                const daysPassed = context.day - context.guardFleet.lastMaintenanceDay;
-                const dailyCost = calculateDailyMaintenanceCost(context);
-                const totalCost = daysPassed * dailyCost;
-                return [`Paid $${totalCost} for fleet maintenance`];
-              },
-            },
-            assign(({ context }) => {
-              const daysPassed = context.day - context.guardFleet.lastMaintenanceDay;
-              const dailyCost = calculateDailyMaintenanceCost(context);
-              const totalCost = daysPassed * dailyCost;
-
-              return {
-                balance: context.balance - totalCost,
-                guardFleet: {
-                  ...context.guardFleet,
-                  lastMaintenanceDay: context.day,
-                },
-              };
             }),
           ],
         },
