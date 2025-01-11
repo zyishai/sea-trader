@@ -10,7 +10,7 @@ export const initialContext = (settings?: GameSettings) => {
     availablePorts: ports,
     availableGoods: goods,
     day: 1,
-    balance: -900,
+    balance: 1000,
     guardFleet: {
       ships: 0,
       quality: 1,
