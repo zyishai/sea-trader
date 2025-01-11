@@ -8,6 +8,7 @@ import {
   calculateCostForRepair,
   calculateDailyMaintenanceCost,
   calculateGuardShipCost,
+  calculateTravelTime,
   getAvailableStorage,
   getShipStatus,
 } from "../../store/utils.js";
@@ -164,6 +165,37 @@ function PriceList() {
             ))}
           </Box>
         ))}
+        <Box flexDirection="column" alignItems="stretch">
+          <Box
+            borderStyle="single"
+            borderDimColor
+            borderTop={false}
+            borderLeft={false}
+            borderRight={false}
+            paddingX={2}
+          >
+            <Text bold color="cyan">
+              Travel Time
+            </Text>
+          </Box>
+          {ports.map((port) => (
+            <Box
+              key={port}
+              borderStyle="single"
+              borderDimColor
+              borderTop={false}
+              borderLeft={false}
+              borderRight={false}
+              paddingX={2}
+            >
+              {port !== context.currentPort ? (
+                <Text>{calculateTravelTime(context.currentPort, port, context.ship.speed)} days</Text>
+              ) : (
+                <Text>---</Text>
+              )}
+            </Box>
+          ))}
+        </Box>
       </Box>
       <Text color="gray">
         * Next price update in <Text inverse>{context.nextPriceUpdate} days</Text>.
