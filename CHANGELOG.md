@@ -1,5 +1,11 @@
 # ctrader
 
+## 2.2.1
+
+### Patch Changes
+
+- 8f3dee0: Hot fix: player starts the game in debt
+
 ## 2.2.0
 
 ### Minor Changes
