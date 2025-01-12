@@ -2,12 +2,13 @@ import { Box, Text, useInput } from "ink";
 import React from "react";
 import { GameContext } from "./GameContext.js";
 import { Badge } from "@inkjs/ui";
-import { calculateScore, getNetCash } from "../store/utils.js";
+import { calculateScore, getNetCash, getShipStatus } from "../store/utils.js";
 
 export function ScoreScreen() {
   const actor = GameContext.useActorRef();
   const context = GameContext.useSelector((snapshot) => snapshot.context);
   const bankrupcy = context.balance < 0;
+  const shipSank = getShipStatus(context.ship.health) === "Wreckage" && context.day < 100;
   const score = bankrupcy ? 0 : calculateScore(context);
 
   useInput((input, key) => {
@@ -25,6 +26,19 @@ export function ScoreScreen() {
           <Text color="whiteBright">YOU WENT BANKRUPT!</Text>
         </Badge>
         <Text>You&apos;ve lost everything. Better luck next time!</Text>
+
+        <Box flexGrow={1} justifyContent="center" marginTop={4}>
+          <Text color="greenBright">Press R to play again</Text>
+        </Box>
+      </Box>
+    </Box>
+  ) : shipSank ? (
+    <Box width="100%" height="100%" flexDirection="column" alignItems="center">
+      <Box flexDirection="column" borderStyle="round" padding={1} gap={1} minWidth={60}>
+        <Badge color="red">
+          <Text color="whiteBright">SHIP SANK!</Text>
+        </Badge>
+        <Text>Your ship sank. You&apos;ve lost the game.</Text>
 
         <Box flexGrow={1} justifyContent="center" marginTop={4}>
           <Text color="greenBright">Press R to play again</Text>

@@ -16,6 +16,8 @@ import {
   generatePrices,
   generateTrends,
   getAvailableStorage,
+  getNetCash,
+  getShipStatus,
 } from "./utils.js";
 import {
   BANKRUPTCY_THRESHOLD,
@@ -60,6 +62,13 @@ export const gameMachine = setup({
           id: "idle",
           on: {
             GO_TO_PORT: [
+              {
+                guard: ({ context }) => getShipStatus(context.ship.health) === "Wreckage",
+                actions: {
+                  type: "displayMessages",
+                  params: ["Your ship is in wreckage condition.", "You can't travel until you repair it."],
+                },
+              },
               {
                 guard: ({ context }) => context.day < 100 || context.extendedGame,
                 target: "at_port",
@@ -734,6 +743,21 @@ export const gameMachine = setup({
        * and the player has not fullfilled the opportunity, the opportunity is failed.
        */
       always: [
+        // Check if the ship is in wreckage condition and the player does not have enough money to repair it, game over
+        {
+          guard: ({ context }) =>
+            getShipStatus(context.ship.health) === "Wreckage" &&
+            context.day < 100 &&
+            getShipStatus(calculateRepairForCost(getNetCash(context)) + context.ship.health) === "Wreckage",
+          actions: {
+            type: "displayMessages",
+            params: [
+              "Your ship is in wreckage condition and you don't have enough money to repair it.",
+              "You've lost the game.",
+            ],
+          },
+          target: "scoringScreen",
+        },
         // Pay for fleet maintenance if the player has any guard ships and it's time to do so and the player is not in debt
         {
           guard: ({ context }) =>
