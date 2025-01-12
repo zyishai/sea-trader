@@ -14,10 +14,12 @@ export type GameEvents =
   | { type: "HIRE_PERMANENT_GUARDS"; amount: number }
   | { type: "UPGRADE_GUARDS" }
   | { type: "DISMISS_GUARDS"; amount: number }
+  | { type: "GO_TO_INVENTORY" }
   | { type: "GO_TO_MARKET"; action: "buy" | "sell" }
   | { type: "PURCHASE"; good: Good; quantity: number }
   | { type: "SELL"; good: Good; quantity: number }
   | { type: "GO_TO_SHIPYARD" }
+  | { type: "GO_TO_SHIPYARD_REPAIR" }
   | { type: "REPAIR"; cash: number }
   | { type: "GO_TO_RETIREMENT" }
   | { type: "RETIRE" }
@@ -27,4 +29,5 @@ export type GameEvents =
   | { type: "MSG_ACK"; id?: string }
   | { type: "RESTART_GAME" }
   | { type: "SHOW_HELP" }
-  | { type: "HIDE_HELP" };
+  | { type: "HIDE_HELP" }
+  | { type: "EXIT" };

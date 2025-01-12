@@ -10,9 +10,10 @@ import {
   calculateGuardShipCost,
   calculateTravelTime,
   getAvailableStorage,
+  getNetCash,
   getShipStatus,
 } from "../../store/utils.js";
-import { goods, OVERDRAFT_TRADING_LIMIT, ports } from "../../store/constants.js";
+import { OVERDRAFT_TRADING_LIMIT, ports } from "../../store/constants.js";
 import { ActionPrompt as ActionPromptArrows } from "../prompts/arrows/ActionPrompt.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../prompts/keyboard/ActionPrompt.js";
 import { InputPrompt as InputPromptArrows } from "../prompts/arrows/InputPrompt.js";
@@ -21,33 +22,30 @@ import { ConfirmPrompt as ConfirmPromptArrows } from "../prompts/arrows/ConfirmP
 import { ConfirmPrompt as ConfirmPromptKeyboard } from "../prompts/keyboard/ConfirmPrompt.js";
 import { Good, Port } from "../../store/types.js";
 import assert from "assert";
+import { Table } from "@tqman/ink-table";
 
-export function GameScreen() {
+export function Layout({ children }: React.PropsWithChildren) {
   const [ref, setRef] = useState<DOMElement | null>(null);
-  const machine = GameContext.useSelector((snapshot) => snapshot);
-  const messages = machine.context.messages;
-
   return (
     <Box width="100%" flexDirection="column" alignItems="center">
       <Box flexDirection="column" alignItems="stretch" borderStyle="round" padding={1} ref={setRef}>
+        {/* Status Bar (always visible) */}
         <StatusBar />
-        <Box height={2} />
-        <Box gap={4}>
-          <Box flexDirection="column">
-            <PriceList />
-            <Box height={2} />
-            <Inventory />
-          </Box>
-          <Box flexDirection="column" alignItems="center"></Box>
-        </Box>
 
-        {/* Divider */}
         <Box marginTop={2} marginBottom={1}>
           <Divider containerRef={ref} />
         </Box>
 
-        <Box flexDirection="column" minHeight={10}>
-          {messages && messages.length > 0 ? <Messages /> : <Actions />}
+        {/* Main Content Area (with minimum height) */}
+        <Box minHeight={15}>{children}</Box>
+
+        <Box marginTop={2} marginBottom={1}>
+          <Divider containerRef={ref} />
+        </Box>
+
+        {/* Action/Message Area */}
+        <Box minHeight={5}>
+          <ActionArea />
         </Box>
       </Box>
     </Box>
@@ -59,25 +57,18 @@ function StatusBar() {
   const shipHealth = getShipStatus(context.ship.health);
 
   return (
-    <Box>
-      <Text>
-        Port: <Text inverse>{context.currentPort}</Text>
-      </Text>
-      <Text> | </Text>
-      <Text>
-        Balance:{" "}
+    <Box flexDirection="column" gap={1}>
+      <Box>
+        <Text>Day: </Text>
+        <Text inverse>{context.day.toString().padStart(3, " ")}</Text>
+        <Text> | Port: </Text>
+        <Text inverse>{context.currentPort}</Text>
+        <Text> | Balance: </Text>
         <Text backgroundColor="black" color="whiteBright" inverse={context.balance > 0}>
           {context.balance >= 0 ? `$${context.balance}` : `-$${Math.abs(context.balance)}`}
-          {context.balance < 0 ? " (OVERDRAWN)" : null}
         </Text>
-      </Text>
-      <Text> | </Text>
-      <Text>
-        Day: <Text inverse>{context.day.toString().padStart(3, " ")}</Text>
-      </Text>
-      <Text> | </Text>
-      <Text>
-        Ship Health:{" "}
+        {context.balance < 0 && <Badge color="red">OVERDRAWN</Badge>}
+        <Text> | Ship: </Text>
         <Badge
           color={
             shipHealth === "Perfect"
@@ -89,142 +80,323 @@ function StatusBar() {
                   : "gray"
           }
         >
-          {context.ship.health}% ({shipHealth})
+          {shipHealth}
         </Badge>
+      </Box>
+    </Box>
+  );
+}
+
+export function GameScreen() {
+  const [ref, setRef] = useState<DOMElement | null>(null);
+  const machine = GameContext.useSelector((snapshot) => snapshot);
+  const currentView = getCurrentView();
+
+  return (
+    <Layout>{currentView}</Layout>
+    // <Box width="100%" flexDirection="column" alignItems="center">
+    //   <Box flexDirection="column" alignItems="stretch" borderStyle="round" padding={1} ref={setRef}>
+    //     <StatusBar />
+    //     <Box height={2} />
+    //     <Box gap={4}>
+    //       <Box flexDirection="column">
+    //         <PriceList />
+    //         <Box height={2} />
+    //         <Inventory />
+    //       </Box>
+    //       <Box flexDirection="column" alignItems="center"></Box>
+    //     </Box>
+
+    //     <Box marginTop={2} marginBottom={1}>
+    //       <Divider containerRef={ref} />
+    //     </Box>
+
+    //     <Box flexDirection="column" minHeight={10}>
+    //       {messages && messages.length > 0 ? <Messages /> : <Actions />}
+    //     </Box>
+    //   </Box>
+    // </Box>
+  );
+}
+
+function getCurrentView() {
+  const machine = GameContext.useSelector((snapshot) => snapshot);
+
+  if (machine.matches({ gameScreen: "idle" })) {
+    return <MainView />;
+  }
+
+  if (machine.matches({ gameScreen: "at_port" })) {
+    return <PortView />;
+  }
+
+  if (machine.matches({ gameScreen: "viewing_inventory" })) {
+    return <InventoryView />;
+  }
+
+  if (machine.matches({ gameScreen: "at_market" })) {
+    return <MarketView />;
+  }
+
+  if (machine.matches({ gameScreen: "managing_fleet" })) {
+    return <FleetView />;
+  }
+
+  if (machine.matches({ gameScreen: "at_shipyard" })) {
+    return <ShipyardView />;
+  }
+
+  return null;
+}
+
+function MainView() {
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const netWorth = getNetCash(context);
+
+  return (
+    <Box flexDirection="column" gap={1}>
+      <Text bold>Current Status:</Text>
+      <Text>Net Worth: {netWorth < 0 ? `-$${Math.abs(netWorth)}` : `$${netWorth}`}</Text>
+      {context.extendedGame && <Text>Days Played: {context.day} (Extended Mode)</Text>}
+    </Box>
+  );
+}
+
+function PortView() {
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const availablePorts = context.availablePorts;
+
+  return (
+    <Box flexDirection="column" gap={1}>
+      <Text bold>Available Destinations:</Text>
+
+      <Box flexDirection="column" gap={1}>
+        {availablePorts.map((port) => {
+          const travelTime = calculateTravelTime(context.currentPort, port, context.ship.speed);
+          const dailyCost = calculateDailyMaintenanceCost(context);
+          const maintenanceCost = dailyCost * travelTime;
+
+          return (
+            <Box key={port} flexDirection="column">
+              <Text bold>{port}</Text>
+              <Text>{"─".repeat(30)}</Text>
+              <Box flexDirection="column" marginLeft={2}>
+                <Text>Travel Time: {travelTime} days</Text>
+                {context.guardFleet.ships > 0 && <Text>Fleet Maintenance Cost: ${maintenanceCost}</Text>}
+              </Box>
+            </Box>
+          );
+        })}
+      </Box>
+    </Box>
+  );
+}
+
+function InventoryView() {
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const availableStorage = getAvailableStorage(context.ship);
+
+  // Create table data for current cargo
+  const cargoData = Array.from(context.ship.hold.entries())
+    .filter(([_, quantity]) => quantity > 0)
+    .map(([good, quantity]) => {
+      const currentPrice = context.prices[context.currentPort][good];
+      return {
+        Good: good,
+        Quantity: `${quantity} tons`,
+        "Current Value": `$${currentPrice * quantity}`,
+      };
+    });
+
+  return (
+    <Box flexDirection="column" gap={1}>
+      <Text bold underline>
+        Cargo Manifest
       </Text>
-      <Text> | </Text>
-      <Text>
-        Guard Fleet:{" "}
-        <Badge color={context.guardFleet.ships > 0 ? "blueBright" : "gray"}>
-          {context.guardFleet.ships} ships (Lvl {context.guardFleet.quality})
-        </Badge>
+
+      {cargoData.length > 0 ? (
+        <Table
+          data={cargoData}
+          columns={[
+            { key: "Good", align: "left" },
+            { key: "Quantity", align: "right" },
+            { key: "Current Value", align: "right" },
+          ]}
+        />
+      ) : (
+        <Text dimColor>No cargo in hold</Text>
+      )}
+
+      <Box height={1} />
+
+      <Box flexDirection="column">
+        <Text>Storage Space:</Text>
+        <Text>
+          {" "}
+          • Used: <Badge color="gray">{context.ship.capacity - availableStorage} tons</Badge>
+        </Text>
+        <Text>
+          {" "}
+          • Available: <Badge color="gray">{availableStorage} tons</Badge>
+        </Text>
+        <Text>
+          {" "}
+          • Total Capacity: <Badge color="gray">{context.ship.capacity} tons</Badge>
+        </Text>
+      </Box>
+    </Box>
+  );
+}
+
+function MarketView() {
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const isOverdrawn = context.balance < 0;
+
+  const marketData = context.availableGoods.map((good) => {
+    const price = context.prices[context.currentPort][good];
+    const trend = context.trends[context.currentPort][good];
+    const quantity = context.ship.hold.get(good) || 0;
+
+    return {
+      Good: good,
+      Price: `$${price}`,
+      Trend: trend === "increasing" ? "↑" : trend === "decreasing" ? "↓" : "",
+      "In Hold": quantity.toString(),
+    };
+  });
+
+  return (
+    <Box flexDirection="column" gap={1}>
+      <Text bold underline>
+        Market Prices
+      </Text>
+
+      {isOverdrawn && (
+        <Alert variant="error">Trading limited to ${context.balance + OVERDRAFT_TRADING_LIMIT} due to overdraft</Alert>
+      )}
+
+      <Table
+        data={marketData}
+        columns={[
+          { key: "Good", align: "left" },
+          { key: "Price", align: "right" },
+          { key: "Trend", align: "left" },
+          { key: "In Hold", align: "right" },
+        ]}
+      />
+
+      <Text dimColor>
+        <Text underline>Next Updates</Text>: Prices in{" "}
+        <Badge color={context.nextPriceUpdate <= 3 ? "yellow" : "white"}>{context.nextPriceUpdate}</Badge> days, Trends
+        in <Badge color={context.nextTrendUpdate <= 3 ? "yellow" : "white"}>{context.nextTrendUpdate}</Badge> days
       </Text>
     </Box>
   );
 }
 
-function PriceList() {
+function FleetView() {
   const context = GameContext.useSelector((snapshot) => snapshot.context);
-  return (
-    <>
-      <Box>
-        <Box flexDirection="column" alignItems="stretch" flexGrow={1}>
-          <Box
-            borderStyle="single"
-            borderDimColor
-            borderTop={false}
-            borderLeft={false}
-            borderRight={false}
-            paddingRight={1}
-          >
-            <Text bold color="cyan">
-              Port
-            </Text>
-          </Box>
-          {ports.map((port) => (
-            <Box
-              key={port}
-              borderStyle="single"
-              borderDimColor
-              borderTop={false}
-              borderLeft={false}
-              borderRight={false}
-              paddingRight={1}
-            >
-              <Text bold={port === context.currentPort}>{port}</Text>
-            </Box>
-          ))}
-        </Box>
-        {goods.map((good) => (
-          <Box key={good} flexDirection="column" alignItems="stretch">
-            <Box
-              borderStyle="single"
-              borderDimColor
-              borderTop={false}
-              borderLeft={false}
-              borderRight={false}
-              paddingX={2}
-            >
-              <Text bold color="cyan">
-                {good}
-              </Text>
-            </Box>
-            {ports.map((port, index) => (
-              <Box
-                key={port + index}
-                borderStyle="single"
-                borderDimColor
-                borderTop={false}
-                borderLeft={false}
-                borderRight={false}
-                paddingX={2}
-                justifyContent="flex-end"
-              >
-                <Text bold={port === context.currentPort}>${context.prices[port][good]}</Text>
-              </Box>
-            ))}
-          </Box>
-        ))}
-        <Box flexDirection="column" alignItems="stretch">
-          <Box
-            borderStyle="single"
-            borderDimColor
-            borderTop={false}
-            borderLeft={false}
-            borderRight={false}
-            paddingX={2}
-          >
-            <Text bold color="cyan">
-              Travel Time
-            </Text>
-          </Box>
-          {ports.map((port) => (
-            <Box
-              key={port}
-              borderStyle="single"
-              borderDimColor
-              borderTop={false}
-              borderLeft={false}
-              borderRight={false}
-              paddingX={2}
-            >
-              {port !== context.currentPort ? (
-                <Text>{calculateTravelTime(context.currentPort, port, context.ship.speed)} days</Text>
-              ) : (
-                <Text>---</Text>
-              )}
-            </Box>
-          ))}
-        </Box>
-      </Box>
-      <Text color="gray">
-        * Next price update in <Text inverse>{context.nextPriceUpdate} days</Text>.
-      </Text>
-    </>
-  );
-}
-
-function Inventory() {
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const dailyMaintenance = calculateDailyMaintenanceCost(context);
+  const daysUntilMaintenance = context.guardFleet.lastMaintenanceDay + 7 - context.day;
+  const hasGuards = context.guardFleet.ships > 0;
 
   return (
     <Box flexDirection="column">
-      <Box gap={1}>
-        <Text underline>Ship&apos;s Hold</Text>
-        <Text color="gray">
-          (total: <Text inverse>{context.ship.capacity}</Text>, available:{" "}
-          <Text inverse>{getAvailableStorage(context.ship)}</Text>)
-        </Text>
+      <Text bold underline>
+        Guard Fleet Management
+      </Text>
+
+      {context.inOverdraft && <Alert variant="error">Fleet effectiveness is reduced while in overdraft</Alert>}
+
+      <Box flexDirection="column" marginY={1}>
+        <Text bold>Current Fleet:</Text>
+        <Box marginLeft={2} flexDirection="column">
+          <Text>
+            Ships: <Badge color={hasGuards ? "blue" : "gray"}>{context.guardFleet.ships} ships</Badge>
+          </Text>
+          <Text>
+            Quality: <Badge color={hasGuards ? "cyan" : "gray"}>Level {context.guardFleet.quality}</Badge>
+            {context.inOverdraft && <Badge color="red"> (Halved due to overdraft)</Badge>}
+          </Text>
+        </Box>
       </Box>
-      <Box flexWrap="wrap" columnGap={2} rowGap={0} marginTop={1}>
-        {[...context.ship.hold.entries()].map(([good, quantity], index) => (
-          <Box key={index} gap={1}>
-            <Text>{good}:</Text>
-            <Text>{quantity}</Text>
-            {index < context.ship.hold.size - 1 ? <Text> |</Text> : null}
-          </Box>
-        ))}
+
+      <Box flexDirection="column" marginY={1}>
+        <Text bold>Maintenance:</Text>
+        <Box marginLeft={2} flexDirection="column">
+          <Text>Daily Cost: ${dailyMaintenance}</Text>
+          {hasGuards && (
+            <Text>
+              Next Payment:{" "}
+              <Badge color={daysUntilMaintenance <= 2 ? "yellow" : "white"}>{daysUntilMaintenance} days</Badge>
+            </Text>
+          )}
+        </Box>
       </Box>
+    </Box>
+  );
+}
+
+function ShipyardView() {
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const shipHealth = getShipStatus(context.ship.health);
+  const repairCost = calculateCostForRepair(100 - context.ship.health);
+  const needsRepair = context.ship.health < 100;
+
+  return (
+    <Box flexDirection="column">
+      <Text bold underline>
+        Shipyard
+      </Text>
+
+      <Box flexDirection="column" marginY={1}>
+        <Text bold>Ship Condition:</Text>
+        <Box marginLeft={2} flexDirection="column">
+          <Text>
+            Health:{" "}
+            <Badge
+              color={
+                shipHealth === "Perfect"
+                  ? "greenBright"
+                  : shipHealth === "Minor damages"
+                    ? "yellowBright"
+                    : shipHealth === "Major damages"
+                      ? "redBright"
+                      : "gray"
+              }
+            >
+              {context.ship.health}% ({shipHealth})
+            </Badge>
+          </Text>
+
+          {needsRepair && <Text>Repair Cost: ${repairCost}</Text>}
+        </Box>
+      </Box>
+
+      <Box flexDirection="column" marginY={1}>
+        <Text bold>Ship Details:</Text>
+        <Box marginLeft={2} flexDirection="column">
+          <Text>Cargo Capacity: {context.ship.capacity} tons</Text>
+          <Text>Base Speed: {context.ship.speed} knots</Text>
+        </Box>
+      </Box>
+
+      {!needsRepair && (
+        <Box marginTop={1}>
+          <Badge color="green">Ship is in perfect condition</Badge>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+function ActionArea() {
+  const messages = GameContext.useSelector((snapshot) => snapshot.context.messages);
+  const hasMessages = messages && messages.length > 0;
+
+  return (
+    <Box flexDirection="column" minHeight={5} padding={1}>
+      {hasMessages ? <Messages /> : <Actions />}
     </Box>
   );
 }
@@ -263,22 +435,26 @@ function Actions() {
   const { context } = snapshot;
   const controls = context.settings.controls;
   const isAtPort = snapshot.matches({ gameScreen: "at_port" });
+  const isAtInventory = snapshot.matches({ gameScreen: "viewing_inventory" });
   const isAtMarket = snapshot.matches({ gameScreen: "at_market" });
   const isManagingFleet = snapshot.matches({ gameScreen: "managing_fleet" });
   const isAtShipyard = snapshot.matches({ gameScreen: "at_shipyard" });
   const isAtRetirement = snapshot.matches({ gameScreen: "at_retirement" });
   const isAtBankruptcy = snapshot.matches({ gameScreen: "at_bankruptcy" });
+  const isAtExit = snapshot.matches({ gameScreen: "at_exit" });
 
   const handleSelect = (value: string) => {
     if (value === "T") {
       actor.send({ type: "GO_TO_PORT" });
+    } else if (value === "I") {
+      actor.send({ type: "GO_TO_INVENTORY" });
     } else if (value === "B") {
       actor.send({ type: "GO_TO_MARKET", action: "buy" });
     } else if (value === "S") {
       actor.send({ type: "GO_TO_MARKET", action: "sell" });
     } else if (value === "F") {
       actor.send({ type: "MANAGE_FLEET" });
-    } else if (value === "R") {
+    } else if (value === "Y") {
       actor.send({ type: "GO_TO_SHIPYARD" });
     } else if (value === "W") {
       actor.send({ type: "GO_TO_RETIREMENT" });
@@ -289,6 +465,8 @@ function Actions() {
 
   return isAtPort ? (
     <TravelAction />
+  ) : isAtInventory ? (
+    <InventoryAction />
   ) : isAtMarket ? (
     <MarketAction />
   ) : isManagingFleet ? (
@@ -299,6 +477,20 @@ function Actions() {
     <RetireAction />
   ) : isAtBankruptcy ? (
     <BankruptcyAction />
+  ) : isAtExit ? (
+    controls === "keyboard" ? (
+      <ConfirmPromptKeyboard
+        message="Are you sure you want to exit?"
+        onConfirm={() => process.exit()}
+        onCancel={() => actor.send({ type: "CANCEL" })}
+      />
+    ) : (
+      <ConfirmPromptArrows
+        message="Are you sure you want to exit?"
+        onConfirm={() => process.exit()}
+        onCancel={() => actor.send({ type: "CANCEL" })}
+      />
+    )
   ) : (
     <Box flexDirection="column" gap={1}>
       <Text backgroundColor="black" color="whiteBright">
@@ -310,10 +502,12 @@ function Actions() {
           message="What would you like to do?"
           actions={[
             { label: "Travel", value: "T", key: "T" },
+            { label: "View inventory", value: "I", key: "I" },
             { label: "Buy goods", value: "B", key: "B" },
             { label: "Sell goods", value: "S", key: "S" },
-            { label: "Fleet management", value: "F", key: "F" },
-            { label: "Repair ship", value: "R", disabled: context.ship.health === 100, key: "R" },
+            { label: "Manage fleet", value: "F", key: "F" },
+            { label: "Visit shipyard", value: "Y", key: "Y" },
+            // { label: "Repair ship", value: "R", disabled: context.ship.health === 100, key: "R" },
             { label: "Retire", value: "W", disabled: !context.canRetire, key: "W" },
             { label: "Declare bankruptcy", value: "D", key: "D", disabled: context.balance >= 0 },
           ]}
@@ -324,11 +518,13 @@ function Actions() {
           message="What would you like to do?"
           actions={[
             { label: "Travel", value: "T" },
+            { label: "View inventory", value: "I" },
             { label: "Buy goods", value: "B" },
             { label: "Sell goods", value: "S" },
-            { label: "Fleet management", value: "F" },
-            { label: "Repair ship", value: "R", disabled: context.ship.health === 100 },
+            { label: "Manage fleet", value: "F" },
+            { label: "Visit shipyard", value: "Y" },
             { label: "Retire", value: "W", disabled: !context.canRetire },
+            { label: "Declare bankruptcy", value: "D", disabled: context.balance >= 0 },
           ]}
           onSelect={handleSelect}
         />
@@ -339,9 +535,11 @@ function Actions() {
 }
 
 function ExitGame() {
+  const actor = GameContext.useActorRef();
+
   useInput((_, key) => {
     if (key.escape) {
-      process.exit();
+      actor.send({ type: "EXIT" });
     }
   });
 
@@ -420,6 +618,48 @@ function TravelAction() {
   );
 }
 
+function InventoryAction() {
+  const actor = GameContext.useActorRef();
+  const snapshot = GameContext.useSelector((snapshot) => snapshot);
+  const { context } = snapshot;
+  const controls = context.settings.controls;
+
+  const handleSelect = (value: string) => {
+    if (value === "B") {
+      actor.send({ type: "GO_TO_MARKET", action: "buy" });
+    } else if (value === "S") {
+      actor.send({ type: "GO_TO_MARKET", action: "sell" });
+    }
+  };
+
+  return (
+    <Box display="flex" flexDirection="column" gap={1}>
+      <Text underline>Inventory</Text>
+      {controls === "keyboard" ? (
+        <ActionPromptKeyboard
+          message="What would you like to do?"
+          actions={[
+            { label: "Buy goods", value: "B", key: "B" },
+            { label: "Sell goods", value: "S", key: "S" },
+          ]}
+          onSelect={handleSelect}
+          onCancel={() => actor.send({ type: "CANCEL" })}
+        />
+      ) : (
+        <ActionPromptArrows
+          message="What would you like to do?"
+          actions={[
+            { label: "Buy goods", value: "B" },
+            { label: "Sell goods", value: "S" },
+          ]}
+          onSelect={handleSelect}
+          onCancel={() => actor.send({ type: "CANCEL" })}
+        />
+      )}
+    </Box>
+  );
+}
+
 function MarketAction() {
   const actor = GameContext.useActorRef();
   const snapshot = GameContext.useSelector((snapshot) => snapshot);
@@ -461,16 +701,11 @@ function MarketAction() {
     <Box display="flex" flexDirection="column" gap={1}>
       <Text underline>Goods Market</Text>
       {good ? (
-        <>
-          <Text>
-            {good} - ${context.prices[context.currentPort][good]} per unit
-          </Text>
-          {context.marketAction === "buy" ? (
-            <Text>You can afford {affordance} units.</Text>
-          ) : (
-            <Text>You have {inHold} units in your hold.</Text>
-          )}
-        </>
+        context.marketAction === "buy" ? (
+          <Text>You can afford {affordance} units.</Text>
+        ) : (
+          <Text>You have {inHold} units in your hold.</Text>
+        )
       ) : null}
       {controls === "keyboard" ? (
         <InputPromptKeyboard
@@ -668,9 +903,16 @@ function ShipyardAction() {
   const snapshot = GameContext.useSelector((snapshot) => snapshot);
   const { context } = snapshot;
   const controls = context.settings.controls;
-  const damage = 100 - context.ship.health;
-  const costForRepair = calculateCostForRepair(damage);
+  const isMenu = snapshot.matches({ gameScreen: { at_shipyard: "menu" } });
+  const isRepairing = snapshot.matches({ gameScreen: { at_shipyard: "repairing" } });
 
+  const pickAction = (value: string) => {
+    if (value === "repair") {
+      actor.send({ type: "GO_TO_SHIPYARD_REPAIR" });
+    } else if (value === "upgrade") {
+      // TODO: implement upgrade
+    }
+  };
   const validateAmount = (value: string) => {
     const amount = +value;
     return isNaN(amount) || amount <= 0 ? "Please enter a valid amount of money" : undefined;
@@ -684,36 +926,55 @@ function ShipyardAction() {
   return (
     <Box display="flex" flexDirection="column" gap={1}>
       <Text underline>Shipyard</Text>
-      <Text>
-        Your ship has suffered {damage} damage. It&apos;ll cost ${costForRepair} to repair it.
-      </Text>
       {controls === "keyboard" ? (
-        <InputPromptKeyboard
-          steps={[
-            {
-              type: "text",
-              id: "amount",
-              message: `How much would you like to spend?`,
-              validate: validateAmount,
-            },
+        isMenu ? (
+          <ActionPromptKeyboard
+            message="What would you like to do?"
+            actions={[
+              { label: "Repair ship", value: "repair", key: "R", disabled: context.ship.health >= 100 },
+              { label: "Upgrade ship", value: "upgrade", key: "U" },
+            ]}
+            onSelect={pickAction}
+            onCancel={() => actor.send({ type: "CANCEL" })}
+          />
+        ) : isRepairing ? (
+          <InputPromptKeyboard
+            steps={[
+              {
+                type: "text",
+                id: "amount",
+                message: `How much would you like to spend on repairs?`,
+                validate: validateAmount,
+              },
+            ]}
+            onComplete={repairShip}
+            onCancel={() => actor.send({ type: "CANCEL" })}
+          />
+        ) : null
+      ) : isMenu ? (
+        <ActionPromptArrows
+          message="What would you like to do?"
+          actions={[
+            { label: "Repair ship", value: "repair", disabled: context.ship.health >= 100 },
+            { label: "Upgrade ship", value: "upgrade" },
           ]}
-          onComplete={repairShip}
+          onSelect={pickAction}
           onCancel={() => actor.send({ type: "CANCEL" })}
         />
-      ) : (
+      ) : isRepairing ? (
         <InputPromptArrows
           steps={[
             {
               type: "text",
               id: "amount",
-              message: `How much would you like to spend?`,
+              message: `How much would you like to spend on repairs?`,
               validate: validateAmount,
             },
           ]}
           onComplete={repairShip}
           onCancel={() => actor.send({ type: "CANCEL" })}
         />
-      )}
+      ) : null}
     </Box>
   );
 }

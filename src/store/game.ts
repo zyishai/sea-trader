@@ -38,7 +38,9 @@ export const gameMachine = setup({
     events: {} as GameEvents,
   },
   actions: {
-    displayMessages: assign(({ context }, messages: string[]) => ({ messages: [...context.messages, messages] })),
+    displayMessages: assign(({ context }, messages: string[]) => ({
+      messages: [...context.messages, messages].filter((msgs) => msgs.length > 0),
+    })),
     acknoledgeMessage: assign(({ context }) => ({ messages: context.messages.slice(1) })),
   },
 }).createMachine({
@@ -66,57 +68,12 @@ export const gameMachine = setup({
                 actions: { type: "displayMessages", params: ["You've finished your 100 days voyage."] },
               },
             ],
-            GO_TO_MARKET: [
-              {
-                guard: ({ context, event }) =>
-                  event.action === "buy" &&
-                  context.availableGoods.every(
-                    (good) =>
-                      context.prices[context.currentPort][good] >
-                      context.balance + (context.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0),
-                  ),
-                actions: {
-                  type: "displayMessages",
-                  params: ["You don't have enough money to buy any goods."],
-                },
-              },
-              {
-                guard: ({ context, event }) =>
-                  event.action === "sell" && [...context.ship.hold.values()].every((value) => value === 0),
-                actions: {
-                  type: "displayMessages",
-                  params: ["You don't have any goods to sell."],
-                },
-              },
-              {
-                actions: [
-                  assign(({ event }) => ({ marketAction: event.action })),
-                  {
-                    type: "displayMessages",
-                    params: ({ context, event }) =>
-                      context.inOverdraft && event.action === "buy"
-                        ? [
-                            "You're in overdraft.",
-                            `You're allowed to buy goods for up to $${context.balance + OVERDRAFT_TRADING_LIMIT}.`,
-                          ]
-                        : [],
-                  },
-                ],
-                target: "at_market",
-              },
-            ],
-            GO_TO_SHIPYARD: [
-              {
-                guard: ({ context }) => context.ship.health < 100,
-                target: "at_shipyard",
-              },
-              {
-                actions: { type: "displayMessages", params: ["Your ship is in perfect condition."] },
-              },
-            ],
+            GO_TO_INVENTORY: { target: "viewing_inventory" },
+            GO_TO_SHIPYARD: { target: "at_shipyard" },
             GO_TO_RETIREMENT: { target: "at_retirement" },
             GO_TO_BANKRUPTCY: { target: "at_bankruptcy" },
             MANAGE_FLEET: { target: "managing_fleet" },
+            EXIT: { target: "at_exit" },
           },
         },
         at_port: {
@@ -378,6 +335,7 @@ export const gameMachine = setup({
           },
         },
         at_market: {
+          id: "market",
           entry: assign({ availableGoods: goods }),
           initial: "chooseAction",
           states: {
@@ -475,11 +433,21 @@ export const gameMachine = setup({
           exit: assign({ marketAction: undefined }),
         },
         at_shipyard: {
-          initial: "idle",
+          initial: "menu",
           states: {
-            idle: {
+            menu: {
+              on: {
+                GO_TO_SHIPYARD_REPAIR: { target: "repairing" },
+                CANCEL: { target: "#idle" },
+              },
+            },
+            repairing: {
               on: {
                 REPAIR: [
+                  {
+                    guard: ({ context }) => context.ship.health === 100,
+                    actions: { type: "displayMessages", params: ["Your ship is already in perfect condition"] },
+                  },
                   {
                     guard: ({ context, event }) => context.balance < event.cash,
                     actions: { type: "displayMessages", params: ["You don't have enough cash"] },
@@ -514,7 +482,7 @@ export const gameMachine = setup({
                     target: "#idle",
                   },
                 ],
-                CANCEL: { target: "#idle" },
+                CANCEL: { target: "menu" },
               },
             },
           },
@@ -525,6 +493,11 @@ export const gameMachine = setup({
           },
         },
         at_bankruptcy: {
+          on: {
+            CANCEL: { target: "#idle" },
+          },
+        },
+        viewing_inventory: {
           on: {
             CANCEL: { target: "#idle" },
           },
@@ -696,9 +669,48 @@ export const gameMachine = setup({
             },
           },
         },
+        at_exit: {
+          on: {
+            CANCEL: { target: "#idle" },
+          },
+        },
       },
       on: {
         MSG_ACK: { actions: { type: "acknoledgeMessage" } },
+        GO_TO_MARKET: [
+          {
+            guard: () => !stateIn({ gamescreen: "viewing_inventory" }) && !stateIn({ gamescreen: "idle" }),
+            actions: {
+              type: "displayMessages",
+              params: ["You're not in a position to go to the market"],
+            },
+          },
+          {
+            guard: ({ context, event }) =>
+              event.action === "buy" &&
+              context.availableGoods.every(
+                (good) =>
+                  context.prices[context.currentPort][good] >
+                  context.balance + (context.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0),
+              ),
+            actions: {
+              type: "displayMessages",
+              params: ["You don't have enough money to buy any goods."],
+            },
+          },
+          {
+            guard: ({ context, event }) =>
+              event.action === "sell" && [...context.ship.hold.values()].every((value) => value === 0),
+            actions: {
+              type: "displayMessages",
+              params: ["You don't have any goods to sell."],
+            },
+          },
+          {
+            actions: [assign(({ event }) => ({ marketAction: event.action }))],
+            target: "#market",
+          },
+        ],
         DECLARE_BANKRUPTCY: [
           {
             guard: ({ context }) => context.balance > 0,
@@ -716,18 +728,9 @@ export const gameMachine = setup({
           { target: "scoringScreen" },
         ],
       },
-      // TODO: Add a check for health dropping to 0 and update the scoring screen accordingly
-      // TODO: Add to pirates encounter ship's own strength, and allow upgrading the ship's cannons to increase the chance of success
-      // TODO: Spread the pirate's damage between the ship and its fleet (most damage is taken by the fleet),
-      // and if enough damage is done to the fleet, the player loses one of his guard ships
       /**NOTE
-       * When the player is in overdraft:
-       * - Interest is charged at 3% per day or $25 per day, whichever is less
-       * - He doesn't pay maintenance fee, but his fleet's quality is halved
-       * - He can trade unless is debt is greater than -$1000
-       *
        * Time-based opportunities:
-       * - When an opportunity is accepted - for every trip, reduce the trip duration from the `timeLimit` and if the result is <= 0
+       * - When an opportunity is accepted - every trip, reduce the trip duration from the `timeLimit` and if the result is <= 0
        * and the player has not fullfilled the opportunity, the opportunity is failed.
        */
       always: [
