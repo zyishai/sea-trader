@@ -3,6 +3,7 @@ import { Box, DOMElement, measureElement, Text, useInput } from "ink";
 import { GameContext } from "./GameContext.js";
 import BigText from "ink-big-text";
 import { OrderedList, UnorderedList } from "@inkjs/ui";
+import { GOAL_DAYS } from "../store/constants.js";
 
 export function HelpScreen() {
   const actor = GameContext.useActorRef();
@@ -33,17 +34,17 @@ export function HelpScreen() {
       <Box flexDirection="column" width={width + 10} gap={1}>
         <Text>
           Sea Trader is a trading simulation game set in the 19th-century Far East. As a maritime merchant, your goal is
-          to amass a fortune of $25,000 within 100 days through strategic trading, careful navigation, and shrewd
-          decision-making.
+          to amass as much fortune as possible within {GOAL_DAYS} days through strategic trading, careful navigation,
+          and shrewd decision-making.
         </Text>
 
         <Text>Game Modes:</Text>
         <OrderedList>
           <OrderedList.Item>
-            <Text>Regular Mode: You have 100 days to reach your goal.</Text>
+            <Text>Regular Mode: You have {GOAL_DAYS} days to reach your goal.</Text>
           </OrderedList.Item>
           <OrderedList.Item>
-            <Text>Extended Mode: You can play beyond 100 days, but each extra day incurs a score penalty.</Text>
+            <Text>Extended Mode: You can play beyond {GOAL_DAYS} days, but each extra day incurs a score penalty.</Text>
           </OrderedList.Item>
         </OrderedList>
 

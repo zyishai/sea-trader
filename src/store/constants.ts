@@ -2,7 +2,6 @@ import { EventTemplate, Good, Port } from "./types.js";
 
 export const goods = ["Wheat", "Tea", "Spices", "Opium", "Porcelain"] as const;
 export const ports = ["Hong Kong", "Shanghai", "Nagasaki", "Singapore", "Manila"] as const;
-export const GOAL_DAYS = 100;
 export const eventTemplates: EventTemplate[] = [
   {
     type: "weather",
@@ -82,6 +81,7 @@ export const eventTemplates: EventTemplate[] = [
     },
   },
 ];
+// Distances given in nautical miles (nmi)
 export const distanceMatrix: Record<Port, Record<Port, number>> = {
   "Hong Kong": { "Hong Kong": 0, Shanghai: 819, Nagasaki: 1150, Singapore: 1460, Manila: 706 },
   Shanghai: { "Hong Kong": 819, Shanghai: 0, Nagasaki: 480, Singapore: 2279, Manila: 1307 },
@@ -96,6 +96,10 @@ export const goodsInfo: { name: Good; basePrice: number; volatility: number }[] 
   { name: "Opium", basePrice: 150, volatility: 0.25 },
   { name: "Porcelain", basePrice: 30, volatility: 0.05 },
 ] as const;
+export const GOAL_DAYS = 200;
+export const BASE_SHIP_SPEED = 8;
+export const MAX_SHIP_SPEED = 20;
+export const SPEED_UPGRADE_INCREMENT = 2;
 export const EXTENDED_GAME_PENALTY = 0.01;
 export const PRICE_UPDATE_INTERVAL = 14;
 export const TREND_UPDATE_INTERVAL = 21;

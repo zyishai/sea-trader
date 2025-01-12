@@ -3,12 +3,13 @@ import React from "react";
 import { GameContext } from "./GameContext.js";
 import { Badge } from "@inkjs/ui";
 import { calculateScore, getNetCash, getShipStatus } from "../store/utils.js";
+import { GOAL_DAYS } from "../store/constants.js";
 
 export function ScoreScreen() {
   const actor = GameContext.useActorRef();
   const context = GameContext.useSelector((snapshot) => snapshot.context);
   const bankrupcy = context.balance < 0;
-  const shipSank = getShipStatus(context.ship.health) === "Wreckage" && context.day < 100;
+  const shipSank = getShipStatus(context.ship.health) === "Wreckage" && context.day < GOAL_DAYS;
   const score = bankrupcy ? 0 : calculateScore(context);
 
   useInput((input, key) => {

@@ -13,7 +13,7 @@ import {
   getNetCash,
   getShipStatus,
 } from "../../store/utils.js";
-import { OVERDRAFT_TRADING_LIMIT, ports } from "../../store/constants.js";
+import { MAX_SHIP_SPEED, OVERDRAFT_TRADING_LIMIT, ports, SPEED_UPGRADE_INCREMENT } from "../../store/constants.js";
 import { ActionPrompt as ActionPromptArrows } from "../prompts/arrows/ActionPrompt.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../prompts/keyboard/ActionPrompt.js";
 import { InputPrompt as InputPromptArrows } from "../prompts/arrows/InputPrompt.js";
@@ -88,35 +88,9 @@ function StatusBar() {
 }
 
 export function GameScreen() {
-  const [ref, setRef] = useState<DOMElement | null>(null);
-  const machine = GameContext.useSelector((snapshot) => snapshot);
   const currentView = getCurrentView();
 
-  return (
-    <Layout>{currentView}</Layout>
-    // <Box width="100%" flexDirection="column" alignItems="center">
-    //   <Box flexDirection="column" alignItems="stretch" borderStyle="round" padding={1} ref={setRef}>
-    //     <StatusBar />
-    //     <Box height={2} />
-    //     <Box gap={4}>
-    //       <Box flexDirection="column">
-    //         <PriceList />
-    //         <Box height={2} />
-    //         <Inventory />
-    //       </Box>
-    //       <Box flexDirection="column" alignItems="center"></Box>
-    //     </Box>
-
-    //     <Box marginTop={2} marginBottom={1}>
-    //       <Divider containerRef={ref} />
-    //     </Box>
-
-    //     <Box flexDirection="column" minHeight={10}>
-    //       {messages && messages.length > 0 ? <Messages /> : <Actions />}
-    //     </Box>
-    //   </Box>
-    // </Box>
-  );
+  return <Layout>{currentView}</Layout>;
 }
 
 function getCurrentView() {
@@ -378,6 +352,9 @@ function ShipyardView() {
         <Box marginLeft={2} flexDirection="column">
           <Text>Cargo Capacity: {context.ship.capacity} tons</Text>
           <Text>Base Speed: {context.ship.speed} knots</Text>
+          {context.ship.speed < MAX_SHIP_SPEED && (
+            <Text dimColor>(Can be upgraded to {context.ship.speed + SPEED_UPGRADE_INCREMENT} knots)</Text>
+          )}
         </Box>
       </Box>
 
@@ -507,7 +484,6 @@ function Actions() {
             { label: "Sell goods", value: "S", key: "S" },
             { label: "Manage fleet", value: "F", key: "F" },
             { label: "Visit shipyard", value: "Y", key: "Y" },
-            // { label: "Repair ship", value: "R", disabled: context.ship.health === 100, key: "R" },
             { label: "Retire", value: "W", disabled: !context.canRetire, key: "W" },
             { label: "Declare bankruptcy", value: "D", key: "D", disabled: context.balance >= 0 },
           ]}

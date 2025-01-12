@@ -1,4 +1,4 @@
-import { goods, ports, PRICE_UPDATE_INTERVAL, TREND_UPDATE_INTERVAL } from "./constants.js";
+import { BASE_SHIP_SPEED, goods, ports, PRICE_UPDATE_INTERVAL, TREND_UPDATE_INTERVAL } from "./constants.js";
 import { Context, GameSettings } from "./types.js";
 import { generatePrices, generateTrends } from "./utils.js";
 
@@ -19,7 +19,7 @@ export const initialContext = (settings?: GameSettings) => {
     reputation: 50,
     ship: {
       health: 100,
-      speed: 500,
+      speed: BASE_SHIP_SPEED, // 8 - 20 knots
       capacity: 50,
       hold: goods.reduce((map, good) => map.set(good, 0), new Map()),
     },

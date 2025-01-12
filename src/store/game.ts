@@ -11,7 +11,7 @@ import {
   calculatePrice,
   calculateRepairForCost,
   calculateTravelTime,
-  calculateUpgradeCost,
+  calculateFleetUpgradeCost,
   checkForEvent,
   generatePrices,
   generateTrends,
@@ -23,6 +23,7 @@ import {
   BANKRUPTCY_THRESHOLD,
   BASE_GUARD_COST,
   BASE_INTEREST_RATE,
+  GOAL_DAYS,
   goods,
   MAX_DAILY_OVERDRAFT,
   MAX_GUARD_QUALITY,
@@ -70,11 +71,14 @@ export const gameMachine = setup({
                 },
               },
               {
-                guard: ({ context }) => context.day < 100 || context.extendedGame,
+                guard: ({ context }) => context.day < GOAL_DAYS || context.extendedGame,
                 target: "at_port",
               },
               {
-                actions: { type: "displayMessages", params: ["You've finished your 100 days voyage."] },
+                actions: {
+                  type: "displayMessages",
+                  params: [`You've finished your ${GOAL_DAYS} days voyage.`],
+                },
               },
             ],
             GO_TO_INVENTORY: { target: "viewing_inventory" },
@@ -325,7 +329,7 @@ export const gameMachine = setup({
                     ? calculateTravelTime(context.currentPort, context.destination, context.ship.speed)
                     : 1;
                   return {
-                    day: Math.min(context.extendedGame ? Infinity : 100, context.day + travelTime),
+                    day: Math.min(context.extendedGame ? Infinity : GOAL_DAYS, context.day + travelTime),
                     nextPriceUpdate: Math.max(0, context.nextPriceUpdate - travelTime),
                     nextTrendUpdate: Math.max(0, context.nextTrendUpdate - travelTime),
                   };
@@ -620,13 +624,13 @@ export const gameMachine = setup({
                 UPGRADE_GUARDS: [
                   {
                     guard: ({ context }) => {
-                      const cost = calculateUpgradeCost(context);
+                      const cost = calculateFleetUpgradeCost(context);
                       return context.balance < cost;
                     },
                     actions: {
                       type: "displayMessages",
                       params: ({ context }) => {
-                        const cost = calculateUpgradeCost(context);
+                        const cost = calculateFleetUpgradeCost(context);
                         return [`Not enough money. Need $${cost} to upgrade fleet`];
                       },
                     },
@@ -635,7 +639,7 @@ export const gameMachine = setup({
                   {
                     actions: [
                       assign(({ context }) => {
-                        const cost = calculateUpgradeCost(context);
+                        const cost = calculateFleetUpgradeCost(context);
                         return {
                           guardFleet: {
                             ...context.guardFleet,
@@ -747,7 +751,7 @@ export const gameMachine = setup({
         {
           guard: ({ context }) =>
             getShipStatus(context.ship.health) === "Wreckage" &&
-            context.day < 100 &&
+            context.day < GOAL_DAYS &&
             getShipStatus(calculateRepairForCost(getNetCash(context)) + context.ship.health) === "Wreckage",
           actions: {
             type: "displayMessages",
@@ -861,7 +865,10 @@ export const gameMachine = setup({
           ],
         },
         // Set canRetire to true if the player has finished the game
-        { guard: ({ context }) => !context.canRetire && context.day >= 100, actions: assign({ canRetire: true }) },
+        {
+          guard: ({ context }) => !context.canRetire && context.day >= GOAL_DAYS,
+          actions: assign({ canRetire: true }),
+        },
         // Update prices if the next price update is due
         {
           guard: ({ context }) => context.nextPriceUpdate <= 0,
