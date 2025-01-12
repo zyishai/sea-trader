@@ -30,6 +30,7 @@ export type Context = {
     ships: number;
     quality: number; // 1-3
     lastMaintenanceDay: number;
+    damage: number;
   };
   reputation: number; // 0-100
   ship: {

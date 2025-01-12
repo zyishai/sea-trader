@@ -18,6 +18,7 @@ import {
   getAvailableStorage,
   getNetCash,
   getShipStatus,
+  distributeFleetDamage,
 } from "./utils.js";
 import {
   BANKRUPTCY_THRESHOLD,
@@ -124,11 +125,8 @@ export const gameMachine = setup({
                     if (success) {
                       // Even when winning, ship might take some damage
                       const takeDamage = Math.random() < 0.7; // 70% chance to take damage
-                      const damage = takeDamage ? Math.floor(Math.random() * 10) + 5 : 0;
-
-                      // Chance to lose guard ships
-                      const loseGuards = Math.random() < 0.15; // 15% chance to lose guards
-                      const guardsLost = loseGuards ? Math.floor(Math.random() * 2) + 1 : 0;
+                      const damage = takeDamage ? Math.floor(Math.random() * 10) + 5 : 0; // 5 - 15 damage
+                      const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
 
                       // Loot from pirates
                       const cargoValue = [...context.ship.hold.entries()].reduce(
@@ -145,16 +143,15 @@ export const gameMachine = setup({
                         `You looted $${actualLoot} from the pirates' ship.`,
                       ];
 
-                      if (damage > 0) {
-                        messages.push(`Your ship took ${damage} damage in the battle.`);
-                      }
-
-                      if (loseGuards && guardsLost > 0) {
-                        messages.push(
-                          `Lost ${Math.min(guardsLost, context.guardFleet.ships)} guard ship${
-                            Math.min(guardsLost, context.guardFleet.ships) > 1 ? "s" : ""
-                          } in the battle.`,
-                        );
+                      if (shipDamage > 0) {
+                        messages.push(`Your ship took ${shipDamage} damage in the battle.`);
+                        if (shipsLost > 0) {
+                          messages.push(
+                            `Lost ${Math.min(shipsLost, context.guardFleet.ships)} guard ship${
+                              Math.min(shipsLost, context.guardFleet.ships) > 1 ? "s" : ""
+                            } protecting your vessel.`,
+                          );
+                        }
                       }
 
                       messages.push(`Gained 5 reputation points for your bravery.`);
@@ -163,21 +160,22 @@ export const gameMachine = setup({
                       enqueue.assign({
                         ship: {
                           ...context.ship,
-                          health: Math.max(0, context.ship.health - damage),
+                          health: Math.max(0, context.ship.health - shipDamage),
                         },
                         guardFleet: {
                           ...context.guardFleet,
-                          ships: Math.max(0, context.guardFleet.ships - guardsLost),
+                          ships: Math.max(0, context.guardFleet.ships - shipsLost),
+                          damage: remainingFleetDamage,
                         },
                         balance: context.balance + actualLoot,
                         reputation: Math.min(100, context.reputation + 5),
                       });
                     } else {
                       // Lost the fight - more severe consequences
-                      const damage = Math.floor(Math.random() * 20) + 15;
-                      const stolenGoods = Math.floor(Math.random() * 10) + 5;
-                      const guardsLost = Math.floor(Math.random() * 3) + 1;
+                      const damage = Math.floor(Math.random() * 20) + 15; // 15 - 35 damage
+                      const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
 
+                      const stolenGoods = Math.floor(Math.random() * 10) + 5;
                       const randomGood = [...context.ship.hold.entries()]
                         .filter(([_, amount]) => amount > 0)
                         .map(([good]) => good)[Math.floor(Math.random() * context.ship.hold.size)];
@@ -192,27 +190,30 @@ export const gameMachine = setup({
                         type: "displayMessages",
                         params: [
                           "Despite your guard fleet's efforts, the pirates prevailed!",
-                          `Your ship took ${Math.min(damage, context.ship.health)} damage.`,
+                          `Your ship took ${Math.min(shipDamage, context.ship.health)} damage in the battle.`,
                           randomGood
                             ? `Pirates stole ${Math.min(stolenGoods, context.ship.hold.get(randomGood)!)} ${randomGood}`
                             : "",
-                          `Lost ${Math.min(guardsLost, context.guardFleet.ships)} guard ship${
-                            Math.min(guardsLost, context.guardFleet.ships) > 1 ? "s" : ""
-                          } in the battle.`,
-                          `Lost ${guardsLost * 2} reputation points.`,
-                        ],
+                          shipsLost > 0
+                            ? `Lost ${Math.min(shipsLost, context.guardFleet.ships)} guard ship${
+                                Math.min(shipsLost, context.guardFleet.ships) > 1 ? "s" : ""
+                              } in the battle.`
+                            : "",
+                          `Lost ${Math.min(shipsLost * 2 + 1, context.reputation)} reputation points.`,
+                        ].filter(Boolean),
                       });
                       enqueue.assign({
                         ship: {
                           ...context.ship,
-                          health: Math.max(0, context.ship.health - damage),
+                          health: Math.max(0, context.ship.health - shipDamage),
                           hold: newHold,
                         },
                         guardFleet: {
                           ...context.guardFleet,
-                          ships: Math.max(0, context.guardFleet.ships - guardsLost),
+                          ships: Math.max(0, context.guardFleet.ships - shipsLost),
+                          damage: remainingFleetDamage,
                         },
-                        reputation: Math.max(0, context.reputation - guardsLost * 2),
+                        reputation: Math.max(0, context.reputation - (shipsLost * 2 + 1)),
                       });
                     }
                   }),
@@ -231,35 +232,66 @@ export const gameMachine = setup({
                           params: ["You masterfully maneuvered away from the pirates without a scratch!"],
                         });
                       } else {
-                        const damage = Math.floor(Math.random() * 8) + 3; // Less damage when successfully fleeing
+                        const damage = Math.floor(Math.random() * 8) + 3; // 3 - 11 damage
+                        const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
+
+                        const messages = [
+                          "You've successfully escaped from the pirates!",
+                          `Your ship took ${shipDamage} damage while fleeing.`,
+                        ];
+
+                        if (shipsLost > 0) {
+                          messages.push(
+                            `Lost ${Math.min(shipsLost, context.guardFleet.ships)} guard ship${
+                              Math.min(shipsLost, context.guardFleet.ships) > 1 ? "s" : ""
+                            } covering your escape.`,
+                          );
+                        }
+
                         enqueue({
                           type: "displayMessages",
-                          params: [
-                            "You've successfully escaped from the pirates!",
-                            `Your ship took ${damage} damage while fleeing.`,
-                          ],
+                          params: messages,
                         });
                         enqueue.assign({
                           ship: {
                             ...context.ship,
-                            health: Math.max(0, context.ship.health - damage),
+                            health: Math.max(0, context.ship.health - shipDamage),
+                          },
+                          guardFleet: {
+                            ...context.guardFleet,
+                            ships: Math.max(0, context.guardFleet.ships - shipsLost),
+                            damage: remainingFleetDamage,
                           },
                         });
                       }
                     } else {
-                      const damage = Math.floor(Math.random() * 15) + 10; // More damage then successful flee, less than losing a fight
+                      const damage = Math.floor(Math.random() * 15) + 10; // 10 - 25 damage
+                      const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
+
+                      const messages = [
+                        "Failed to escape from the pirates!",
+                        `Your ship took ${shipDamage} damage while attempting to flee.`,
+                        shipsLost > 0
+                          ? `Lost ${Math.min(shipsLost, context.guardFleet.ships)} guard ship${
+                              Math.min(shipsLost, context.guardFleet.ships) > 1 ? "s" : ""
+                            } to the pirates.`
+                          : "",
+                        `Lost ${Math.min(2, context.reputation)} reputation points.`,
+                      ].filter(Boolean);
+
                       enqueue({
                         type: "displayMessages",
-                        params: [
-                          "Failed to escape from the pirates!",
-                          `Your ship took ${damage} damage while attempting to flee.`,
-                          `Lost 2 reputation points.`,
-                        ],
+                        params: messages,
                       });
                       enqueue.assign({
                         ship: {
                           ...context.ship,
-                          health: Math.max(0, context.ship.health - damage),
+                          health: Math.max(0, context.ship.health - shipDamage),
+                        },
+                        guardFleet: {
+                          ...context.guardFleet,
+                          ships: Math.max(0, context.guardFleet.ships - shipsLost),
+                          damage: remainingFleetDamage,
                         },
                         reputation: Math.max(0, context.reputation - 2),
                       });
@@ -286,20 +318,29 @@ export const gameMachine = setup({
                         reputation: Math.max(0, context.reputation - 1),
                       });
                     } else {
-                      const damage = Math.floor(Math.random() * 25) + 15;
+                      const damage = Math.floor(Math.random() * 25) + 15; // 15 - 40 damage
+                      const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
+
+                      const messages = [
+                        "You couldn't afford to bribe the pirates!",
+                        "They attacked in anger!",
+                        `Your ship took ${shipDamage} damage.`,
+                        `Lost ${Math.min(5, context.reputation)} reputation points.`,
+                      ];
+
                       enqueue({
                         type: "displayMessages",
-                        params: [
-                          "You couldn't afford to bribe the pirates!",
-                          "They attacked in anger!",
-                          `Your ship took ${damage} damage.`,
-                          `Lost 5 reputation points.`,
-                        ],
+                        params: messages,
                       });
                       enqueue.assign({
                         ship: {
                           ...context.ship,
-                          health: Math.max(0, context.ship.health - damage),
+                          health: Math.max(0, context.ship.health - shipDamage),
+                        },
+                        guardFleet: {
+                          ...context.guardFleet,
+                          ships: Math.max(0, context.guardFleet.ships - shipsLost),
+                          damage: remainingFleetDamage,
                         },
                         reputation: Math.max(0, context.reputation - 5),
                       });

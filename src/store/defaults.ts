@@ -15,6 +15,7 @@ export const initialContext = (settings?: GameSettings) => {
       ships: 0,
       quality: 1,
       lastMaintenanceDay: 1,
+      damage: 0,
     },
     reputation: 50,
     ship: {

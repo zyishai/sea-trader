@@ -1,5 +1,6 @@
 import {
   BASE_GUARD_COST,
+  DAMAGE_PER_GUARD_SHIP,
   distanceMatrix,
   eventTemplates,
   EXTENDED_GAME_PENALTY,
@@ -91,6 +92,31 @@ export const calculateFleetUpgradeCost = (context: Context) => {
 };
 export const calculateDailyMaintenanceCost = (context: Context) =>
   context.guardFleet.ships * MAINTENANCE_COST_PER_SHIP * context.guardFleet.quality;
+export const distributeFleetDamage = (damage: number, context: Context) => {
+  if (context.guardFleet.ships === 0) {
+    return {
+      shipDamage: damage,
+      fleetDamage: 0,
+      shipsLost: 0,
+      remainingFleetDamage: 0,
+    };
+  }
+
+  // Guards take 70% of the damage, ship takes 30%
+  const fleetDamage = Math.floor(damage * 0.7);
+  const shipDamage = Math.ceil(damage * 0.3);
+
+  // Calculate total accumulated damage
+  const totalFleetDamage = context.guardFleet.damage + fleetDamage;
+
+  // Calculate how many ships are lost
+  const shipsLost = Math.floor(totalFleetDamage / DAMAGE_PER_GUARD_SHIP);
+
+  // Calculate remaining damage after ships are lost
+  const remainingFleetDamage = totalFleetDamage % DAMAGE_PER_GUARD_SHIP;
+
+  return { shipDamage, fleetDamage, shipsLost, remainingFleetDamage };
+};
 
 // +- MARKET +-
 export const generateTrends = () =>

@@ -106,6 +106,7 @@ export const TREND_UPDATE_INTERVAL = 21;
 export const MAX_GUARD_SHIPS = 10;
 export const MAX_GUARD_QUALITY = 3;
 export const BASE_GUARD_COST = 300;
+export const DAMAGE_PER_GUARD_SHIP = 50; // Damage needed to destroy one guard ship
 export const MAINTENANCE_COST_PER_SHIP = 8;
 export const BANKRUPTCY_THRESHOLD = -2000; // When debt exceeds this, player goes bankrupt
 export const OVERDRAFT_TRADING_LIMIT = 1000; // How much additional debt allowed for trading (if debt exceeds this - take desperate measures)
