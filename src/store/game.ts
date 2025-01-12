@@ -325,9 +325,7 @@ export const gameMachine = setup({
               entry: [
                 // Adjust travel attributes
                 assign(({ context }) => {
-                  const travelTime = context.destination
-                    ? calculateTravelTime(context.currentPort, context.destination, context.ship.speed)
-                    : 1;
+                  const travelTime = context.destination ? calculateTravelTime(context.destination, context) : 1;
                   return {
                     day: Math.min(context.extendedGame ? Infinity : GOAL_DAYS, context.day + travelTime),
                     nextPriceUpdate: Math.max(0, context.nextPriceUpdate - travelTime),

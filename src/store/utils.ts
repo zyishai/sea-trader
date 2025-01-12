@@ -62,13 +62,18 @@ export const checkForEvent = (context: Context) => {
 
   return;
 };
-export const calculateTravelTime = (from: Port, to: Port, shipSpeed: number) => {
+export const calculateTravelTime = (to: Port, context: Context) => {
+  const from = context.currentPort;
   const distance = distanceMatrix[from][to];
 
   // At 8 knots, a ship travels ~192nmi per day
   // Adding 20% for port operations, weather delays, etc.
-  const daysAtSea = Math.ceil((distance / (shipSpeed * 24)) * 1.2);
-  return Math.max(1, daysAtSea);
+  const daysAtSea = Math.ceil((distance / (context.ship.speed * 24)) * 1.2);
+
+  const shipCondition = getShipStatus(context.ship.health);
+  const healthPenalty = shipCondition === "Wreckage" ? 2 : shipCondition === "Major damages" ? 1.5 : 1;
+
+  return Math.max(1, daysAtSea * healthPenalty);
 };
 
 // -~ GUARD FLEET ~-

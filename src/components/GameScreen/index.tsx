@@ -146,7 +146,7 @@ function PortView() {
 
       <Box flexDirection="column" gap={1}>
         {availablePorts.map((port) => {
-          const travelTime = calculateTravelTime(context.currentPort, port, context.ship.speed);
+          const travelTime = calculateTravelTime(port, context);
           const dailyCost = calculateDailyMaintenanceCost(context);
           const maintenanceCost = dailyCost * travelTime;
 
