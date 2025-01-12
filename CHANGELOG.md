@@ -1,5 +1,17 @@
 # ctrader
 
+## 2.3.0
+
+### Minor Changes
+
+- 5c769dc: New layout
+
+  - Different views for different actions
+  - Separation of view area from actions area
+  - Players can visit the shipyard anytime (upgrades not available yet)
+  - Exit confirmation state
+  - New inventory view
+
 ## 2.2.1
 
 ### Patch Changes
