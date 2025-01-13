@@ -7,5 +7,10 @@
   "access": "public",
   "baseBranch": "master",
   "updateInternalDependencies": "patch",
-  "ignore": []
+  "ignore": [],
+  "___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
+    "updateInternalDependencies": "patch",
+    "onlyUpdatePeerDependentsWhenOutOfRange": true,
+    "skipCI": false
+  }
 }
