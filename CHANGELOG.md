@@ -1,5 +1,11 @@
 # ctrader
 
+## 2.6.3
+
+### Patch Changes
+
+- 7ba6325: Internal improvements and updates
+
 ## 2.6.2
 
 ### Patch Changes
