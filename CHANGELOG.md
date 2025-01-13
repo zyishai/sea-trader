@@ -1,5 +1,11 @@
 # ctrader
 
+## 2.5.3
+
+### Patch Changes
+
+- 90033fc: Automated release workflow
+
 ## 2.5.2
 
 ### Patch Changes
