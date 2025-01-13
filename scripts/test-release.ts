@@ -19,7 +19,7 @@ function testRelease() {
 
     // 4. Test release notes generation
     console.log("📝 Testing release notes generation...");
-    execSync("ts-node scripts/create-release.ts --dry-run", { stdio: "inherit" });
+    execSync("node --loader ts-node/esm scripts/create-release.ts --dry-run", { stdio: "inherit" });
 
     // 5. Reset changes
     console.log("🔄 Cleaning up...");
