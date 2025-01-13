@@ -3,6 +3,10 @@
   "version": "2.5.1",
   "description": "Turn-based strategic trading game",
   "type": "module",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "dev": "npm run build && dist/cli.js",
     "build": "tsc",
