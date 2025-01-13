@@ -1,6 +1,6 @@
 {
   "name": "ctrader",
-  "version": "2.6.1",
+  "version": "2.6.2",
   "description": "Turn-based strategic trading game",
   "type": "module",
   "publishConfig": {

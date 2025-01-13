@@ -1,5 +1,11 @@
 # ctrader
 
+## 2.6.2
+
+### Patch Changes
+
+- c63ba1e: Custom release notes
+
 ## 2.6.1
 
 ### Patch Changes
