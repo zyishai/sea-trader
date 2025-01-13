@@ -1,5 +1,11 @@
 # ctrader
 
+## 2.5.7
+
+### Patch Changes
+
+- 2e117d2: Automate release workflow
+
 ## 2.5.6
 
 ### Patch Changes
