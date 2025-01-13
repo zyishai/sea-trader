@@ -1,5 +1,11 @@
 # ctrader
 
+## 2.5.4
+
+### Patch Changes
+
+- ee34eaf: Automated release workflow fixed
+
 ## 2.5.3
 
 ### Patch Changes
