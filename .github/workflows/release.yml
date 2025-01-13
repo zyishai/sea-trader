@@ -45,6 +45,10 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       # 3. GitHub Release Phase
+      - name: Wait for tag propagation
+        if: steps.changesets.outputs.published == 'true'
+        run: sleep 15
+
       - name: Create GitHub Release
         if: steps.changesets.outputs.published == 'true'
         run: npm run create-github-release
