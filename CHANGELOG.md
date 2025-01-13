@@ -1,5 +1,11 @@
 # ctrader
 
+## 2.5.5
+
+### Patch Changes
+
+- 2672ff9: Automated release workflow
+
 ## 2.5.4
 
 ### Patch Changes
