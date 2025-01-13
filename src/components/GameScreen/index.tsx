@@ -7,9 +7,11 @@ import { Typed } from "./Typed.js";
 import {
   calculateCostForRepair,
   calculateDailyMaintenanceCost,
+  calculateGuardEffectiveness,
   calculateGuardShipCost,
   calculateTravelTime,
   getAvailableStorage,
+  getFleetQuality,
   getNetCash,
   getShipStatus,
 } from "../../store/utils.js";
@@ -100,6 +102,10 @@ function getCurrentView() {
     return <MainView />;
   }
 
+  if (machine.matches({ gameScreen: { at_port: "piratesEncountered" } })) {
+    return <PiratesView />;
+  }
+
   if (machine.matches({ gameScreen: "at_port" })) {
     return <PortView />;
   }
@@ -132,6 +138,48 @@ function MainView() {
       <Text bold>Current Status:</Text>
       <Text>Net Worth: {netWorth < 0 ? `-$${Math.abs(netWorth)}` : `$${netWorth}`}</Text>
       {context.extendedGame && <Text>Days Played: {context.day} (Extended Mode)</Text>}
+    </Box>
+  );
+}
+
+function PiratesView() {
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const guardEffectiveness = calculateGuardEffectiveness(context);
+  const fleetQuality = getFleetQuality(context.guardFleet.quality);
+
+  return (
+    <Box flexDirection="column" gap={1}>
+      <Box>
+        <Badge color="red">PIRATES ENCOUNTERED!</Badge>
+      </Box>
+
+      <Text>A pirate ship has been spotted approaching your vessel!</Text>
+
+      <Box flexDirection="column" gap={1} marginTop={1}>
+        <Text bold>Current Status:</Text>
+        <Box flexDirection="column" gap={1} marginLeft={2}>
+          <Text>Ship Health: {context.ship.health}%</Text>
+          <Text>Guard Ships: {context.guardFleet.ships} ships</Text>
+          {context.guardFleet.ships > 0 ? (
+            <Text>
+              Fleet Quality:{" "}
+              <Badge color={fleetQuality === "Basic" ? "gray" : fleetQuality === "Trained" ? "blue" : "magenta"}>
+                {fleetQuality}
+              </Badge>
+            </Text>
+          ) : null}
+          <Text>Combat Advantage: {Math.round(guardEffectiveness * 100)}%</Text>
+        </Box>
+      </Box>
+
+      <Box flexDirection="column" gap={1} marginTop={1}>
+        <Text bold>Options:</Text>
+        <Box flexDirection="column" marginLeft={2} gap={1}>
+          <Text>• Fight: Engage the pirates in combat</Text>
+          <Text>• Flee: Attempt to outmaneuver them</Text>
+          <Text>• Bribe: Offer payment to avoid conflict</Text>
+        </Box>
+      </Box>
     </Box>
   );
 }
@@ -547,11 +595,9 @@ function TravelAction() {
   return isPiratesEncounter ? (
     <Box display="flex" flexDirection="column" gap={1}>
       <Text underline>{context.currentPort}&apos;s Port</Text>
-      <Text bold>Pirates Attack!</Text>
-      <Text>Pirates attack your ship. You have {context.guardFleet.ships} guard ships.</Text>
       {controls === "keyboard" ? (
         <ActionPromptKeyboard
-          message="What would you do?"
+          message="The pirates are approaching your ship! Make your choice:"
           actions={[
             { label: "Attack them", value: "1", key: "1" },
             { label: "Attempt to flee", value: "2", key: "2" },
@@ -561,7 +607,7 @@ function TravelAction() {
         />
       ) : (
         <ActionPromptArrows
-          message="What would you do?"
+          message="The pirates are approaching your ship! Make your choice:"
           actions={[
             { label: "Attack them", value: "1" },
             { label: "Attempt to flee", value: "2" },

@@ -15,6 +15,7 @@ export type EventTemplate = {
   effect: (state: Context) => Partial<Context>;
 };
 export type ShipStatus = "Perfect" | "Minor damages" | "Major damages" | "Wreckage";
+export type FleetQuality = "Basic" | "Trained" | "Elite";
 export type BuyEvent = { type: "BUY_GOOD"; good: Good; quantity: number };
 export type SellEvent = { type: "SELL_GOOD"; good: Good; quantity: number };
 export type RepairEvent = { type: "REPAIR_SHIP"; damage: number };

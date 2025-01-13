@@ -10,7 +10,7 @@ import {
   MAINTENANCE_COST_PER_SHIP,
   ports,
 } from "./constants.js";
-import { Context, EventTemplate, Good, Port, ShipStatus, Trend } from "./types.js";
+import { Context, EventTemplate, FleetQuality, Good, Port, ShipStatus, Trend } from "./types.js";
 
 // ~~ PORT ~~
 export const calculatePirateEncounterChance = (context: Context) => {
@@ -23,7 +23,7 @@ export const calculateGuardEffectiveness = (context: Context) => {
   const baseEffectiveness = 0.4;
   const qualityBonus = (context.guardFleet.quality - 1) * 0.1;
   const fleetBonus = Math.min(0.3, context.guardFleet.ships * 0.05);
-  const overdraftPenalty = context.inOverdraft ? 0.5 : 0; // Apply penalty if in overdraft
+  const overdraftPenalty = context.inOverdraft ? 0.5 : 1; // Apply penalty if in overdraft
   return Math.min(0.9, (baseEffectiveness + qualityBonus + fleetBonus) * overdraftPenalty);
 };
 export const calculateEventChance = (template: EventTemplate, context: Context) => {
@@ -116,6 +116,18 @@ export const distributeFleetDamage = (damage: number, context: Context) => {
   const remainingFleetDamage = totalFleetDamage % DAMAGE_PER_GUARD_SHIP;
 
   return { shipDamage, fleetDamage, shipsLost, remainingFleetDamage };
+};
+export const getFleetQuality = (quality: number): FleetQuality => {
+  switch (quality) {
+    case 1:
+      return "Basic";
+    case 2:
+      return "Trained";
+    case 3:
+      return "Elite";
+    default:
+      return "Basic";
+  }
 };
 
 // +- MARKET +-
