@@ -59,10 +59,17 @@ async function createRelease() {
   }
 
   try {
+    const { data: tag } = await octokit.git.getRef({
+      owner: "zyishai",
+      repo: "sea-trader",
+      ref: `tags/${version}`,
+    });
+
     await octokit.repos.createRelease({
       owner: "zyishai",
       repo: "sea-trader",
       tag_name: version,
+      target_commitish: tag.object.sha,
       name: `Sea Trader ${version}`,
       body: releaseNotes,
       draft: false,
