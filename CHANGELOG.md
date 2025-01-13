@@ -1,5 +1,11 @@
 # ctrader
 
+## 2.5.2
+
+### Patch Changes
+
+- e2726ef: Fix release workflow
+
 ## 2.5.1
 
 ### Patch Changes
