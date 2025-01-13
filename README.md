@@ -8,40 +8,108 @@
 
 <img src="./screenshot.png" alt="Screenshot of the game in Warp terminal" />
 
-# Overview
-In *Sea Trader* you, a sea merchant, set out on a 100-day voyage (in regular mode, see [Game Mode](#game-modes)) to sail between ports, visit markets, and gain wealth and popularity to score the most points at the end of the game.
+<br />
 
-# Quick Start
-No installation is required! Run the game directly from your terminal:
+[![Latest Release](https://img.shields.io/github/v/release/zyishai/sea-trader?include_prereleases&style=flat&color=4A4E69&labelColor=22223B)](https://github.com/zyishai/sea-trader/releases)
+![Last Commit](https://img.shields.io/github/last-commit/zyishai/sea-trader?style=flat&color=4A4E69&labelColor=22223B)
+[![License](https://img.shields.io/github/license/zyishai/sea-trader?style=flat&color=4A4E69&labelColor=22223B)](https://github.com/zyishai/sea-trader/blob/main/LICENSE)
 
+# 🚢 Set Sail in the Age of Trade
+> The year is 1850. You're a merchant captain with a small ship, 1000 silver dollars, and dreams of building a trading empire.  
+
+Your mission? Turn your modest vessel into a trading empire during a 200-day voyage through historic ports of Hong Kong, Shanghai, Nagasaki, Singapore, and Manila.
+
+## ⚡ Quick Start
+Ready to hit the high seas? No installation needed:
 ```bash
 $ npx ctrader
 ```
+> Runs smoothly on iTerm (3.5.10+) and Warp (2024.11.21+)
 
-> Tested on: *iTerm version 3.5.10* and *Warp version 2024.11.21*.
+<!-- [IMAGE: GIF showing quick gameplay loop - sailing, trading, encountering events] -->
 
-# How to Play
-*Sea Trader* is played entirely in your terminal, using only the keyboard.
+## 🎮 Core Features
 
-## Game Modes
-The game has two modes: classic mode, and extended mode. The difference between these modes is that classic mode lasts for 100 days only. Extended mode allows you to keep sailing for more than 100 days, but your score will have a penalty for the extra days.
+<details>
+<summary>🌊 Trade & Economy</summary>
 
-## Scoring
-Your score is calculated based on:
-- **Total wealth** accumulated
-- **Ship upgrades** that influence its capacity and speed
-- **Ship's condition**: Damage to your ship harms your score
-- **Days played:** Additional days in extended mode reduce your score
+- Dynamic market system with realistic price fluctuations
+- Strategic trading between 5 major Asian ports
+- Market trends that shift every 14 days
+- Risk vs reward decisions with cargo space management
+</details>
 
-## Gameplay Tips
-- **Watch market trends:** Prices are updated every 14 days. Buy low and sell high!
-- **Plan efficient routes:** Save time and maximize trade opportunities.
-- **Avoid overloading your ship:** Too much cargo slows you down.
-- **Be prepared for events:** They are more likely as your wealth grow or during the late stages of your voyage.
+<details>
+<summary>⚔️ Naval Combat & Protection</summary>
 
-# Feedback and Contributions
-Your feedback is very appreciated! Please let me know if you want something new implemented or if you have an idea for improving the gameplay.  
-If you want to contribute code, please open an issue describing your change and let the community discuss your idea before implementing it. Thank you!
+- Hire and manage your guard fleet
+- Real-time damage distribution between your ship and guards
+- Strategic fleet maintenance decisions
+- Intense pirate encounters with multiple outcomes
+</details>
 
-# License
-MIT
+<details>
+<summary>⚓ Ship Management</summary>
+
+- Historically accurate sailing speeds (8-20 knots)
+- Critical decisions about repairs and upgrades
+- Weather and damage affect your travel time
+</details>
+
+<details>
+<summary>🎲 Events & Encounters</summary>
+
+- No two voyages are the same
+- Random events that scale with your wealth
+- Dynamic weather conditions
+- Trade regulations that can make or break your fortune
+- Mysterious islands with valuable cargo
+</details>
+
+## 🎯 Game Modes
+- **Classic Mode**: 200 days to build your trading empire
+- **Extended Mode**: Push beyond limits (with score penalties)
+
+## 💡 Pro Tips
+- Guard ships aren't just for show - they'll take most of the damage in fights
+- Damaged ships sail slower - keep an eye on that repair cost
+- Each port has its specialty goods - learn the trade routes
+- Weather the market storms - sometimes holding cargo pays off
+- Your reputation affects everything from prices to pirate encounters
+
+## 🏆 Scoring System
+✅ Points are awarded for:  
+- Accumulated wealth (cash + cargo value)
+- Ship improvements (speed & capacity)
+- Crew reputation
+
+❌ Points are deducted for:
+- Ship damage
+- Extended game penalties
+- Poor reputation
+
+<!-- [IMAGE: Screenshot of end-game achievements with player's trading empire stats] -->
+
+## 🚀 What's Coming Next
+> These features are in active development!
+
+- Advanced weather system affecting travel times
+- New ports to explore with unique opportunities
+- Specialized cargo missions
+- Port-specific events and quests
+- Reputation-based trading advantages
+- Historical events affecting markets
+
+
+## 🤝 Join the Crew
+Love *Sea Trader*? Got ideas? We'd love to hear them! Open an issue for:
+- New feature suggestions
+- Balance tweaks
+- Bug reports
+- Historical accuracy improvements
+
+## 📜 License
+MIT - Feel free to fork and create your own trading adventure!
+
+---
+*"In these waters, fortune favors the bold... and the clever!"* 🏴‍☠️
