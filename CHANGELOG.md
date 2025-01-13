@@ -1,5 +1,11 @@
 # ctrader
 
+## 2.5.6
+
+### Patch Changes
+
+- 8b00b52: Automated release workflow
+
 ## 2.5.5
 
 ### Patch Changes
