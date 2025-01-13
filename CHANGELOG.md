@@ -1,5 +1,11 @@
 # ctrader
 
+## 2.5.0
+
+### Minor Changes
+
+- 2222b99: Update README and setup automated workflow
+
 ## 2.4.0
 
 ### Minor Changes
