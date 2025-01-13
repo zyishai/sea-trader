@@ -1,16 +1,11 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@3.0.3/schema.json",
   "changelog": "@changesets/cli/changelog",
-  "commit": true,
+  "commit": ["@changesets/cli/commit", { "skipCI": false }],
   "fixed": [],
   "linked": [],
   "access": "public",
   "baseBranch": "master",
   "updateInternalDependencies": "patch",
-  "ignore": [],
-  "___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
-    "updateInternalDependencies": "patch",
-    "onlyUpdatePeerDependentsWhenOutOfRange": true,
-    "skipCI": false
-  }
+  "ignore": []
 }
