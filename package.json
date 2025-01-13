@@ -18,9 +18,9 @@
     "prepublishOnly": "npm run ci",
     "version": "changeset version",
     "release": "changeset publish",
-    "create-github-release": "node --loader ts-node/esm scripts/create-release.ts",
+    "create-github-release": "node scripts/create-release.js",
     "local-version": "npm run version && git push --follow-tags",
-    "test-release": "node --loader ts-node/esm scripts/test-release.ts"
+    "test-release": "node scripts/test-release.js"
   },
   "keywords": [
     "react",
