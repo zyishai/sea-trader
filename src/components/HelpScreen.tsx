@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Box, DOMElement, measureElement, Text, useInput } from "ink";
 import { GameContext } from "./GameContext.js";
 import BigText from "ink-big-text";
-import { OrderedList, UnorderedList } from "@inkjs/ui";
+import { OrderedList, UnorderedList, Badge } from "@inkjs/ui";
 import { GOAL_DAYS } from "../store/constants.js";
 
 export function HelpScreen() {
@@ -33,75 +33,90 @@ export function HelpScreen() {
       </Box>
       <Box flexDirection="column" width={width + 10} gap={1}>
         <Text>
-          Sea Trader is a trading simulation game set in the 19th-century Far East. As a maritime merchant, your goal is
-          to amass as much fortune as possible within {GOAL_DAYS} days through strategic trading, careful navigation,
-          and shrewd decision-making.
+          Sea Trader is a trading simulation set in 1850s Far East. As a merchant captain, you start with a small ship
+          and $1000. Your goal is to build a trading empire within {GOAL_DAYS} days.
         </Text>
 
-        <Text>Game Modes:</Text>
+        <Text bold>Game Modes:</Text>
         <OrderedList>
           <OrderedList.Item>
-            <Text>Regular Mode: You have {GOAL_DAYS} days to reach your goal.</Text>
+            <Text>Classic Mode: Complete your journey in {GOAL_DAYS} days</Text>
           </OrderedList.Item>
           <OrderedList.Item>
-            <Text>Extended Mode: You can play beyond {GOAL_DAYS} days, but each extra day incurs a score penalty.</Text>
+            <Text>Extended Mode: Continue beyond {GOAL_DAYS} days with score penalties</Text>
           </OrderedList.Item>
         </OrderedList>
 
-        <Text>Gameplay:</Text>
+        <Text bold>Key Features:</Text>
         <UnorderedList>
           <UnorderedList.Item>
-            <Text>Travel between various ports across the Far East.</Text>
-          </UnorderedList.Item>
-          <UnorderedList.Item>
-            <Text>Buy and sell goods to make a profit. Prices vary between ports and over time.</Text>
-          </UnorderedList.Item>
-          <UnorderedList.Item>
-            <Text>Manage your ship&apos;s capacity carefully. Don&apos;t overload your vessel!</Text>
-          </UnorderedList.Item>
-          <UnorderedList.Item>
-            <Text>Upgrade your ship to increase its speed and cargo capacity at shipyards.</Text>
-          </UnorderedList.Item>
-          <UnorderedList.Item>
             <Text>
-              Be prepared for random events during your voyages. These can affect your journey in various ways, both
-              positive and negative.
+              <Text bold color="blue">
+                Trading:
+              </Text>{" "}
+              Buy low, sell high between 5 major ports. Watch market trends!
             </Text>
           </UnorderedList.Item>
           <UnorderedList.Item>
             <Text>
-              Keep an eye on your ship&apos;s health. Damage can occur during sailing, and repairs are necessary at
-              shipyards to maintain your vessel&apos;s condition.
+              <Text bold color="red">
+                Pirates:
+              </Text>{" "}
+              Hire guard ships for protection. They&apos;ll take damage first in combat.
+            </Text>
+          </UnorderedList.Item>
+          <UnorderedList.Item>
+            <Text>
+              <Text bold color="yellow">
+                Ship:
+              </Text>{" "}
+              Maintain your vessel&apos;s condition. Damaged ships sail slower.
+            </Text>
+          </UnorderedList.Item>
+          <UnorderedList.Item>
+            <Text>
+              <Text bold color="green">
+                Events:
+              </Text>{" "}
+              Random encounters affect your journey. Stay prepared!
             </Text>
           </UnorderedList.Item>
         </UnorderedList>
 
-        <Text>Controls:</Text>
+        <Text bold>Pro Tips:</Text>
         <UnorderedList>
           <UnorderedList.Item>
-            <Text>Use the arrow keys to navigate menus and make selections.</Text>
+            <Text>Each port specializes in different goods - learn the trade routes</Text>
           </UnorderedList.Item>
           <UnorderedList.Item>
-            <Text>Press Enter to confirm your choices.</Text>
+            <Text>Guard ships are worth the investment - they protect your cargo</Text>
           </UnorderedList.Item>
           <UnorderedList.Item>
-            <Text>
-              Press Esc at any time to exit the game. Note that your progress will not be saved if you exit early.
-            </Text>
+            <Text>Keep your ship repaired - damage affects travel speed</Text>
+          </UnorderedList.Item>
+          <UnorderedList.Item>
+            <Text>Watch your reputation - it affects prices and pirate encounters</Text>
           </UnorderedList.Item>
         </UnorderedList>
 
-        <Text>
-          <Text>
-            Remember, every decision counts! Balance your trades, manage your resources wisely, and navigate carefully
-            to become a legendary Sea Trader.
-          </Text>
-        </Text>
-        <Text>
-          <Text>Good luck on your maritime adventure!</Text>
-        </Text>
-        <Box alignSelf="center">
-          <Text color="blueBright">Press H to go back</Text>
+        <Text bold>Controls:</Text>
+        <UnorderedList>
+          <UnorderedList.Item>
+            <Text>Use arrow keys or keyboard shortcuts to navigate menus</Text>
+          </UnorderedList.Item>
+          <UnorderedList.Item>
+            <Text>Press Enter to confirm choices</Text>
+          </UnorderedList.Item>
+          <UnorderedList.Item>
+            <Text>Press Space to skip message animations</Text>
+          </UnorderedList.Item>
+          <UnorderedList.Item>
+            <Text>Press Esc to exit game (progress not saved)</Text>
+          </UnorderedList.Item>
+        </UnorderedList>
+
+        <Box alignSelf="center" marginTop={1}>
+          <Text color="blueBright">Press H to return to game</Text>
         </Box>
       </Box>
     </Box>

@@ -22,7 +22,7 @@ export default [
           jsx: true,
         },
       },
-      globals: globals.browser,
+      globals: { ...globals.browser, ...globals.node },
     },
   },
   pluginJs.configs.recommended,
@@ -34,11 +34,6 @@ export default [
     rules: {
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": "off",
-    },
-  },
-  {
-    env: {
-      node: true,
     },
   },
 ];
