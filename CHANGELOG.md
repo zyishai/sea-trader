@@ -1,5 +1,11 @@
 # ctrader
 
+## 2.6.0
+
+### Minor Changes
+
+- f9dbd74: Update help screen
+
 ## 2.5.7
 
 ### Patch Changes
