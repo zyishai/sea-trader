@@ -16,15 +16,23 @@ const version = `v${pkg.version}`;
 
 const isDryRun = process.argv.includes("--dry-run");
 
+function stripAnsi(string) {
+  return string.replace(/\x1B\[\d+m/g, "");
+}
+
 // Custom release notes format
 function generateReleaseNotes() {
-  const changes = execSync("npx changeset status").toString();
+  const changes = execSync("npx changeset status", { encoding: "utf-8" });
+  const cleanChanges = stripAnsi(changes)
+    .split("\n")
+    .filter((line) => line.trim() && !line.includes("---") && !line.includes("NO packages"))
+    .join("\n");
 
   const template = `
 # Sea Trader ${version}
 
 ## What's New
-${changes}
+${cleanChanges}
 
 ## Installation
 \`\`\`bash
@@ -59,17 +67,10 @@ async function createRelease() {
   }
 
   try {
-    const { data: tag } = await octokit.git.getRef({
-      owner: "zyishai",
-      repo: "sea-trader",
-      ref: `tags/${version}`,
-    });
-
     await octokit.repos.createRelease({
       owner: "zyishai",
       repo: "sea-trader",
       tag_name: version,
-      target_commitish: tag.object.sha,
       name: `Sea Trader ${version}`,
       body: releaseNotes,
       draft: false,
@@ -78,6 +79,10 @@ async function createRelease() {
     console.log(`✅ Release ${version} created successfully!`);
   } catch (error) {
     console.error("❌ Failed to create release:", error);
+    if (error.response) {
+      console.error("Status:", error.response.status);
+      console.error("Response:", error.response.data);
+    }
     process.exit(1);
   }
 }
