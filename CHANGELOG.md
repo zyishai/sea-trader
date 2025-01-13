@@ -1,5 +1,11 @@
 # ctrader
 
+## 2.6.1
+
+### Patch Changes
+
+- 47cc2d3: Better release notes
+
 ## 2.6.0
 
 ### Minor Changes
