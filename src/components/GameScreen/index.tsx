@@ -274,7 +274,8 @@ function MarketView() {
   const context = GameContext.useSelector((snapshot) => snapshot.context);
   const isOverdrawn = context.balance < 0;
   const isBuyAction = context.marketAction === "buy";
-  const isHoldFull = getAvailableStorage(context.ship) === 0;
+  const availableStorage = getAvailableStorage(context.ship);
+  const isHoldNearlyFull = availableStorage <= context.ship.capacity * 0.2;
 
   const marketData = context.availableGoods.map((good) => {
     const price = context.prices[context.currentPort][good];
@@ -291,15 +292,24 @@ function MarketView() {
 
   return (
     <Box flexDirection="column" gap={1}>
-      <Text bold underline>
-        Market Prices
-      </Text>
+      <Box>
+        <Text bold>Market Exchange &middot; </Text>
+        <Badge color={context.marketAction === "buy" ? "green" : "yellow"}>
+          {context.marketAction === "buy" ? "Purchasing" : "Selling"}
+        </Badge>
+      </Box>
 
       {isOverdrawn && (
         <Alert variant="error">Trading limited to ${context.balance + OVERDRAFT_TRADING_LIMIT} due to overdraft</Alert>
       )}
 
-      {isBuyAction && isHoldFull && <Alert variant="warning">Your ship&apos;s hold is full!</Alert>}
+      {isBuyAction && isHoldNearlyFull && (
+        <Alert variant={availableStorage === 0 ? "error" : "warning"}>
+          {availableStorage === 0
+            ? "Ship&apos;s hold is full! Sell some goods to make room for new cargo."
+            : `Limited storage space remaining: ${availableStorage} tons.`}
+        </Alert>
+      )}
 
       <Table
         data={marketData}
@@ -700,6 +710,17 @@ function MarketAction() {
       )
     : 0;
   const inHold = good ? context.ship.hold.get(good) : 0;
+  const onSelect = (value: string, goToStep: (step?: number) => void) => {
+    if (value === "switch_mode") {
+      actor.send({
+        type: "GO_TO_MARKET",
+        action: context.marketAction === "buy" ? "sell" : "buy",
+      });
+      goToStep(0);
+    } else {
+      setGood(value as Good);
+    }
+  };
   const handleSubmit = (values: Record<string, string>) => {
     const { good, quantity } = values;
     if (good && quantity && !isNaN(+quantity)) {
@@ -740,12 +761,19 @@ function MarketAction() {
               type: "enum",
               id: "good",
               message: `Which good do you wish to ${context.marketAction === "buy" ? "purchase" : "sell"}?`,
-              actions: context.availableGoods.map((good) => ({
-                label: good,
-                value: good,
-                key: good.charAt(0).toUpperCase(),
-              })),
-              onSelect: (value) => setGood(value as Good),
+              actions: [
+                ...context.availableGoods.map((good) => ({
+                  label: good,
+                  value: good,
+                  key: good.charAt(0).toUpperCase(),
+                })),
+                {
+                  label: `Switch to ${context.marketAction === "buy" ? "Sell" : "Buy"} Mode`,
+                  value: "switch_mode",
+                  key: "X",
+                },
+              ],
+              onSelect,
               onEnter: () => setGood(undefined),
             },
             {
@@ -757,6 +785,7 @@ function MarketAction() {
           ]}
           onComplete={handleSubmit}
           onCancel={() => actor.send({ type: "CANCEL" })}
+          exitMessage="Press [Esc] to leave the market"
         />
       ) : (
         <InputPromptArrows
@@ -765,8 +794,14 @@ function MarketAction() {
               type: "enum",
               id: "good",
               message: `Which good do you wish to ${context.marketAction === "buy" ? "purchase" : "sell"}?`,
-              actions: context.availableGoods.map((good) => ({ label: good, value: good })),
-              onSelect: (value) => setGood(value as Good),
+              actions: [
+                ...context.availableGoods.map((good) => ({ label: good, value: good })),
+                {
+                  label: `Switch to ${context.marketAction === "buy" ? "Sell" : "Buy"} Mode`,
+                  value: "switch_mode",
+                },
+              ],
+              onSelect,
               onEnter: () => setGood(undefined),
             },
             {
@@ -778,6 +813,7 @@ function MarketAction() {
           ]}
           onComplete={handleSubmit}
           onCancel={() => actor.send({ type: "CANCEL" })}
+          exitMessage="Press [Esc] to leave the market"
         />
       )}
     </Box>

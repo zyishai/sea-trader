@@ -18,7 +18,7 @@ export type InputStep =
       type: "enum";
       actions: Action[];
       validate?: undefined;
-      onSelect?: (value: string) => void;
+      onSelect?: (value: string, goToStep: (step?: number) => void) => void;
       onEnter?: () => void;
     };
 
@@ -26,12 +26,16 @@ interface InputPromptProps {
   steps: InputStep[];
   onComplete: (values: Record<string, string>) => void;
   onCancel: () => void;
+  backMessage?: string;
+  exitMessage?: string;
 }
 
-export function InputPrompt({ steps, onComplete, onCancel }: InputPromptProps) {
+export function InputPrompt({ steps, onComplete, onCancel, backMessage, exitMessage }: InputPromptProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string>();
+  const isFirstStep = currentStep === 0;
+  const isLastStep = currentStep === steps.length - 1;
 
   useEffect(() => {
     if (steps[currentStep]?.onEnter) {
@@ -52,6 +56,13 @@ export function InputPrompt({ steps, onComplete, onCancel }: InputPromptProps) {
   const handleInput = (value: string) => {
     const step = steps[currentStep];
     const error = step?.validate?.(value);
+    let shouldContinue = true;
+    const goToStep = (step?: number) => {
+      if (typeof step === "number" && !isNaN(step) && step >= 0 && step <= steps.length - 1) {
+        setCurrentStep(step);
+      }
+      shouldContinue = false;
+    };
 
     if (error) {
       setError(error);
@@ -66,18 +77,20 @@ export function InputPrompt({ steps, onComplete, onCancel }: InputPromptProps) {
     }
 
     if (step?.type === "enum" && step?.onSelect) {
-      step.onSelect(value);
+      step.onSelect(value, goToStep);
     }
 
-    if (currentStep === steps.length - 1) {
-      onComplete({ ...values, [step?.id ?? ""]: value });
-    } else {
-      setCurrentStep((prev) => prev + 1);
+    if (shouldContinue) {
+      if (isLastStep) {
+        onComplete({ ...values, [step?.id ?? ""]: value });
+      } else {
+        setCurrentStep((prev) => prev + 1);
+      }
     }
   };
 
   const handleBack = () => {
-    if (currentStep === 0) {
+    if (isFirstStep) {
       onCancel();
     } else {
       setCurrentStep((prev) => prev - 1);
@@ -91,9 +104,17 @@ export function InputPrompt({ steps, onComplete, onCancel }: InputPromptProps) {
       <Text>{step?.message}</Text>
       {error && <Text color="red">{error}</Text>}
       <TextInput onSubmit={handleInput} />
-      <Text dimColor>Press Esc to go back</Text>
+      <Text dimColor>
+        {isFirstStep ? (exitMessage ?? "Press [Esc] to exit") : (backMessage ?? "Press [Esc] to go back")}
+      </Text>
     </Box>
   ) : step?.type === "enum" ? (
-    <ActionPrompt message={step?.message} actions={step?.actions} onSelect={handleInput} onCancel={handleBack} />
+    <ActionPrompt
+      message={step?.message}
+      actions={step?.actions}
+      onSelect={handleInput}
+      onCancel={handleBack}
+      backMessage={isFirstStep ? (exitMessage ?? "Press [Esc] to exit") : (backMessage ?? "Press [Esc] to go back")}
+    />
   ) : null;
 }

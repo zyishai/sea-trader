@@ -405,11 +405,22 @@ export const gameMachine = setup({
                     guard: ({ context, event }) =>
                       calculatePrice({ ...context, ...event }) >
                       context.balance + (context.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0),
-                    actions: { type: "displayMessages", params: ["You don't have enough money."] },
+                    actions: {
+                      type: "displayMessages",
+                      params: ({ context, event }) => [
+                        `Not enough money. Need $${calculatePrice({ ...context, ...event })} to purchase ${event.quantity} tons of ${event.good.toLowerCase()}`,
+                      ],
+                    },
                   },
                   {
                     guard: ({ context, event }) => getAvailableStorage(context.ship) < event.quantity,
-                    actions: { type: "displayMessages", params: ["You don't have enough storage room."] },
+                    actions: {
+                      type: "displayMessages",
+                      params: ({ context, event }) => [
+                        `Not enough storage space for ${event.quantity} tons of ${event.good.toLowerCase()}`,
+                        `Available storage: ${getAvailableStorage(context.ship)} tons`,
+                      ],
+                    },
                   },
                   {
                     actions: [
@@ -430,6 +441,7 @@ export const gameMachine = setup({
                             ...context,
                             ...event,
                           })}.`,
+                          `You have ${getAvailableStorage(context.ship)} tons of storage left.`,
                         ],
                       },
                     ],
@@ -466,6 +478,7 @@ export const gameMachine = setup({
                             ...context,
                             ...event,
                           })}.`,
+                          `You have ${getAvailableStorage(context.ship)} tons of storage left.`,
                         ],
                       },
                     ],

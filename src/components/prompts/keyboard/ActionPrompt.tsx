@@ -13,9 +13,10 @@ interface ActionPromptProps {
   actions: Action[];
   onSelect: (value: string) => void;
   onCancel?: () => void;
+  backMessage?: string;
 }
 
-export function ActionPrompt({ message, actions, onSelect, onCancel }: ActionPromptProps) {
+export function ActionPrompt({ message, actions, onSelect, onCancel, backMessage }: ActionPromptProps) {
   const [error, setError] = useState<string>();
 
   useInput((input, key) => {
@@ -54,7 +55,7 @@ export function ActionPrompt({ message, actions, onSelect, onCancel }: ActionPro
           ))}
       </Box>
       {error && <Text color="red">{error}</Text>}
-      {onCancel && <Text dimColor>Press Esc to go back</Text>}
+      {onCancel && <Text dimColor>{backMessage ?? "Press [Esc] to go back"}</Text>}
     </Box>
   );
 }

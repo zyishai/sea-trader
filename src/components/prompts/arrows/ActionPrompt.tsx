@@ -13,9 +13,10 @@ interface ActionPromptProps {
   actions: Action[];
   onSelect: (value: string) => void;
   onCancel?: () => void;
+  backMessage?: string;
 }
 
-export function ActionPrompt({ message, actions, onSelect, onCancel }: ActionPromptProps) {
+export function ActionPrompt({ message, actions, onSelect, onCancel, backMessage }: ActionPromptProps) {
   useInput((_, key) => {
     if (key.escape && onCancel) {
       onCancel();
@@ -30,7 +31,7 @@ export function ActionPrompt({ message, actions, onSelect, onCancel }: ActionPro
         onSelect={(item) => onSelect(item.value)}
         itemComponent={({ label }) => <Text color="whiteBright">{label}</Text>}
       />
-      {onCancel && <Text dimColor>Press Esc to go back</Text>}
+      {onCancel && <Text dimColor>{backMessage ?? "Press [Esc] to go back"}</Text>}
     </Box>
   );
 }
