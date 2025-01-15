@@ -16,7 +16,7 @@ import {
   getShipStatus,
 } from "../../store/utils.js";
 import { MAX_SHIP_SPEED, OVERDRAFT_TRADING_LIMIT, ports, SPEED_UPGRADE_INCREMENT } from "../../store/constants.js";
-import { ActionPrompt as ActionPromptArrows } from "../prompts/arrows/ActionPrompt.js";
+import { Action, ActionPrompt as ActionPromptArrows } from "../prompts/arrows/ActionPrompt.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../prompts/keyboard/ActionPrompt.js";
 import { InputPrompt as InputPromptArrows } from "../prompts/arrows/InputPrompt.js";
 import { InputPrompt as InputPromptKeyboard } from "../prompts/keyboard/InputPrompt.js";
@@ -710,8 +710,15 @@ function MarketAction() {
       )
     : 0;
   const inHold = good ? context.ship.hold.get(good) : 0;
+  const isSellMode = context.marketAction === "sell";
+
   const onSelect = (value: string, goToStep: (step?: number) => void) => {
-    if (value === "switch_mode") {
+    if (value === "sell_all") {
+      actor.send({
+        type: "SELL_ALL",
+      });
+      goToStep(0);
+    } else if (value === "switch_mode") {
       actor.send({
         type: "GO_TO_MARKET",
         action: context.marketAction === "buy" ? "sell" : "buy",
@@ -768,6 +775,12 @@ function MarketAction() {
                   key: good.charAt(0).toUpperCase(),
                 })),
                 {
+                  label: `Sell All Goods`,
+                  value: "sell_all",
+                  key: "A",
+                  disabled: !isSellMode,
+                },
+                {
                   label: `Switch to ${context.marketAction === "buy" ? "Sell" : "Buy"} Mode`,
                   value: "switch_mode",
                   key: "X",
@@ -796,6 +809,11 @@ function MarketAction() {
               message: `Which good do you wish to ${context.marketAction === "buy" ? "purchase" : "sell"}?`,
               actions: [
                 ...context.availableGoods.map((good) => ({ label: good, value: good })),
+                {
+                  label: `Sell All Goods`,
+                  value: "sell_all",
+                  disabled: !isSellMode,
+                },
                 {
                   label: `Switch to ${context.marketAction === "buy" ? "Sell" : "Buy"} Mode`,
                   value: "switch_mode",

@@ -1,6 +1,6 @@
 import { assign, enqueueActions, setup, stateIn } from "xstate";
 import { initialContext } from "./defaults.js";
-import { Context } from "./types.js";
+import { Context, Good } from "./types.js";
 import { GameEvents } from "./events.js";
 import {
   calculateCostForRepair,
@@ -19,6 +19,7 @@ import {
   getNetCash,
   getShipStatus,
   distributeFleetDamage,
+  calculateInventoryValue,
 } from "./utils.js";
 import {
   BANKRUPTCY_THRESHOLD,
@@ -484,6 +485,25 @@ export const gameMachine = setup({
                     ],
                   },
                 ],
+                SELL_ALL: {
+                  target: "#idle",
+                  actions: [
+                    {
+                      type: "displayMessages",
+                      params: ({ context }) => [
+                        `Selling all goods for $${calculateInventoryValue(context)}`,
+                        `You have ${context.ship.capacity} tons of storage left.`,
+                      ],
+                    },
+                    assign(({ context }) => ({
+                      balance: context.balance + calculateInventoryValue(context),
+                      ship: {
+                        ...context.ship,
+                        hold: goods.reduce((map, good) => map.set(good, 0), new Map()),
+                      },
+                    })),
+                  ],
+                },
               },
             },
           },

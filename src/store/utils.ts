@@ -130,6 +130,12 @@ export const getFleetQuality = (quality: number): FleetQuality => {
   }
 };
 
+// -* INVENTORY *-
+export const calculateInventoryValue = (context: Context) =>
+  [...context.ship.hold.entries()].reduce((acc, [good, quantity]) => {
+    return acc + calculatePrice({ ...context, good, quantity });
+  }, 0);
+
 // +- MARKET +-
 export const generateTrends = () =>
   ports.reduce(

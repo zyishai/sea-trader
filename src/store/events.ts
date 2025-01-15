@@ -18,6 +18,7 @@ export type GameEvents =
   | { type: "GO_TO_MARKET"; action: "buy" | "sell" }
   | { type: "PURCHASE"; good: Good; quantity: number }
   | { type: "SELL"; good: Good; quantity: number }
+  | { type: "SELL_ALL" }
   | { type: "GO_TO_SHIPYARD" }
   | { type: "GO_TO_SHIPYARD_REPAIR" }
   | { type: "REPAIR"; cash: number }
