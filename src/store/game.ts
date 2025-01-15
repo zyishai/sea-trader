@@ -406,12 +406,10 @@ export const gameMachine = setup({
                       calculatePrice({ ...context, ...event }) >
                       context.balance + (context.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0),
                     actions: { type: "displayMessages", params: ["You don't have enough money."] },
-                    target: "buyAction",
                   },
                   {
                     guard: ({ context, event }) => getAvailableStorage(context.ship) < event.quantity,
                     actions: { type: "displayMessages", params: ["You don't have enough storage room."] },
-                    target: "buyAction",
                   },
                   {
                     actions: [
@@ -435,7 +433,6 @@ export const gameMachine = setup({
                         ],
                       },
                     ],
-                    target: "#idle",
                   },
                 ],
               },
@@ -449,7 +446,6 @@ export const gameMachine = setup({
                       type: "displayMessages",
                       params: ({ event }) => [`You don't have enought ${event.good.toLowerCase()} in your hold.`],
                     },
-                    target: "sellAction",
                   },
                   {
                     actions: [
@@ -473,7 +469,6 @@ export const gameMachine = setup({
                         ],
                       },
                     ],
-                    target: "#idle",
                   },
                 ],
               },

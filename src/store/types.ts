@@ -16,9 +16,6 @@ export type EventTemplate = {
 };
 export type ShipStatus = "Perfect" | "Minor damages" | "Major damages" | "Wreckage";
 export type FleetQuality = "Basic" | "Trained" | "Elite";
-export type BuyEvent = { type: "BUY_GOOD"; good: Good; quantity: number };
-export type SellEvent = { type: "SELL_GOOD"; good: Good; quantity: number };
-export type RepairEvent = { type: "REPAIR_SHIP"; damage: number };
 export type Good = (typeof goods)[number];
 export type Port = (typeof ports)[number];
 export type Trend = "increasing" | "decreasing" | "stable";
@@ -27,6 +24,21 @@ export type Context = {
   currentPort: Port;
   day: number;
   balance: number;
+
+  // Port context
+  availablePorts: readonly Port[];
+  destination?: Port;
+  currentEvent?: EventTemplate;
+
+  // Market context
+  marketAction?: "buy" | "sell";
+  availableGoods: readonly Good[];
+  prices: Record<Port, Record<Good, number>>;
+  trends: Record<Port, Record<Good, Trend>>;
+  nextPriceUpdate: number;
+  nextTrendUpdate: number;
+
+  // Shipyard context
   guardFleet: {
     ships: number;
     quality: number; // 1-3
@@ -40,19 +52,6 @@ export type Context = {
     capacity: number;
     hold: Map<Good, number>;
   };
-  prices: Record<Port, Record<Good, number>>;
-  trends: Record<Port, Record<Good, Trend>>;
-  nextPriceUpdate: number;
-  nextTrendUpdate: number;
-
-  // Port context
-  availablePorts: readonly Port[];
-  destination?: Port;
-  currentEvent?: EventTemplate;
-
-  // Market context
-  marketAction?: "buy" | "sell";
-  availableGoods: readonly Good[];
 
   // Misc
   inOverdraft: boolean;

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Box, DOMElement, Text, useInput } from "ink";
+import { Box, DOMElement, Text, useInput, Newline } from "ink";
 import { Alert, Badge } from "@inkjs/ui";
 import { GameContext } from "../GameContext.js";
 import { Divider } from "./Divider.js";
@@ -273,6 +273,8 @@ function InventoryView() {
 function MarketView() {
   const context = GameContext.useSelector((snapshot) => snapshot.context);
   const isOverdrawn = context.balance < 0;
+  const isBuyAction = context.marketAction === "buy";
+  const isHoldFull = getAvailableStorage(context.ship) === 0;
 
   const marketData = context.availableGoods.map((good) => {
     const price = context.prices[context.currentPort][good];
@@ -283,7 +285,7 @@ function MarketView() {
       Good: good,
       Price: `$${price}`,
       Trend: trend === "increasing" ? "↑" : trend === "decreasing" ? "↓" : "",
-      "In Hold": quantity.toString(),
+      "In Hold": `${quantity} tons`,
     };
   });
 
@@ -296,6 +298,8 @@ function MarketView() {
       {isOverdrawn && (
         <Alert variant="error">Trading limited to ${context.balance + OVERDRAFT_TRADING_LIMIT} due to overdraft</Alert>
       )}
+
+      {isBuyAction && isHoldFull && <Alert variant="warning">Your ship&apos;s hold is full!</Alert>}
 
       <Table
         data={marketData}
