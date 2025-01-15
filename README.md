@@ -15,7 +15,7 @@
 [![License](https://img.shields.io/github/license/zyishai/sea-trader?style=flat&color=4A4E69&labelColor=22223B)](https://github.com/zyishai/sea-trader/blob/main/LICENSE)
 
 # 🚢 Set Sail in the Age of Trade
-> The year is 1850. You're a merchant captain with a small ship, 1000 silver dollars, and dreams of building a trading empire.  
+> The year is 1850. You're a merchant captain with a small ship, 1500 silver dollars, and dreams of building a trading empire.
 
 Your mission? Turn your modest vessel into a trading empire during a 200-day voyage through historic ports of Hong Kong, Shanghai, Nagasaki, Singapore, and Manila.
 
@@ -89,6 +89,16 @@ $ npx ctrader
 - Poor reputation
 
 <!-- [IMAGE: Screenshot of end-game achievements with player's trading empire stats] -->
+
+## 📜 Historical Notes
+> Set in the bustling trade routes of 1850s Far East, *Sea Trader* uses authentic
+period measurements and trading practices.
+
+- **Picul (擔)**: The standard unit of maritime trade, equal to about 60.48kg
+- **Trade Routes**: Historical routes between major ports like Hong Kong, 
+  Shanghai, and Singapore
+- **Goods**: From everyday commodities to luxury items, reflecting the actual
+  goods traded during the China Trade era
 
 ## 🚀 What's Coming Next
 > These features are in active development!

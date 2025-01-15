@@ -134,10 +134,10 @@ export const gameMachine = setup({
                         (sum, [good, quantity]) => sum + context.prices[context.currentPort][good] * quantity,
                         0,
                       );
-                      const baseLoot = Math.floor(Math.random() * 200) + 301; // [$200, $500]
-                      const factor = Math.floor(50_000 / Math.max(1, context.balance + cargoValue));
-                      const potentialLoot = Math.max(150, Math.floor(baseLoot * factor));
-                      const actualLoot = Math.min(6300, potentialLoot);
+                      const baseLoot = Math.floor(Math.random() * 500) + 801; // [$800, $1300]
+                      const factor = Math.floor(100_000 / Math.max(1, context.balance + cargoValue));
+                      const potentialLoot = Math.max(500, Math.floor(baseLoot * factor));
+                      const actualLoot = Math.min(15_000, potentialLoot);
 
                       const messages = [
                         "Your guard fleet successfully fought off the pirates!",
@@ -409,7 +409,7 @@ export const gameMachine = setup({
                     actions: {
                       type: "displayMessages",
                       params: ({ context, event }) => [
-                        `Not enough money. Need $${calculatePrice({ ...context, ...event })} to purchase ${event.quantity} tons of ${event.good.toLowerCase()}`,
+                        `Not enough money. Need $${calculatePrice({ ...context, ...event })} to purchase ${event.quantity} picul of ${event.good.toLowerCase()}`,
                       ],
                     },
                   },
@@ -418,8 +418,8 @@ export const gameMachine = setup({
                     actions: {
                       type: "displayMessages",
                       params: ({ context, event }) => [
-                        `Not enough storage space for ${event.quantity} tons of ${event.good.toLowerCase()}`,
-                        `Available storage: ${getAvailableStorage(context.ship)} tons`,
+                        `Not enough storage space for ${event.quantity} picul of ${event.good.toLowerCase()}`,
+                        `Available storage: ${getAvailableStorage(context.ship)} picul`,
                       ],
                     },
                   },
@@ -442,7 +442,7 @@ export const gameMachine = setup({
                             ...context,
                             ...event,
                           })}.`,
-                          `You have ${getAvailableStorage(context.ship)} tons of storage left.`,
+                          `You have ${getAvailableStorage(context.ship)} picul of storage left.`,
                         ],
                       },
                     ],
@@ -479,7 +479,7 @@ export const gameMachine = setup({
                             ...context,
                             ...event,
                           })}.`,
-                          `You have ${getAvailableStorage(context.ship)} tons of storage left.`,
+                          `You have ${getAvailableStorage(context.ship)} picul of storage left.`,
                         ],
                       },
                     ],
@@ -492,7 +492,7 @@ export const gameMachine = setup({
                       type: "displayMessages",
                       params: ({ context }) => [
                         `Selling all goods for $${calculateInventoryValue(context)}`,
-                        `You have ${context.ship.capacity} tons of storage left.`,
+                        `You have ${context.ship.capacity} picul of storage left.`,
                       ],
                     },
                     assign(({ context }) => ({
@@ -539,7 +539,7 @@ export const gameMachine = setup({
                         params: ({ context, event }) => {
                           const damageToRepair = Math.min(
                             /* ship's damage */ 100 - context.ship.health,
-                            calculateRepairForCost(event.cash),
+                            calculateRepairForCost(event.cash, context),
                           );
                           return [`Repaired ${damageToRepair} damage`];
                         },
@@ -547,9 +547,9 @@ export const gameMachine = setup({
                       assign(({ context, event }) => {
                         const damageToRepair = Math.min(
                           /* ship's damage */ 100 - context.ship.health,
-                          calculateRepairForCost(event.cash),
+                          calculateRepairForCost(event.cash, context),
                         );
-                        const cost = calculateCostForRepair(damageToRepair);
+                        const cost = calculateCostForRepair(damageToRepair, context);
                         return {
                           balance: context.balance - cost,
                           ship: {
@@ -819,7 +819,7 @@ export const gameMachine = setup({
           guard: ({ context }) =>
             getShipStatus(context.ship.health) === "Wreckage" &&
             context.day < GOAL_DAYS &&
-            getShipStatus(calculateRepairForCost(getNetCash(context)) + context.ship.health) === "Wreckage",
+            getShipStatus(calculateRepairForCost(getNetCash(context), context) + context.ship.health) === "Wreckage",
           actions: {
             type: "displayMessages",
             params: [

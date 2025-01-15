@@ -52,27 +52,30 @@ export function ScoreScreen() {
         <Badge color={context.extendedGame ? "blueBright" : "cyanBright"}>
           {context.extendedGame ? "Extended Game" : "Regular Game"}
         </Badge>
-        <Text underline>Game stats:</Text>
+        <Text underline>Game Stats:</Text>
         <Text>
-          <Text dimColor>Days played:</Text> {context.day} days
+          <Text dimColor>Days Played:</Text> {context.day} days
         </Text>
         <Text>
-          <Text dimColor>Net value:</Text> ${getNetCash(context)}
+          <Text dimColor>Net Value:</Text> ${getNetCash(context)}
         </Text>
         <Text>
-          <Text dimColor>Ship size:</Text> {context.ship.capacity} Tons
+          <Text dimColor>Ship Capacity:</Text> {context.ship.capacity} picul
+        </Text>
+        <Text>
+          <Text dimColor>Ship Speed:</Text> {context.ship.speed} knots
         </Text>
         <Text inverse>You&apos;ve scored {score} points</Text>
         <Box flexDirection="column" marginTop={2}>
           <Text underline>Your Rating</Text>
           <Box flexDirection="column" borderStyle="round" width={40} gap={1} paddingX={1}>
             <Box justifyContent="space-between" alignItems="center">
-              <Text inverse={score >= 6000}>Admiral </Text>
-              <Text>6,000 and over</Text>
+              <Text inverse={score >= 30_000}>Admiral </Text>
+              <Text>30,000 and over</Text>
             </Box>
             <Box justifyContent="space-between" alignItems="center">
-              <Text inverse={score >= 5000 && score < 6000}>Captain </Text>
-              <Text>5,000 to 5,999</Text>
+              <Text inverse={score >= 5000 && score < 30_000}>Captain </Text>
+              <Text>5,000 to 30,000</Text>
             </Box>
             <Box justifyContent="space-between" alignItems="center">
               <Text inverse={score < 5000}>Mate </Text>

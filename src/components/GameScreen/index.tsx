@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Box, DOMElement, Text, useInput, Newline } from "ink";
+import { Box, DOMElement, Text, useInput } from "ink";
 import { Alert, Badge } from "@inkjs/ui";
 import { GameContext } from "../GameContext.js";
 import { Divider } from "./Divider.js";
@@ -16,7 +16,7 @@ import {
   getShipStatus,
 } from "../../store/utils.js";
 import { MAX_SHIP_SPEED, OVERDRAFT_TRADING_LIMIT, ports, SPEED_UPGRADE_INCREMENT } from "../../store/constants.js";
-import { Action, ActionPrompt as ActionPromptArrows } from "../prompts/arrows/ActionPrompt.js";
+import { ActionPrompt as ActionPromptArrows } from "../prompts/arrows/ActionPrompt.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../prompts/keyboard/ActionPrompt.js";
 import { InputPrompt as InputPromptArrows } from "../prompts/arrows/InputPrompt.js";
 import { InputPrompt as InputPromptKeyboard } from "../prompts/keyboard/InputPrompt.js";
@@ -225,7 +225,7 @@ function InventoryView() {
       const currentPrice = context.prices[context.currentPort][good];
       return {
         Good: good,
-        Quantity: `${quantity} tons`,
+        Quantity: `${quantity} picul`,
         "Current Value": `$${currentPrice * quantity}`,
       };
     });
@@ -255,15 +255,15 @@ function InventoryView() {
         <Text>Storage Space:</Text>
         <Text>
           {" "}
-          • Used: <Badge color="gray">{context.ship.capacity - availableStorage} tons</Badge>
+          • Used: <Badge color="gray">{context.ship.capacity - availableStorage} picul</Badge>
         </Text>
         <Text>
           {" "}
-          • Available: <Badge color="gray">{availableStorage} tons</Badge>
+          • Available: <Badge color="gray">{availableStorage} picul</Badge>
         </Text>
         <Text>
           {" "}
-          • Total Capacity: <Badge color="gray">{context.ship.capacity} tons</Badge>
+          • Total Capacity: <Badge color="gray">{context.ship.capacity} picul</Badge>
         </Text>
       </Box>
     </Box>
@@ -286,7 +286,7 @@ function MarketView() {
       Good: good,
       Price: `$${price}`,
       Trend: trend === "increasing" ? "↑" : trend === "decreasing" ? "↓" : "",
-      "In Hold": `${quantity} tons`,
+      "In Hold": `${quantity} picul`,
     };
   });
 
@@ -307,7 +307,7 @@ function MarketView() {
         <Alert variant={availableStorage === 0 ? "error" : "warning"}>
           {availableStorage === 0
             ? "Ship&apos;s hold is full! Sell some goods to make room for new cargo."
-            : `Limited storage space remaining: ${availableStorage} tons.`}
+            : `Limited storage space remaining: ${availableStorage} picul.`}
         </Alert>
       )}
 
@@ -376,7 +376,7 @@ function FleetView() {
 function ShipyardView() {
   const context = GameContext.useSelector((snapshot) => snapshot.context);
   const shipHealth = getShipStatus(context.ship.health);
-  const repairCost = calculateCostForRepair(100 - context.ship.health);
+  const repairCost = calculateCostForRepair(100 - context.ship.health, context);
   const needsRepair = context.ship.health < 100;
 
   return (
@@ -412,7 +412,7 @@ function ShipyardView() {
       <Box flexDirection="column" marginY={1}>
         <Text bold>Ship Details:</Text>
         <Box marginLeft={2} flexDirection="column">
-          <Text>Cargo Capacity: {context.ship.capacity} tons</Text>
+          <Text>Cargo Capacity: {context.ship.capacity} picul</Text>
           <Text>Base Speed: {context.ship.speed} knots</Text>
           {context.ship.speed < MAX_SHIP_SPEED && (
             <Text dimColor>(Can be upgraded to {context.ship.speed + SPEED_UPGRADE_INCREMENT} knots)</Text>
@@ -792,7 +792,7 @@ function MarketAction() {
             {
               type: "text",
               id: "quantity",
-              message: `How many tons of ${good}?`,
+              message: `How many picul of ${good}?`,
               validate: validateQuantity,
             },
           ]}
@@ -825,7 +825,7 @@ function MarketAction() {
             {
               type: "text",
               id: "quantity",
-              message: `How many tons of ${good}?`,
+              message: `How many picul of ${good}?`,
               validate: validateQuantity,
             },
           ]}
@@ -1107,3 +1107,13 @@ function BankruptcyAction() {
     </Box>
   );
 }
+
+/**
+ * NEXT STEPS:
+ * - [ ] Research historical storage unit and update the game to use it
+ * - [ ] Make the market flow more strategic, interesting, and natural (and maybe realistic). Balance creativity with realism and simplicity.
+ * - [ ] Make the game more realistic by adding more historical context and events.
+ * - [ ] Market action reflection on the market view in real-time instead of in the action area.
+ * - [ ] Port specialities (noted)
+ * - [ ] Reputation impacts prices
+ */

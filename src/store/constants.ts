@@ -1,4 +1,5 @@
 import { EventTemplate, Good, Port } from "./types.js";
+import { getNetCash } from "./utils.js";
 
 export const goods = ["Wheat", "Tea", "Spices", "Opium", "Porcelain"] as const;
 export const ports = ["Hong Kong", "Shanghai", "Nagasaki", "Singapore", "Manila"] as const;
@@ -19,7 +20,7 @@ export const eventTemplates: EventTemplate[] = [
     baseChance: 0.1,
     message: "A storm damages your ship",
     effect: (context) => ({
-      ship: { ...context.ship, health: Math.max(0, context.ship.health - 12) },
+      ship: { ...context.ship, health: Math.max(0, context.ship.health - 18) },
       currentPort: context.destination,
     }),
   },
@@ -28,7 +29,7 @@ export const eventTemplates: EventTemplate[] = [
     severity: "major",
     baseChance: 0.05,
     message: "A hurricane forces you back to land and damages your ship severely",
-    effect: (context) => ({ ship: { ...context.ship, health: Math.max(0, context.ship.health - 23) } }),
+    effect: (context) => ({ ship: { ...context.ship, health: Math.max(0, context.ship.health - 34) } }),
   },
   {
     type: "market",
@@ -40,7 +41,7 @@ export const eventTemplates: EventTemplate[] = [
         ...context.prices,
         [context.destination!]: {
           ...context.prices[context.destination!],
-          Tea: Math.round(context.prices[context.destination!].Tea * 1.2),
+          Tea: Math.round(context.prices[context.destination!].Tea * 1.3),
         },
       },
       currentPort: context.destination,
@@ -56,7 +57,7 @@ export const eventTemplates: EventTemplate[] = [
       goods.forEach((good) => {
         if (Math.random() > 0.5) {
           const price = context.prices[context.destination!][good];
-          const factor = Math.random() > 0.5 ? 1.3 : 0.7;
+          const factor = Math.random() > 0.5 ? 1.4 : 0.6;
           newPrices[context.destination!][good] = Math.round(price * factor);
         }
       });
@@ -71,10 +72,13 @@ export const eventTemplates: EventTemplate[] = [
     message: "You discover a small island with rare goods",
     effect: (context) => {
       const randomGood = goods[Math.floor(Math.random() * goods.length)] as Good;
+      const baseAmount = 10;
+      const wealthFactor = Math.max(1, Math.log10(getNetCash(context) / 1000));
+      const amount = Math.round(baseAmount * wealthFactor);
       return {
         ship: {
           ...context.ship,
-          hold: context.ship.hold.set(randomGood, (context.ship.hold.get(randomGood) || 0) + 10),
+          hold: context.ship.hold.set(randomGood, (context.ship.hold.get(randomGood) || 0) + amount),
         },
         currentPort: context.destination,
       };
@@ -90,25 +94,46 @@ export const distanceMatrix: Record<Port, Record<Port, number>> = {
   Manila: { "Hong Kong": 706, Shanghai: 1307, Nagasaki: 1668, Singapore: 1308, Manila: 0 },
 } as const;
 export const goodsInfo: { name: Good; basePrice: number; volatility: number }[] = [
-  { name: "Wheat", basePrice: 20, volatility: 0.1 },
-  { name: "Tea", basePrice: 50, volatility: 0.15 },
-  { name: "Spices", basePrice: 80, volatility: 0.2 },
-  { name: "Opium", basePrice: 150, volatility: 0.25 },
-  { name: "Porcelain", basePrice: 30, volatility: 0.05 },
+  { name: "Wheat", basePrice: 25, volatility: 0.1 },
+  { name: "Tea", basePrice: 80, volatility: 0.15 },
+  { name: "Spices", basePrice: 150, volatility: 0.2 },
+  { name: "Opium", basePrice: 300, volatility: 0.25 },
+  { name: "Porcelain", basePrice: 45, volatility: 0.05 },
 ] as const;
+
+// Gameplay
 export const GOAL_DAYS = 200;
-export const BASE_SHIP_SPEED = 8;
+export const EXTENDED_GAME_PENALTY = 0.01;
+
+// Player Vessel
+export const BASE_SHIP_CAPACITY = 100; // In picul
+export const _future_CAPACITY_UPGRADES = [
+  { capacity: 150, cost: 2000 },
+  { capacity: 175, cost: 3500 },
+  { capacity: 200, cost: 5000 },
+  { capacity: 250, cost: 8000 },
+  { capacity: 300, cost: 12_000 },
+  { capacity: 500, cost: 25_000 },
+];
+export const BASE_SHIP_SPEED = 8; // In knots
 export const MAX_SHIP_SPEED = 20;
 export const SPEED_UPGRADE_INCREMENT = 2;
-export const EXTENDED_GAME_PENALTY = 0.01;
+export const DAMAGE_REPAIR_COST_PER_UNIT = 75;
+
+// Market
 export const PRICE_UPDATE_INTERVAL = 14;
 export const TREND_UPDATE_INTERVAL = 21;
+
+// Guard Ships
 export const MAX_GUARD_SHIPS = 10;
 export const MAX_GUARD_QUALITY = 3;
-export const BASE_GUARD_COST = 300;
-export const DAMAGE_PER_GUARD_SHIP = 50; // Damage needed to destroy one guard ship
-export const MAINTENANCE_COST_PER_SHIP = 8;
-export const BANKRUPTCY_THRESHOLD = -2000; // When debt exceeds this, player goes bankrupt
-export const OVERDRAFT_TRADING_LIMIT = 1000; // How much additional debt allowed for trading (if debt exceeds this - take desperate measures)
-export const MAX_DAILY_OVERDRAFT = 25; // Maximum daily interest rate
+export const BASE_GUARD_COST = 800;
+export const DAMAGE_PER_GUARD_SHIP = 75; // Damage needed to destroy one guard ship
+export const MAINTENANCE_COST_PER_SHIP = 25;
+
+// Finance
+export const BASE_BALANCE = 1500;
+export const BANKRUPTCY_THRESHOLD = -4000; // When debt exceeds this, player goes bankrupt
+export const OVERDRAFT_TRADING_LIMIT = 2000; // How much additional debt allowed for trading (if debt exceeds this - take desperate measures)
+export const MAX_DAILY_OVERDRAFT = 50; // Maximum daily interest rate
 export const BASE_INTEREST_RATE = 0.03; // 3% daily interest

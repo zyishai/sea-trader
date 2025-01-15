@@ -105,13 +105,13 @@ export function HelpScreen() {
             <Text>Use arrow keys or keyboard shortcuts to navigate menus</Text>
           </UnorderedList.Item>
           <UnorderedList.Item>
-            <Text>Press Enter to confirm choices</Text>
+            <Text>Press [Enter] to confirm choices</Text>
           </UnorderedList.Item>
           <UnorderedList.Item>
-            <Text>Press Space to skip message animations</Text>
+            <Text>Press [Space] to skip message animations</Text>
           </UnorderedList.Item>
           <UnorderedList.Item>
-            <Text>Press Esc to exit game (progress not saved)</Text>
+            <Text>Press [Esc] to exit game (progress not saved)</Text>
           </UnorderedList.Item>
         </UnorderedList>
 

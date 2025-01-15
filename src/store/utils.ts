@@ -1,6 +1,8 @@
 import {
   BASE_GUARD_COST,
+  BASE_SHIP_CAPACITY,
   DAMAGE_PER_GUARD_SHIP,
+  DAMAGE_REPAIR_COST_PER_UNIT,
   distanceMatrix,
   eventTemplates,
   EXTENDED_GAME_PENALTY,
@@ -15,9 +17,10 @@ import { Context, EventTemplate, FleetQuality, Good, Port, ShipStatus, Trend } f
 // ~~ PORT ~~
 export const calculatePirateEncounterChance = (context: Context) => {
   const baseChance = 0.2;
+  const wealthFactor = Math.min(1.5, getNetCash(context) / 10_000);
   const reputationFactor = Math.max(0.5, (100 - context.reputation) / 100);
   const guardFactor = context.guardFleet.ships * 0.01 * context.guardFleet.quality;
-  return Math.max(0.05, Math.min(0.3, baseChance * reputationFactor - guardFactor)); // 5%-30% chance
+  return Math.max(0.05, Math.min(0.3, baseChance * reputationFactor * wealthFactor - guardFactor)); // 5%-30% chance
 };
 export const calculateGuardEffectiveness = (context: Context) => {
   const baseEffectiveness = 0.4;
@@ -37,7 +40,7 @@ export const calculateEventChance = (template: EventTemplate, context: Context) 
       break;
     }
     case "market": {
-      chance *= context.balance / 10000; // Market events become more likely as the player gets richer
+      chance *= Math.min(2, context.balance / 5000); // Market events become more likely as the player gets richer
       break;
     }
     case "encounter": {
@@ -176,13 +179,19 @@ export const calculatePrice = ({
   quantity: number;
 }) => prices[currentPort][good] * quantity;
 export const getAvailableStorage = (ship: Context["ship"]) =>
-  ship.capacity - [...ship.hold.values()].reduce((sum, tons) => sum + tons);
+  ship.capacity - [...ship.hold.values()].reduce((sum, volume) => sum + volume);
 
 // ** SHIPYARD **
 export const getShipStatus = (health: number): ShipStatus =>
   health >= 90 ? "Perfect" : health >= 70 ? "Minor damages" : health >= 40 ? "Major damages" : "Wreckage";
-export const calculateCostForRepair = (damageToRepair: number) => damageToRepair * 57; // How much it'll cost to repair `damageToRepair` damage.
-export const calculateRepairForCost = (price: number) => Math.floor(price / 57); // How much damage can be repaired with `price`.
+export const calculateCostForRepair = (damageToRepair: number, context: Context) => {
+  const capacityFactor = Math.max(1, Math.sqrt(context.ship.capacity / BASE_SHIP_CAPACITY));
+  return Math.floor(damageToRepair * DAMAGE_REPAIR_COST_PER_UNIT * capacityFactor); // How much it'll cost to repair `damageToRepair` damage.
+};
+export const calculateRepairForCost = (price: number, context: Context) => {
+  const capacityFactor = Math.max(1, Math.sqrt(context.ship.capacity / BASE_SHIP_CAPACITY));
+  return Math.floor(price / (DAMAGE_REPAIR_COST_PER_UNIT * capacityFactor)); // How much damage can be repaired with `price`.
+};
 
 // !! SCORE !!
 export const getNetCash = (context: Context) =>
@@ -192,11 +201,11 @@ export const getNetCash = (context: Context) =>
     0,
   );
 export const calculateScore = (context: Context) => {
-  let score = Math.round(getNetCash(context) / 100);
+  let score = Math.round(getNetCash(context) / 50);
 
   // Add a logarithmic bonus for ship capacity
   // This provides diminishing returns for larger capacities
-  const capacityBonus = Math.floor(800 * Math.log10(context.ship.capacity + 1));
+  const capacityBonus = Math.floor(1000 * Math.log10(context.ship.capacity + 1));
   score += capacityBonus;
 
   // Add a logarithmic bonus for ship speed
@@ -206,7 +215,7 @@ export const calculateScore = (context: Context) => {
 
   // Calculate damage penalty
   // The penalty increases with ship size and is more severe for lower health
-  const maxDamage = context.ship.capacity * 10;
+  const maxDamage = context.ship.capacity * 20;
   const actualDamage = maxDamage * (1 - context.ship.health / 100);
   const damagePenalty = Math.floor(actualDamage);
   score -= damagePenalty;
