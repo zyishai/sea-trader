@@ -12,7 +12,7 @@ import {
   MAINTENANCE_COST_PER_SHIP,
   ports,
 } from "./constants.js";
-import { Context, EventTemplate, FleetQuality, Good, Port, ShipStatus, Trend } from "./types.js";
+import { BulkinessCategory, Context, EventTemplate, FleetQuality, Good, Port, ShipStatus, Trend } from "./types.js";
 
 // ~~ PORT ~~
 export const calculatePirateEncounterChance = (context: Context) => {
@@ -138,6 +138,41 @@ export const calculateInventoryValue = (context: Context) =>
   [...context.ship.hold.entries()].reduce((acc, [good, quantity]) => {
     return acc + calculatePrice({ ...context, good, quantity });
   }, 0);
+export const getAvailableStorage = (ship: Context["ship"]) => {
+  const usedStorage = [...ship.hold.entries()].reduce(
+    (sum, [good, quantity]) => sum + getStorageUnitsForGood(good, quantity),
+    0,
+  );
+  return ship.capacity - usedStorage;
+};
+export const getStorageUnitsForGood = (good: Good, quantity: number) => {
+  const goodInfo = goodsInfo.find((item) => item.name === good);
+  if (!goodInfo) {
+    return 0;
+  }
+  return Math.ceil(quantity * goodInfo.bulkiness);
+};
+export const canStoreCargo = (context: Context, good: Good, quantity: number) => {
+  const storageNeeded = getStorageUnitsForGood(good, quantity);
+  return getAvailableStorage(context.ship) >= storageNeeded;
+};
+export const getBulkinessCategory = (bulkiness: number): BulkinessCategory => {
+  if (bulkiness <= 0.8) return "Compact";
+  if (bulkiness >= 1.2) return "Bulky";
+  return "Standard";
+};
+export const getBulkinessDescription = (good: Good) => {
+  const goodInfo = goodsInfo.find((item) => item.name === good);
+  if (!goodInfo) return "";
+  switch (getBulkinessCategory(goodInfo.bulkiness)) {
+    case "Compact":
+      return "Dense cargo that stores efficiently";
+    case "Standard":
+      return "Takes standard storage space";
+    case "Bulky":
+      return "Requires extra storage space due to careful packing";
+  }
+};
 
 // +- MARKET +-
 export const generateTrends = () =>
@@ -178,8 +213,6 @@ export const calculatePrice = ({
   good: Good;
   quantity: number;
 }) => prices[currentPort][good] * quantity;
-export const getAvailableStorage = (ship: Context["ship"]) =>
-  ship.capacity - [...ship.hold.values()].reduce((sum, volume) => sum + volume);
 
 // ** SHIPYARD **
 export const getShipStatus = (health: number): ShipStatus =>

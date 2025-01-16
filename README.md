@@ -94,11 +94,19 @@ $ npx ctrader
 > Set in the bustling trade routes of 1850s Far East, *Sea Trader* uses authentic
 period measurements and trading practices.
 
-- **Picul (擔)**: The standard unit of maritime trade, equal to about 60.48kg
-- **Trade Routes**: Historical routes between major ports like Hong Kong, 
-  Shanghai, and Singapore
-- **Goods**: From everyday commodities to luxury items, reflecting the actual
-  goods traded during the China Trade era
+### ⚖️ Weight Measurement
+All cargo is measured in **piculs (擔)**, the standard unit of maritime trade in 19th century Asia. One picul, approximately 60kg or 133lbs, was originally defined as "a man's load" - what a single porter could carry.
+
+### 🚢 Storage System
+Ships' storage capacity was measured in **"tons burden (t bm)"** - a volume-based measurement where different goods required different amounts of space.  
+
+Sea Trader reflects this historical system through a simplified storage mechanism:  
+- **Compact Goods** (like porcelain): Dense cargo that stores efficiently
+- **Standard Goods** (like wheat): Takes normal storage space
+- **Bulky Goods** (like tea): Requires extra storage space due to packaging and careful stowage
+
+### 💰 Currency
+Prices in the game are in **Spanish silver dollars ($)**, the standard currency of Far East trade in the 1850s. Also known as "pieces of eight", these silver coins were accepted across all major ports from Hong Kong to Manila.
 
 ## 🚀 What's Coming Next
 > These features are in active development!

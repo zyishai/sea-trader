@@ -11,11 +11,19 @@ import {
   calculateGuardShipCost,
   calculateTravelTime,
   getAvailableStorage,
+  getBulkinessCategory,
   getFleetQuality,
   getNetCash,
   getShipStatus,
+  getStorageUnitsForGood,
 } from "../../store/utils.js";
-import { MAX_SHIP_SPEED, OVERDRAFT_TRADING_LIMIT, ports, SPEED_UPGRADE_INCREMENT } from "../../store/constants.js";
+import {
+  goodsInfo,
+  MAX_SHIP_SPEED,
+  OVERDRAFT_TRADING_LIMIT,
+  ports,
+  SPEED_UPGRADE_INCREMENT,
+} from "../../store/constants.js";
 import { ActionPrompt as ActionPromptArrows } from "../prompts/arrows/ActionPrompt.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../prompts/keyboard/ActionPrompt.js";
 import { InputPrompt as InputPromptArrows } from "../prompts/arrows/InputPrompt.js";
@@ -223,9 +231,11 @@ function InventoryView() {
     .filter(([_, quantity]) => quantity > 0)
     .map(([good, quantity]) => {
       const currentPrice = context.prices[context.currentPort][good];
+      const storageUsed = getStorageUnitsForGood(good, quantity);
       return {
         Good: good,
         Quantity: `${quantity} picul`,
+        "Storage Used": `${storageUsed} units`,
         "Current Value": `$${currentPrice * quantity}`,
       };
     });
@@ -242,6 +252,7 @@ function InventoryView() {
           columns={[
             { key: "Good", align: "left" },
             { key: "Quantity", align: "right" },
+            { key: "Storage Used", align: "right" },
             { key: "Current Value", align: "right" },
           ]}
         />
@@ -278,6 +289,7 @@ function MarketView() {
   const isHoldNearlyFull = availableStorage <= context.ship.capacity * 0.2;
 
   const marketData = context.availableGoods.map((good) => {
+    const goodInfo = goodsInfo.find((item) => item.name === good)!;
     const price = context.prices[context.currentPort][good];
     const trend = context.trends[context.currentPort][good];
     const quantity = context.ship.hold.get(good) || 0;
@@ -287,6 +299,7 @@ function MarketView() {
       Price: `$${price}`,
       Trend: trend === "increasing" ? "↑" : trend === "decreasing" ? "↓" : "",
       "In Hold": `${quantity} picul`,
+      "Stowage Factor": `${goodInfo.bulkiness} (${getBulkinessCategory(goodInfo.bulkiness)})`,
     };
   });
 
@@ -318,6 +331,7 @@ function MarketView() {
           { key: "Price", align: "right" },
           { key: "Trend", align: "left" },
           { key: "In Hold", align: "right" },
+          { key: "Stowage Factor", align: "left" },
         ]}
       />
 
@@ -1107,13 +1121,3 @@ function BankruptcyAction() {
     </Box>
   );
 }
-
-/**
- * NEXT STEPS:
- * - [ ] Research historical storage unit and update the game to use it
- * - [ ] Make the market flow more strategic, interesting, and natural (and maybe realistic). Balance creativity with realism and simplicity.
- * - [ ] Make the game more realistic by adding more historical context and events.
- * - [ ] Market action reflection on the market view in real-time instead of in the action area.
- * - [ ] Port specialities (noted)
- * - [ ] Reputation impacts prices
- */

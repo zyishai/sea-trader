@@ -93,12 +93,12 @@ export const distanceMatrix: Record<Port, Record<Port, number>> = {
   Singapore: { "Hong Kong": 1460, Shanghai: 2279, Nagasaki: 2561, Singapore: 0, Manila: 1308 },
   Manila: { "Hong Kong": 706, Shanghai: 1307, Nagasaki: 1668, Singapore: 1308, Manila: 0 },
 } as const;
-export const goodsInfo: { name: Good; basePrice: number; volatility: number }[] = [
-  { name: "Wheat", basePrice: 25, volatility: 0.1 },
-  { name: "Tea", basePrice: 80, volatility: 0.15 },
-  { name: "Spices", basePrice: 150, volatility: 0.2 },
-  { name: "Opium", basePrice: 300, volatility: 0.25 },
-  { name: "Porcelain", basePrice: 45, volatility: 0.05 },
+export const goodsInfo: { name: Good; basePrice: number; volatility: number; bulkiness: number }[] = [
+  { name: "Wheat", basePrice: 25, volatility: 0.1, bulkiness: 1.0 },
+  { name: "Tea", basePrice: 80, volatility: 0.15, bulkiness: 1.4 },
+  { name: "Spices", basePrice: 150, volatility: 0.2, bulkiness: 0.8 },
+  { name: "Opium", basePrice: 300, volatility: 0.25, bulkiness: 0.6 },
+  { name: "Porcelain", basePrice: 45, volatility: 0.05, bulkiness: 1.2 },
 ] as const;
 
 // Gameplay
@@ -106,14 +106,14 @@ export const GOAL_DAYS = 200;
 export const EXTENDED_GAME_PENALTY = 0.01;
 
 // Player Vessel
-export const BASE_SHIP_CAPACITY = 100; // In picul
+export const BASE_SHIP_CAPACITY = 120; // In tons burden
 export const _future_CAPACITY_UPGRADES = [
-  { capacity: 150, cost: 2000 },
-  { capacity: 175, cost: 3500 },
-  { capacity: 200, cost: 5000 },
-  { capacity: 250, cost: 8000 },
-  { capacity: 300, cost: 12_000 },
-  { capacity: 500, cost: 25_000 },
+  { capacity: 180, cost: 2000 },
+  { capacity: 240, cost: 3500 },
+  { capacity: 320, cost: 5000 },
+  { capacity: 400, cost: 8000 },
+  { capacity: 500, cost: 12_000 },
+  { capacity: 650, cost: 25_000 },
 ];
 export const BASE_SHIP_SPEED = 8; // In knots
 export const MAX_SHIP_SPEED = 20;

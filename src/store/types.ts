@@ -1,4 +1,4 @@
-import { goods, ports } from "./constants.js";
+import { goods, goodsInfo, ports } from "./constants.js";
 
 export type GameSettings = {
   extendedGame?: boolean;
@@ -16,9 +16,11 @@ export type EventTemplate = {
 };
 export type ShipStatus = "Perfect" | "Minor damages" | "Major damages" | "Wreckage";
 export type FleetQuality = "Basic" | "Trained" | "Elite";
+export type BulkinessCategory = "Compact" | "Standard" | "Bulky";
 export type Good = (typeof goods)[number];
 export type Port = (typeof ports)[number];
 export type Trend = "increasing" | "decreasing" | "stable";
+export type GoodInfo = (typeof goodsInfo)[number];
 export type Context = {
   // Game-wide context
   currentPort: Port;
@@ -49,8 +51,8 @@ export type Context = {
   ship: {
     health: number;
     speed: number;
-    capacity: number;
-    hold: Map<Good, number>;
+    capacity: number; // In tons burden
+    hold: Map<Good, number>; // Quantity in picul
   };
 
   // Misc
