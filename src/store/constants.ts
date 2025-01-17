@@ -123,6 +123,11 @@ export const DAMAGE_REPAIR_COST_PER_UNIT = 75;
 // Market
 export const PRICE_UPDATE_INTERVAL = 14;
 export const TREND_UPDATE_INTERVAL = 21;
+export const TREND_SYMBOLS = {
+  UP: "▲",
+  DOWN: "▽",
+  SAME: "―",
+} as const;
 
 // Guard Ships
 export const MAX_GUARD_SHIPS = 10;

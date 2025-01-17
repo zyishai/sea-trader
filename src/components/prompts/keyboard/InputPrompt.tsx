@@ -9,6 +9,7 @@ export type InputStep =
       message: string;
       type: "text";
       validate?: (value: string) => string | undefined;
+      onChange?: (value: string) => void;
       onSubmit?: (value: string) => void;
       onEnter?: () => void;
     }
@@ -103,7 +104,7 @@ export function InputPrompt({ steps, onComplete, onCancel, backMessage, exitMess
     <Box flexDirection="column" gap={1}>
       <Text>{step?.message}</Text>
       {error && <Text color="red">{error}</Text>}
-      <TextInput onSubmit={handleInput} />
+      <TextInput onChange={step?.onChange} onSubmit={handleInput} />
       <Text dimColor>
         {isFirstStep ? (exitMessage ?? "Press [Esc] to exit") : (backMessage ?? "Press [Esc] to go back")}
       </Text>

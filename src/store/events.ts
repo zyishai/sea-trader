@@ -32,3 +32,8 @@ export type GameEvents =
   | { type: "SHOW_HELP" }
   | { type: "HIDE_HELP" }
   | { type: "EXIT" };
+
+export type TransactionEvents =
+  | { type: "RESET"; action: "buy" | "sell" }
+  | { type: "UPDATE_GOOD"; good?: Good }
+  | { type: "UPDATE_QUANTITY"; quantity: number };
