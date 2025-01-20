@@ -17,6 +17,7 @@ const version = `v${pkg.version}`;
 const isDryRun = process.argv.includes("--dry-run");
 
 function stripAnsi(string) {
+  // eslint-disable-next-line no-control-regex
   return string.replace(/\x1B\[\d+m/g, "");
 }
 
