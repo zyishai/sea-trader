@@ -37,6 +37,7 @@ $ npx ctrader
 - Strategic trading between 5 major Asian ports
 - Market trends that shift every 14 days
 - Risk vs reward decisions with cargo space management
+- Historically accurate cargo overloading mechanics
 </details>
 
 <details>
@@ -52,8 +53,10 @@ $ npx ctrader
 <summary>⚓ Ship Management</summary>
 
 - Historically accurate sailing speeds (8-20 knots)
+- Strategic overloading decisions with risk/reward tradeoffs
 - Critical decisions about repairs and upgrades
 - Weather and damage affect your travel time
+- Three upgrade types: Speed, Defense, and Capacity
 </details>
 
 <details>
@@ -75,7 +78,12 @@ $ npx ctrader
 - Damaged ships sail slower - keep an eye on that repair cost
 - Each port has its specialty goods - learn the trade routes
 - Weather the market storms - sometimes holding cargo pays off
+- Strategic overloading can be profitable, but watch the weather!
 - Your reputation affects everything from prices to pirate encounters
+- Consider ship upgrades based on your trading strategy:
+     - Speed upgrades for longer routes
+     - Defense upgrades for dangerous waters
+     - Capacity upgrades for bulk trading
 
 ## 🏆 Scoring System
 ✅ Points are awarded for:  
@@ -101,9 +109,14 @@ All cargo is measured in **piculs (擔)**, the standard unit of maritime trade i
 Ships' storage capacity was measured in **"tons burden (t bm)"** - a volume-based measurement where different goods required different amounts of space.  
 
 Sea Trader reflects this historical system through a simplified storage mechanism:  
-- **Compact Goods** (like porcelain): Dense cargo that stores efficiently
-- **Standard Goods** (like wheat): Takes normal storage space
-- **Bulky Goods** (like tea): Requires extra storage space due to packaging and careful stowage
+- **Cargo Types**: Different goods require varying storage space
+     - **Compact Goods** (like porcelain): Dense cargo that stores efficiently
+     - **Standard Goods** (like wheat): Takes normal storage space
+     - **Bulky Goods** (like tea): Requires extra storage space due to packaging and careful stowage
+- **Overloading**: Ships can be loaded beyond their rated capacity
+     - Reduces sailing speed proportionally to overload amount
+     - Increases risk of cargo damage during storms
+     - Makes escaping from pirates more difficult
 
 ### 💰 Currency
 Prices in the game are in **Spanish silver dollars ($)**, the standard currency of Far East trade in the 1850s. Also known as "pieces of eight", these silver coins were accepted across all major ports from Hong Kong to Manila.
