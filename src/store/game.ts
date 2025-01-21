@@ -22,6 +22,11 @@ import {
   calculateInventoryValue,
   canAffordUpgrade,
   getNextUpgrade,
+  getStorageUsed,
+  getBufferStorage,
+  canStoreCargo,
+  getStorageUnitsForGood,
+  getAvailableBufferStorage,
 } from "./utils.js";
 import {
   BANKRUPTCY_THRESHOLD,
@@ -224,7 +229,15 @@ export const gameMachine = setup({
                 },
                 PIRATES_ENCOUNTER_FLEE: {
                   actions: enqueueActions(({ enqueue, context }) => {
-                    const fleeChance = 0.6 + calculateGuardEffectiveness(context) * 0.2;
+                    const baseFleeChance = 0.6 + calculateGuardEffectiveness(context) * 0.2;
+
+                    const totalBuffer = getBufferStorage(context.ship);
+                    const availableBuffer = getAvailableBufferStorage(context.ship);
+                    const overloadPenalty = context.ship.isOverloaded
+                      ? ((totalBuffer - availableBuffer) / totalBuffer) * 0.4
+                      : 0;
+
+                    const fleeChance = Math.max(0.1, baseFleeChance - overloadPenalty);
                     const success = Math.random() < fleeChance;
 
                     if (success) {
@@ -416,12 +429,12 @@ export const gameMachine = setup({
                     },
                   },
                   {
-                    guard: ({ context, event }) => getAvailableStorage(context.ship) < event.quantity,
+                    guard: ({ context, event }) => !canStoreCargo(context, event.good, event.quantity),
                     actions: {
                       type: "displayMessages",
                       params: ({ context, event }) => [
-                        `Not enough storage space for ${event.quantity} picul of ${event.good.toLowerCase()}`,
-                        `Available storage: ${getAvailableStorage(context.ship)} picul`,
+                        `Not enough storage space for ${event.quantity} picul of ${event.good.toLowerCase()} (needs ${getStorageUnitsForGood(event.good, event.quantity)} storage units)`,
+                        `Available storage: ${getAvailableStorage(context.ship)} picul (+${getAvailableBufferStorage(context.ship)} overload)`,
                       ],
                     },
                   },
@@ -444,7 +457,7 @@ export const gameMachine = setup({
                             ...context,
                             ...event,
                           })}.`,
-                          `You have ${getAvailableStorage(context.ship)} picul of storage left.`,
+                          `You have ${getAvailableStorage(context.ship)} units of storage left.`,
                         ],
                       },
                     ],
@@ -481,7 +494,7 @@ export const gameMachine = setup({
                             ...context,
                             ...event,
                           })}.`,
-                          `You have ${getAvailableStorage(context.ship)} picul of storage left.`,
+                          `You have ${getAvailableStorage(context.ship)} units of storage left.`,
                         ],
                       },
                     ],
@@ -965,6 +978,25 @@ export const gameMachine = setup({
           actions: [
             assign({ inOverdraft: false }),
             { type: "displayMessages", params: ["You're no longer in overdraft!"] },
+          ],
+        },
+        // Ship is no longer overloaded
+        {
+          guard: ({ context }) => context.ship.isOverloaded && getStorageUsed(context.ship) <= context.ship.capacity,
+          actions: assign(({ context }) => ({ ship: { ...context.ship, isOverloaded: false } })),
+        },
+        // Ship's hold is overloaded
+        {
+          guard: ({ context }) => !context.ship.isOverloaded && getStorageUsed(context.ship) > context.ship.capacity,
+          actions: [
+            assign(({ context }) => ({ ship: { ...context.ship, isOverloaded: true } })),
+            {
+              type: "displayMessages",
+              params: [
+                "Your ship is overloaded!",
+                "This will reduce your ship's speed and increase its risk of damage.",
+              ],
+            },
           ],
         },
         // Set canRetire to true if the player has finished the game

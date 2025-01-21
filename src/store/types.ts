@@ -12,7 +12,7 @@ export type EventSeverity = "minor" | "moderate" | "major";
 export type EventTemplate = {
   type: EventType;
   severity: EventSeverity;
-  baseChance: number;
+  baseChance: number | ((context: Context) => number);
   message: string;
   effect: (state: Context) => Partial<Context>;
 };
@@ -62,6 +62,7 @@ export type Context = {
     speed: number;
     capacity: number; // In tons burden
     hold: Map<Good, number>; // Quantity in picul
+    isOverloaded: boolean;
   };
 
   // Misc

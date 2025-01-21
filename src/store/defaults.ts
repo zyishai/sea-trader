@@ -33,6 +33,7 @@ export const initialContext = (settings?: GameSettings) => {
       speed: BASE_SHIP_SPEED, // 8 - 20 knots
       capacity: BASE_SHIP_CAPACITY,
       hold: goods.reduce((map, good) => map.set(good, 0), new Map()),
+      isOverloaded: false,
     },
     trends,
     prices: generatePrices(trends),

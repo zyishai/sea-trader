@@ -8,7 +8,7 @@ import { GOAL_DAYS } from "../store/constants.js";
 export function ScoreScreen() {
   const actor = GameContext.useActorRef();
   const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const bankrupcy = context.balance < 0;
+  const bankrupcy = context.inOverdraft;
   const shipSank = getShipStatus(context.ship.health) === "Wreckage" && context.day < GOAL_DAYS;
   const score = bankrupcy ? 0 : calculateScore(context);
 

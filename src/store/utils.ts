@@ -13,6 +13,8 @@ import {
   goodsInfo,
   MAINTENANCE_COST_PER_SHIP,
   MAX_SHIP_DEFENSE,
+  OVERLOAD_BUFFER,
+  OVERLOAD_SPEED_PENALTY,
   ports,
   SPEED_UPGRADES,
 } from "./constants.js";
@@ -46,7 +48,7 @@ export const calculateGuardEffectiveness = (context: Context) => {
   return Math.min(0.9, (baseEffectiveness + qualityBonus + fleetBonus + defenseBonus) * overdraftPenalty);
 };
 export const calculateEventChance = (template: EventTemplate, context: Context) => {
-  let chance = template.baseChance;
+  let chance = typeof template.baseChance === "number" ? template.baseChance : template.baseChance(context);
   const speedFactor = Math.max(1, 1 - (context.ship.speed - 8) / 24);
 
   switch (template.type) {
@@ -93,7 +95,13 @@ export const calculateTravelTime = (to: Port, context: Context) => {
   const shipCondition = getShipStatus(context.ship.health);
   const healthPenalty = shipCondition === "Wreckage" ? 2 : shipCondition === "Major damages" ? 1.5 : 1;
 
-  return Math.max(1, daysAtSea * healthPenalty);
+  const totalBuffer = getBufferStorage(context.ship);
+  const availableBuffer = getAvailableBufferStorage(context.ship);
+  const overloadPenalty = context.ship.isOverloaded
+    ? 1 + ((totalBuffer - availableBuffer) / totalBuffer) * OVERLOAD_SPEED_PENALTY
+    : 1;
+
+  return Math.max(1, Math.ceil(daysAtSea * healthPenalty * overloadPenalty));
 };
 
 // -~ GUARD FLEET ~-
@@ -157,13 +165,21 @@ export const calculateInventoryValue = (context: Context) =>
   [...context.ship.hold.entries()].reduce((acc, [good, quantity]) => {
     return acc + calculatePrice({ ...context, good, quantity });
   }, 0);
-export const getAvailableStorage = (ship: Context["ship"]) => {
-  const usedStorage = [...ship.hold.entries()].reduce(
-    (sum, [good, quantity]) => sum + getStorageUnitsForGood(good, quantity),
-    0,
-  );
-  return ship.capacity - usedStorage;
+export const getStorageUsed = (ship: Context["ship"]) =>
+  [...ship.hold.entries()].reduce((sum, [good, quantity]) => sum + getStorageUnitsForGood(good, quantity), 0);
+export const getAvailableStorage = (ship: Context["ship"], options?: { withBuffer?: boolean }) => {
+  const usedStorage = getStorageUsed(ship);
+
+  if (options?.withBuffer) {
+    return getMaxStorageWithBuffer(ship) - usedStorage;
+  }
+
+  return Math.max(0, ship.capacity - usedStorage);
 };
+export const getAvailableBufferStorage = (ship: Context["ship"]) =>
+  Math.min(getMaxStorageWithBuffer(ship) - getStorageUsed(ship), getBufferStorage(ship));
+export const getMaxStorageWithBuffer = (ship: Context["ship"]) => Math.floor(ship.capacity * (1 + OVERLOAD_BUFFER));
+export const getBufferStorage = (ship: Context["ship"]) => Math.floor(ship.capacity * OVERLOAD_BUFFER);
 export const getStorageUnitsForGood = (good: Good, quantity: number) => {
   const goodInfo = goodsInfo.find((item) => item.name === good);
   if (!goodInfo) {
@@ -173,7 +189,7 @@ export const getStorageUnitsForGood = (good: Good, quantity: number) => {
 };
 export const canStoreCargo = (context: Context, good: Good, quantity: number) => {
   const storageNeeded = getStorageUnitsForGood(good, quantity);
-  return getAvailableStorage(context.ship) >= storageNeeded;
+  return getAvailableStorage(context.ship, { withBuffer: true }) >= storageNeeded;
 };
 export const getBulkinessCategory = (bulkiness: number): BulkinessCategory => {
   if (bulkiness <= 0.8) return "Compact";

@@ -1,5 +1,5 @@
 import { EventTemplate, Good, Port } from "./types.js";
-import { getNetCash } from "./utils.js";
+import { getAvailableBufferStorage, getBufferStorage, getNetCash } from "./utils.js";
 
 export const goods = ["Wheat", "Tea", "Spices", "Opium", "Porcelain"] as const;
 export const ports = ["Hong Kong", "Shanghai", "Nagasaki", "Singapore", "Manila"] as const;
@@ -19,17 +19,64 @@ export const eventTemplates: EventTemplate[] = [
     severity: "moderate",
     baseChance: 0.1,
     message: "A storm damages your ship",
-    effect: (context) => ({
-      ship: { ...context.ship, health: Math.max(0, context.ship.health - 18) },
-      currentPort: context.destination,
-    }),
+    effect: (context) => {
+      const baseDamage = 18;
+      const totalBuffer = getBufferStorage(context.ship);
+      const availableBuffer = getAvailableBufferStorage(context.ship);
+      const overloadMultiplier = context.ship.isOverloaded
+        ? 1 + ((totalBuffer - availableBuffer) / totalBuffer) * OVERLOAD_DAMAGE_PENALTY
+        : 1;
+      return {
+        ship: {
+          ...context.ship,
+          health: Math.max(0, context.ship.health - Math.round(baseDamage * overloadMultiplier)),
+        },
+        currentPort: context.destination,
+      };
+    },
   },
   {
     type: "weather",
     severity: "major",
     baseChance: 0.05,
     message: "A hurricane forces you back to land and damages your ship severely",
-    effect: (context) => ({ ship: { ...context.ship, health: Math.max(0, context.ship.health - 34) } }),
+    effect: (context) => {
+      const baseDamage = 34;
+      const totalBuffer = getBufferStorage(context.ship);
+      const availableBuffer = getAvailableBufferStorage(context.ship);
+      const overloadMultiplier = context.ship.isOverloaded ? 1 + (totalBuffer - availableBuffer) / totalBuffer : 1;
+      return {
+        ship: {
+          ...context.ship,
+          health: Math.max(0, context.ship.health - Math.round(baseDamage * overloadMultiplier)),
+        },
+      };
+    },
+  },
+  {
+    type: "weather",
+    severity: "minor",
+    baseChance: (context) => (context.ship.isOverloaded ? 0.15 : 0),
+    message: "Heavy seas have damaged some cargo",
+    effect: (context) => {
+      const goodsInHold = [...context.ship.hold.entries()].filter(([_, quantity]) => quantity > 0);
+      const pick = goodsInHold[Math.floor(Math.random() * goodsInHold.length)];
+      if (!pick) return {};
+      const [randomGood] = pick;
+      const currentQuantity = context.ship.hold.get(randomGood) || 0;
+      const lostAmount = Math.ceil(currentQuantity * 0.2); // Lose 20% of the goods
+
+      const newHold = new Map(context.ship.hold);
+      newHold.set(randomGood, currentQuantity - lostAmount);
+
+      return {
+        ship: {
+          ...context.ship,
+          hold: newHold,
+        },
+        messages: [...context.messages, [`Lost ${lostAmount} picul of ${randomGood} due to overloaded cargo.`]],
+      };
+    },
   },
   {
     type: "market",
@@ -133,6 +180,9 @@ export const DEFENSE_UPGRADES = [
 ] as const;
 export const MAX_SHIP_DEFENSE = DEFENSE_UPGRADES[DEFENSE_UPGRADES.length - 1]!.defense;
 export const DAMAGE_REPAIR_COST_PER_UNIT = 75;
+export const OVERLOAD_BUFFER = 0.2;
+export const OVERLOAD_SPEED_PENALTY = 0.3;
+export const OVERLOAD_DAMAGE_PENALTY = 0.5;
 
 // Market
 export const PRICE_UPDATE_INTERVAL = 14;

@@ -63,7 +63,7 @@ function StatusBar() {
         <Text backgroundColor="black" color="whiteBright" inverse={context.balance > 0}>
           {context.balance >= 0 ? `$${context.balance}` : `-$${Math.abs(context.balance)}`}
         </Text>
-        {context.balance < 0 && <Badge color="red">OVERDRAWN</Badge>}
+        {context.inOverdraft && <Badge color="red">OVERDRAWN</Badge>}
         <Text> | Ship: </Text>
         <Badge
           color={

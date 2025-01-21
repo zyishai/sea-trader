@@ -98,12 +98,10 @@ function MarketTable({
       <Table data={marketData} columns={columns} />
       {showAllInfo ||
         (showBulkiness && (
-          <Box marginTop={1}>
-            <Text dimColor>
-              * Storage units show how much cargo space <Newline />
-              {"  "}one picul of this good will occupy
-            </Text>
-          </Box>
+          <Text dimColor>
+            * Storage units show how much cargo space <Newline />
+            {"  "}one picul of this good will occupy
+          </Text>
         ))}
     </Box>
   );
@@ -111,9 +109,10 @@ function MarketTable({
 
 function CriticalAlerts() {
   const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const isOverdrawn = context.balance < 0;
   const availableStorage = getAvailableStorage(context.ship);
+  const isOverdrawn = context.inOverdraft;
   const isHoldNearlyFull = availableStorage <= context.ship.capacity * 0.2;
+  const isOverloaded = context.ship.isOverloaded;
 
   return (
     <>
@@ -121,12 +120,10 @@ function CriticalAlerts() {
         <Alert variant="error">Trading limited to ${context.balance + OVERDRAFT_TRADING_LIMIT} due to overdraft</Alert>
       )}
 
-      {isHoldNearlyFull && (
-        <Alert variant={availableStorage === 0 ? "error" : "warning"}>
-          {availableStorage === 0
-            ? "Ship&apos;s hold is full! Sell some goods to make room for new cargo."
-            : `Limited storage: ${availableStorage} units remaining.`}
-        </Alert>
+      {isOverloaded && <Alert variant="error">Ship is overloaded! Ship speed is affected</Alert>}
+
+      {isHoldNearlyFull && !isOverloaded && (
+        <Alert variant="warning">Limited storage: {availableStorage} units remains before overload.</Alert>
       )}
     </>
   );
@@ -138,12 +135,16 @@ function GoodsSelectionView({ action }: { action: "buy" | "sell" }) {
   const inOverdrawn = context.inOverdraft;
 
   return (
-    <Box flexDirection="column" gap={1}>
+    <Box flexDirection="column">
       <Text bold>Market Exchange &middot; {isBuying ? "Purchasing" : "Selling"}</Text>
+
+      <Box height={1} />
 
       <CriticalAlerts />
 
       <MarketTable showPrices={isBuying} showHoldQuantity={!isBuying} showBulkiness={isBuying} />
+
+      <Box height={1} />
 
       {isBuying && (
         <Box>

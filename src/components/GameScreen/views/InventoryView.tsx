@@ -3,12 +3,13 @@ import { Box, Text } from "ink";
 import { Badge } from "@inkjs/ui";
 import { Table } from "@tqman/ink-table";
 import { GameContext } from "../../GameContext.js";
-import { getAvailableStorage } from "../../../store/utils.js";
+import { getAvailableBufferStorage, getAvailableStorage, getStorageUsed } from "../../../store/utils.js";
 import { getStorageUnitsForGood } from "../../../store/utils.js";
 
 export function InventoryView() {
   const context = GameContext.useSelector((snapshot) => snapshot.context);
   const availableStorage = getAvailableStorage(context.ship);
+  const availableBuffer = getAvailableBufferStorage(context.ship);
 
   // Create table data for current cargo
   const cargoData = Array.from(context.ship.hold.entries())
@@ -50,15 +51,18 @@ export function InventoryView() {
         <Text>Storage Space:</Text>
         <Text>
           {" "}
-          • Used: <Badge color="gray">{context.ship.capacity - availableStorage} picul</Badge>
+          • Used: <Badge color="gray">{getStorageUsed(context.ship)} ton</Badge>
         </Text>
         <Text>
           {" "}
-          • Available: <Badge color="gray">{availableStorage} picul</Badge>
+          • Available:{" "}
+          <Badge color="gray">
+            {availableStorage} ton{availableBuffer > 0 ? ` (+${availableBuffer} if overload)` : null}
+          </Badge>
         </Text>
         <Text>
           {" "}
-          • Total Capacity: <Badge color="gray">{context.ship.capacity} picul</Badge>
+          • Total Capacity: <Badge color="gray">{context.ship.capacity} ton</Badge>
         </Text>
       </Box>
     </Box>
