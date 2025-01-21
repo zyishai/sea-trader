@@ -20,6 +20,8 @@ import {
   getShipStatus,
   distributeFleetDamage,
   calculateInventoryValue,
+  canAffordUpgrade,
+  getNextUpgrade,
 } from "./utils.js";
 import {
   BANKRUPTCY_THRESHOLD,
@@ -518,6 +520,7 @@ export const gameMachine = setup({
             menu: {
               on: {
                 GO_TO_SHIPYARD_REPAIR: { target: "repairing" },
+                GO_TO_SHIPYARD_UPGRADE: { target: "upgrading" },
                 CANCEL: { target: "#idle" },
               },
             },
@@ -560,6 +563,39 @@ export const gameMachine = setup({
                       }),
                     ],
                     target: "#idle",
+                  },
+                ],
+                CANCEL: { target: "menu" },
+              },
+            },
+            upgrading: {
+              on: {
+                UPGRADE_SHIP: [
+                  {
+                    guard: ({ context, event }) => !canAffordUpgrade(event.upgradeType, context),
+                    actions: [{ type: "displayMessages", params: ["Not enough money for this upgrade."] }],
+                  },
+                  {
+                    actions: [
+                      assign(({ context, event }) => {
+                        const upgrade = getNextUpgrade(event.upgradeType, context);
+
+                        if (!upgrade) return context;
+
+                        return {
+                          ship: {
+                            ...context.ship,
+                            // @ts-expect-error ts can't infer exact type
+                            [event.upgradeType]: upgrade[event.upgradeType],
+                          },
+                          balance: context.balance - upgrade.cost,
+                        };
+                      }),
+                      {
+                        type: "displayMessages",
+                        params: ({ event }) => [`Upgrade ship's ${event.upgradeType} completed!`],
+                      },
+                    ],
                   },
                 ],
                 CANCEL: { target: "menu" },

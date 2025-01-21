@@ -1,6 +1,7 @@
 import {
   BASE_BALANCE,
   BASE_SHIP_CAPACITY,
+  BASE_SHIP_DEFENSE,
   BASE_SHIP_SPEED,
   goods,
   ports,
@@ -28,6 +29,7 @@ export const initialContext = (settings?: GameSettings) => {
     reputation: 50,
     ship: {
       health: 100,
+      defense: BASE_SHIP_DEFENSE,
       speed: BASE_SHIP_SPEED, // 8 - 20 knots
       capacity: BASE_SHIP_CAPACITY,
       hold: goods.reduce((map, good) => map.set(good, 0), new Map()),

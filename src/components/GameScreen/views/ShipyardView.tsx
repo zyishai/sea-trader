@@ -2,15 +2,23 @@ import React from "react";
 import { Box, Text } from "ink";
 import { Badge } from "@inkjs/ui";
 import { GameContext } from "../../GameContext.js";
-import { getShipStatus } from "../../../store/utils.js";
+import {
+  getNextCapacityUpgrade,
+  getNextDefenseUpgrade,
+  getNextSpeedUpgrade,
+  getShipStatus,
+} from "../../../store/utils.js";
 import { calculateCostForRepair } from "../../../store/utils.js";
-import { MAX_SHIP_SPEED, SPEED_UPGRADE_INCREMENT } from "../../../store/constants.js";
 
 export function ShipyardView() {
   const context = GameContext.useSelector((snapshot) => snapshot.context);
   const shipHealth = getShipStatus(context.ship.health);
   const repairCost = calculateCostForRepair(100 - context.ship.health, context);
   const needsRepair = context.ship.health < 100;
+
+  const nextSpeedUpgrade = getNextSpeedUpgrade(context.ship.speed);
+  const nextDefenseUpgrade = getNextDefenseUpgrade(context.ship.defense);
+  const nextCapacityUpgrade = getNextCapacityUpgrade(context.ship.capacity);
 
   return (
     <Box flexDirection="column">
@@ -43,21 +51,40 @@ export function ShipyardView() {
       </Box>
 
       <Box flexDirection="column" marginY={1}>
-        <Text bold>Ship Details:</Text>
+        <Text bold>Ship Capabilities:</Text>
         <Box marginLeft={2} flexDirection="column">
-          <Text>Cargo Capacity: {context.ship.capacity} picul</Text>
-          <Text>Base Speed: {context.ship.speed} knots</Text>
-          {context.ship.speed < MAX_SHIP_SPEED && (
-            <Text dimColor>(Can be upgraded to {context.ship.speed + SPEED_UPGRADE_INCREMENT} knots)</Text>
-          )}
+          <Text>
+            Speed: {context.ship.speed} knots{" "}
+            {nextSpeedUpgrade && (
+              <Text dimColor>
+                (Can upgrade to {nextSpeedUpgrade.speed} knots for ${nextSpeedUpgrade.cost})
+              </Text>
+            )}
+          </Text>
+          <Text>
+            Defense: {context.ship.defense}{" "}
+            {nextDefenseUpgrade && (
+              <Text dimColor>
+                (Can upgrade to {nextDefenseUpgrade.defense} for ${nextDefenseUpgrade.cost})
+              </Text>
+            )}
+          </Text>
+          <Text>
+            Capacity: {context.ship.capacity} tons{" "}
+            {nextCapacityUpgrade && (
+              <Text dimColor>
+                (Can upgrade to {nextCapacityUpgrade.capacity} tons for ${nextCapacityUpgrade.cost})
+              </Text>
+            )}
+          </Text>
         </Box>
       </Box>
 
-      {!needsRepair && (
+      {/* {!needsRepair && (
         <Box marginTop={1}>
           <Badge color="green">Ship is in perfect condition</Badge>
         </Box>
-      )}
+      )} */}
     </Box>
   );
 }

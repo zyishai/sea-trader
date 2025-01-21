@@ -1,4 +1,4 @@
-import { GameSettings, Good, Port } from "./types.js";
+import { GameSettings, Good, Port, UpgradeType } from "./types.js";
 
 export type GameEvents =
   | { type: "START_GAME"; settings?: GameSettings }
@@ -22,6 +22,8 @@ export type GameEvents =
   | { type: "GO_TO_SHIPYARD" }
   | { type: "GO_TO_SHIPYARD_REPAIR" }
   | { type: "REPAIR"; cash: number }
+  | { type: "GO_TO_SHIPYARD_UPGRADE" }
+  | { type: "UPGRADE_SHIP"; upgradeType: UpgradeType }
   | { type: "GO_TO_RETIREMENT" }
   | { type: "RETIRE" }
   | { type: "GO_TO_BANKRUPTCY" }

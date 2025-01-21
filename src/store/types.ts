@@ -5,6 +5,8 @@ export type GameSettings = {
   disableAnimations?: boolean;
   controls?: "keyboard" | "arrows";
 };
+
+// Events
 export type EventType = "weather" | "market" | "encounter" | "discovery";
 export type EventSeverity = "minor" | "moderate" | "major";
 export type EventTemplate = {
@@ -14,13 +16,19 @@ export type EventTemplate = {
   message: string;
   effect: (state: Context) => Partial<Context>;
 };
+
+// Shipyard
 export type ShipStatus = "Perfect" | "Minor damages" | "Major damages" | "Wreckage";
 export type FleetQuality = "Basic" | "Trained" | "Elite";
+
+// Inventory & Market
 export type BulkinessCategory = "Compact" | "Standard" | "Bulky";
 export type Good = (typeof goods)[number];
 export type Port = (typeof ports)[number];
 export type Trend = "increasing" | "decreasing" | "stable";
 export type GoodInfo = (typeof goodsInfo)[number];
+
+// Context
 export type Context = {
   // Game-wide context
   currentPort: Port;
@@ -50,6 +58,7 @@ export type Context = {
   reputation: number; // 0-100
   ship: {
     health: number;
+    defense: number;
     speed: number;
     capacity: number; // In tons burden
     hold: Map<Good, number>; // Quantity in picul
@@ -65,3 +74,7 @@ export type Context = {
   extendedGame: boolean;
   settings: Omit<Required<GameSettings>, "extendedGame">;
 };
+
+// Upgrades
+export type UpgradeType = "speed" | "defense" | "capacity";
+export type ShipClass = "Coastal Junk" | "Brig" | "Clipper";
