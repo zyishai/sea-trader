@@ -30,6 +30,7 @@ export type GameEvents =
   | { type: "DECLARE_BANKRUPTCY" }
   | { type: "CANCEL" }
   | { type: "MSG_ACK"; id?: string }
+  | { type: "RESOLVE_EVENT"; choice: string }
   | { type: "RESTART_GAME" }
   | { type: "SHOW_HELP" }
   | { type: "HIDE_HELP" }

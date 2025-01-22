@@ -17,6 +17,8 @@ import {
   BankruptcyAction,
   TravelAction,
 } from "./actions/index.js";
+import { ActionPrompt as ActionPromptKeyboard } from "../prompts/keyboard/ActionPrompt.js";
+import { ActionPrompt as ActionPromptArrows } from "../prompts/arrows/ActionPrompt.js";
 
 export function Layout({ children }: React.PropsWithChildren) {
   const [ref, setRef] = useState<DOMElement | null>(null);
@@ -134,12 +136,14 @@ function getCurrentView() {
 }
 
 function ActionArea() {
-  const messages = GameContext.useSelector((snapshot) => snapshot.context.messages);
-  const hasMessages = messages && messages.length > 0;
+  const snapshot = GameContext.useSelector((snapshot) => snapshot);
+  const { context } = snapshot;
+  const hasMessages = context.messages && context.messages.length > 0;
+  const hasInteractiveEvent = snapshot.matches({ gameScreen: { at_port: { eventOccurred: "multi_choice" } } });
 
   return (
     <Box flexDirection="column" minHeight={5} padding={1}>
-      {hasMessages ? <Messages /> : <Actions />}
+      {hasMessages ? <Messages /> : hasInteractiveEvent ? <InteractiveEvent /> : <Actions />}
     </Box>
   );
 }
@@ -170,6 +174,31 @@ function ContinueMessage() {
   });
 
   return <Text dimColor>Press SPACE to continue</Text>;
+}
+
+function InteractiveEvent() {
+  const actor = GameContext.useActorRef();
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const controls = context.settings.controls;
+  const event = context.currentEvent!;
+
+  const onPickChoice = (value: string) => {
+    actor.send({ type: "RESOLVE_EVENT", choice: value });
+  };
+
+  return controls === "keyboard" ? (
+    <ActionPromptKeyboard
+      message={event.message}
+      actions={event.choices!.map((choice) => ({ label: choice.label, key: choice.key, value: choice.key }))}
+      onSelect={onPickChoice}
+    />
+  ) : (
+    <ActionPromptArrows
+      message={event.message}
+      actions={event.choices!.map((choice) => ({ label: choice.label, value: choice.key }))}
+      onSelect={onPickChoice}
+    />
+  );
 }
 
 function Actions() {

@@ -373,24 +373,63 @@ export const gameMachine = setup({
               ],
             },
             eventOccurred: {
-              entry: [{ type: "displayMessages", params: ({ context }) => [context.currentEvent!.message] }],
-              on: {
-                MSG_ACK: { actions: { type: "acknoledgeMessage" }, target: "traveling" },
+              initial: "determine_type",
+              states: {
+                determine_type: {
+                  always: [
+                    {
+                      guard: ({ context }) => !!context.currentEvent?.choices,
+                      target: "multi_choice",
+                    },
+                    {
+                      guard: ({ context }) => !!context.currentEvent?.effect,
+                      target: "no_choice",
+                    },
+                  ],
+                },
+                no_choice: {
+                  entry: [{ type: "displayMessages", params: ({ context }) => [context.currentEvent!.message] }],
+                  on: {
+                    MSG_ACK: {
+                      actions: [
+                        { type: "acknoledgeMessage" },
+                        assign(
+                          ({ context }) =>
+                            context.currentEvent!.effect?.(context) ?? { currentPort: context.destination },
+                        ),
+                      ],
+                      target: "#traveling",
+                    },
+                  },
+                },
+                multi_choice: {
+                  on: {
+                    RESOLVE_EVENT: {
+                      actions: [
+                        assign(({ context, event }) => {
+                          const choice = context.currentEvent!.choices?.find((choice) => choice.key === event.choice);
+                          return choice?.effect(context) ?? { currentPort: context.destination };
+                        }),
+                      ],
+                      target: "#traveling",
+                    },
+                  },
+                },
               },
             },
             traveling: {
+              id: "traveling",
               entry: [
                 // Adjust travel attributes
                 assign(({ context }) => {
                   const travelTime = context.destination ? calculateTravelTime(context.destination, context) : 1;
                   return {
                     day: Math.min(context.extendedGame ? Infinity : GOAL_DAYS, context.day + travelTime),
+                    currentPort: context.destination,
                     nextPriceUpdate: Math.max(0, context.nextPriceUpdate - travelTime),
                     nextTrendUpdate: Math.max(0, context.nextTrendUpdate - travelTime),
                   };
                 }),
-                // Update current port and apply effect, if applicable
-                assign(({ context }) => context.currentEvent?.effect(context) ?? { currentPort: context.destination }),
                 // Reset temporary context attributes
                 assign({ destination: undefined, currentEvent: undefined }),
                 {

@@ -13,14 +13,16 @@ export function PortView() {
       <Text bold>Available Destinations:</Text>
 
       <Box flexDirection="column" gap={1}>
-        {availablePorts.map((port) => {
+        {availablePorts.map((port, index) => {
           const travelTime = calculateTravelTime(port, context);
           const dailyCost = calculateDailyMaintenanceCost(context);
           const maintenanceCost = dailyCost * travelTime;
 
           return (
             <Box key={port} flexDirection="column">
-              <Text bold>{port}</Text>
+              <Text bold>
+                {index + 1}. {port}
+              </Text>
               <Text>{"─".repeat(30)}</Text>
               <Box flexDirection="column" marginLeft={2}>
                 <Text>Travel Time: {travelTime} days</Text>

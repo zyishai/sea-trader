@@ -7,14 +7,20 @@ export type GameSettings = {
 };
 
 // Events
-export type EventType = "weather" | "market" | "encounter" | "discovery";
+export type EventType = "weather" | "cargo" | "market" | "encounter" | "discovery" | "special";
 export type EventSeverity = "minor" | "moderate" | "major";
+export type EventChoice = {
+  label: string;
+  key: string;
+  effect: (context: Context) => Partial<Context>;
+};
 export type EventTemplate = {
   type: EventType;
   severity: EventSeverity;
   baseChance: number | ((context: Context) => number);
   message: string;
-  effect: (state: Context) => Partial<Context>;
+  effect?: (context: Context) => Partial<Context>;
+  choices?: EventChoice[];
 };
 
 // Shipyard

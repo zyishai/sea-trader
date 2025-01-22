@@ -1,62 +1,98 @@
 import { EventTemplate, Good, Port } from "./types.js";
-import { getAvailableBufferStorage, getBufferStorage, getNetCash } from "./utils.js";
+import { getNetCash } from "./utils.js";
 
 export const goods = ["Wheat", "Tea", "Spices", "Opium", "Porcelain"] as const;
 export const ports = ["Hong Kong", "Shanghai", "Nagasaki", "Singapore", "Manila"] as const;
+// NOTE: The destination gets set in the `traveling` state, if an event changes the course
+// of the travel, then update the `destination`. If an event returns the player back to its
+// home port, then either update the `destination` to be the same as `currentPort`,
+// or set `destination` to `undefined`.
 export const eventTemplates: EventTemplate[] = [
   {
     type: "weather",
     severity: "minor",
-    baseChance: 0.2,
+    baseChance: (context) => Math.min(0.3, 0.2 + (context.ship.speed - BASE_SHIP_SPEED) * 0.02),
     message: "A light breeze speeds up your journey",
     effect: (context) => ({
       day: Math.max(1, context.day - 1),
-      currentPort: context.destination,
     }),
   },
   {
     type: "weather",
     severity: "moderate",
-    baseChance: 0.1,
-    message: "A storm damages your ship",
-    effect: (context) => {
-      const baseDamage = 18;
-      const totalBuffer = getBufferStorage(context.ship);
-      const availableBuffer = getAvailableBufferStorage(context.ship);
-      const overloadMultiplier = context.ship.isOverloaded
-        ? 1 + ((totalBuffer - availableBuffer) / totalBuffer) * OVERLOAD_DAMAGE_PENALTY
-        : 1;
-      return {
-        ship: {
-          ...context.ship,
-          health: Math.max(0, context.ship.health - Math.round(baseDamage * overloadMultiplier)),
+    baseChance: (context) => Math.min(0.25, 0.15 + (context.ship.speed - BASE_SHIP_SPEED) * 0.015),
+    message: "A storm approaches your vessel. What's your course of action?",
+    choices: [
+      {
+        label: "Brave the storm",
+        key: "B",
+        effect: (context) => {
+          const baseDamage = 20;
+          const overloadMultiplier = context.ship.isOverloaded ? 1.5 : 1;
+          const damage = Math.round(baseDamage * overloadMultiplier);
+
+          return {
+            ship: {
+              ...context.ship,
+              health: Math.max(0, context.ship.health - damage),
+            },
+            day: context.day + 1,
+            messages: [...context.messages, ["You weathered the storm but took some damage."]],
+          };
         },
-        currentPort: context.destination,
-      };
-    },
+      },
+      {
+        label: "Take a detour",
+        key: "D",
+        effect: (context) => ({
+          day: context.day + 3,
+          messages: [...context.messages, ["You avoided the storm but lost valuable time."]],
+        }),
+      },
+    ],
   },
   {
     type: "weather",
     severity: "major",
-    baseChance: 0.05,
-    message: "A hurricane forces you back to land and damages your ship severely",
-    effect: (context) => {
-      const baseDamage = 34;
-      const totalBuffer = getBufferStorage(context.ship);
-      const availableBuffer = getAvailableBufferStorage(context.ship);
-      const overloadMultiplier = context.ship.isOverloaded ? 1 + (totalBuffer - availableBuffer) / totalBuffer : 1;
-      return {
-        ship: {
-          ...context.ship,
-          health: Math.max(0, context.ship.health - Math.round(baseDamage * overloadMultiplier)),
+    baseChance: 0.18,
+    message: "A typhoon has been spotted ahead!\nSeeking shelter will cost 200 silver dollars in harbor fees.",
+    choices: [
+      {
+        label: "Pay harbor fees (200 silver dollars)",
+        key: "P",
+        effect: (context) => ({
+          day: context.day + 2,
+          balance: context.balance - 200,
+          messages: [...context.messages, ["You paid harbor fees and weathered the storm safely."]],
+        }),
+      },
+      {
+        label: "Risk sailing through",
+        key: "R",
+        effect: (context) => {
+          const success = Math.random() < 0.4;
+          if (success) {
+            return {
+              reputation: Math.min(100, context.reputation + 10),
+              messages: [...context.messages, ["Your bold gamble paid off! Your reputation increases."]],
+            };
+          }
+          const damage = Math.floor(Math.random() * 20) + 10;
+          return {
+            ship: {
+              ...context.ship,
+              health: Math.max(0, context.ship.health - damage),
+            },
+            messages: [...context.messages, [`The typhoon severly damaged your ship (${damage} damage).`]],
+          };
         },
-      };
-    },
+      },
+    ],
   },
   {
     type: "weather",
     severity: "minor",
-    baseChance: (context) => (context.ship.isOverloaded ? 0.15 : 0),
+    baseChance: (context) => (context.ship.isOverloaded ? 0.35 : 0),
     message: "Heavy seas have damaged some cargo",
     effect: (context) => {
       const goodsInHold = [...context.ship.hold.entries()].filter(([_, quantity]) => quantity > 0);
@@ -79,9 +115,58 @@ export const eventTemplates: EventTemplate[] = [
     },
   },
   {
+    type: "cargo",
+    severity: "minor",
+    baseChance: (context) => ([...context.ship.hold.values()].some((quantity) => quantity > 0) ? 0.15 : 0),
+    message: "Your crew reports cargo stability issues\ndue to poor loading at port.",
+    choices: [
+      {
+        label: "Take time to redistribute the load",
+        key: "R",
+        effect: (context) => ({
+          day: context.day + 1,
+          messages: [...context.messages, ["You spent a day rebalancing the cargo."]],
+        }),
+      },
+      {
+        label: "Continue as is",
+        key: "C",
+        effect: (context) => {
+          const success = Math.random() < 0.6; // 60% chance to make it safely
+          if (success) {
+            return {
+              messages: [...context.messages, ["Despite the stability issues, you managed to continue safely."]],
+            };
+          }
+
+          const goodsInHold = [...context.ship.hold.entries()].filter(([_, quantity]) => quantity > 0);
+          const [randomGood] = goodsInHold[Math.floor(Math.random() * goodsInHold.length)] || [];
+          if (!randomGood) return {}; // Shouldn't happen, see baseChance for this event
+
+          const currentQuantity = context.ship.hold.get(randomGood) || 0;
+          const lostAmount = Math.ceil(currentQuantity * 0.25);
+          const newHold = new Map(context.ship.hold);
+          newHold.set(randomGood, currentQuantity - lostAmount);
+
+          return {
+            ship: {
+              ...context.ship,
+              hold: newHold,
+            },
+            messages: [
+              ...context.messages,
+              [`Lost ${lostAmount} picul of ${randomGood} due to poor cargo distribution.`],
+            ],
+          };
+        },
+      },
+    ],
+  },
+  {
     type: "market",
     severity: "minor",
-    baseChance: 0.15,
+    baseChance: (context) =>
+      (["Hong Kong", "Shanghai", "Nagasaki"] as Port[]).includes(context.destination ?? context.currentPort) ? 0.15 : 0,
     message: "Local festival increases demand for tea",
     effect: (context) => ({
       prices: {
@@ -91,45 +176,69 @@ export const eventTemplates: EventTemplate[] = [
           Tea: Math.round(context.prices[context.destination!].Tea * 1.3),
         },
       },
-      currentPort: context.destination,
     }),
-  },
-  {
-    type: "market",
-    severity: "moderate",
-    baseChance: 0.1,
-    message: "Trade regulations change, affecting prices of goods",
-    effect: (context) => {
-      const newPrices = { ...context.prices };
-      goods.forEach((good) => {
-        if (Math.random() > 0.5) {
-          const price = context.prices[context.destination!][good];
-          const factor = Math.random() > 0.5 ? 1.4 : 0.6;
-          newPrices[context.destination!][good] = Math.round(price * factor);
-        }
-      });
-
-      return { prices: newPrices, currentPort: context.destination };
-    },
   },
   {
     type: "discovery",
     severity: "minor",
-    baseChance: 0.1,
-    message: "You discover a small island with rare goods",
-    effect: (context) => {
-      const randomGood = goods[Math.floor(Math.random() * goods.length)] as Good;
-      const baseAmount = 10;
-      const wealthFactor = Math.max(1, Math.log10(getNetCash(context) / 1000));
-      const amount = Math.round(baseAmount * wealthFactor);
-      return {
-        ship: {
-          ...context.ship,
-          hold: context.ship.hold.set(randomGood, (context.ship.hold.get(randomGood) || 0) + amount),
+    baseChance: 0.15,
+    message: "You spot an uncharted island! Investigate?",
+    choices: [
+      {
+        label: "Explore the island",
+        key: "E",
+        effect: (context) => {
+          const outcome = Math.random();
+
+          // 60% chance of finding goods
+          if (outcome < 0.6) {
+            const randomGood = goods[Math.floor(Math.random() * goods.length)] as Good;
+            const baseAmount = 15;
+            const wealthFactor = Math.max(1, Math.log10(getNetCash(context) / 1000));
+            const amount = Math.round(baseAmount * wealthFactor);
+
+            return {
+              ship: {
+                ...context.ship,
+                hold: context.ship.hold.set(randomGood, (context.ship.hold.get(randomGood) || 0) + amount),
+              },
+              day: context.day + 1,
+              messages: [...context.messages, [`Found ${amount} picul of ${randomGood} after a day of exploration!`]],
+            };
+          }
+
+          // 25% of ship damage
+          if (outcome < 0.85) {
+            const damage = Math.floor(Math.random() * 15) + 5;
+            return {
+              ship: {
+                ...context.ship,
+                health: Math.max(0, context.ship.health - damage),
+              },
+              day: context.day + 1,
+              messages: [...context.messages, [`Your ship struck a reef during exploration (${damage} damage).`]],
+            };
+          }
+
+          // 15% chance of losing time and some crew morale (represented by reputation)
+          return {
+            day: context.day + 2,
+            reputation: Math.max(0, context.reputation - 2),
+            messages: [
+              ...context.messages,
+              ["The island exploration yielded nothing but wasted time.", "The crew's morale has suffered slightly."],
+            ],
+          };
         },
-        currentPort: context.destination,
-      };
-    },
+      },
+      {
+        label: "Continue journey",
+        key: "C",
+        effect: (context) => ({
+          messages: [...context.messages, ["Better safe then sorry - you continue on your planned route."]],
+        }),
+      },
+    ],
   },
 ];
 // Distances given in nautical miles (nmi)
