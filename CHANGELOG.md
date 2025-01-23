@@ -1,5 +1,17 @@
 # ctrader
 
+## 2.7.0
+
+### Minor Changes
+
+- e9f6646: Strategy features and historic accuracy
+
+  - Better market UI
+  - Overloading cargo affects speed and potential damage
+  - Historically accurate weight and volume units
+  - Ship upgrades
+  - Interactive events
+
 ## 2.6.3
 
 ### Patch Changes
