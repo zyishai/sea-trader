@@ -1,5 +1,20 @@
 # ctrader
 
+## 2.8.0
+
+### Minor Changes
+
+- 34dc896: Market Intelligence System - Phase 1
+
+  - Market information level system
+  - Reliability degrades over time
+  - Market and intelligence actions
+
+### Patch Changes
+
+- 499b7f9: Internal workflow changes
+- 1cbd426: Internal workflow updates
+
 ## 2.7.0
 
 ### Minor Changes
