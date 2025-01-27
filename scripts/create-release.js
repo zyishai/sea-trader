@@ -1,7 +1,6 @@
 import { config } from "dotenv";
 import { Octokit } from "@octokit/rest";
-import { execSync } from "child_process";
-import { readFileSync } from "fs";
+import { readFileSync, readdirSync } from "fs";
 
 // Load environment variables
 config();
@@ -23,7 +22,19 @@ function stripAnsi(string) {
 
 // Custom release notes format
 function generateReleaseNotes() {
-  const changes = execSync("npx changeset status", { encoding: "utf-8" });
+  const changesetDir = ".changeset";
+  const files = readdirSync(changesetDir).filter((file) => file.endsWith(".md") && file !== "README.md");
+
+  let changes = "";
+
+  for (const file of files) {
+    const content = readFileSync(`${changesetDir}/${file}`, "utf-8");
+    // Changeset files have a frontmatter section and then the description
+    // The description is everything after the second '---'
+    const [, , ...descriptionParts] = content.split("---");
+    const description = descriptionParts.join("---").trim();
+    changes += `${description}\n\n`;
+  }
   const cleanChanges = stripAnsi(changes)
     .split("\n")
     .filter((line) => line.trim() && !line.includes("---") && !line.includes("NO packages"))
@@ -33,7 +44,7 @@ function generateReleaseNotes() {
 # Sea Trader ${version}
 
 ## What's New
-${cleanChanges}
+${cleanChanges || "No changes documented for this release."}
 
 ## Installation
 \`\`\`bash

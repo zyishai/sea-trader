@@ -31,7 +31,13 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # 2. Changeset Phase
+      # 2. GitHub Release Phase
+      - name: Create GitHub Release
+        run: npm run create-github-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 3. Changeset Phase
       - name: Create Release Pull Request or Publish
         id: changesets
         uses: changesets/action@v1
@@ -44,14 +50,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      # 3. GitHub Release Phase
-      - name: Wait for tag propagation
-        if: steps.changesets.outputs.published == 'true'
-        run: sleep 15
-
-      - name: Create GitHub Release
-        if: steps.changesets.outputs.published == 'true'
-        run: npm run create-github-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
