@@ -31,13 +31,12 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # 2. GitHub Release Phase
-      - name: Create GitHub Release
-        run: npm run create-github-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # 2. Changeset Phase
+      - name: Store Changeset Info
+        run: |
+          mkdir -p ./temp
+          cp -r .changeset ./temp/
 
-      # 3. Changeset Phase
       - name: Create Release Pull Request or Publish
         id: changesets
         uses: changesets/action@v1
@@ -50,3 +49,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # 3. GitHub Release Phase
+      - name: Create GitHub Release
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          cp -r ./temp/.changeset .
+          npm run create-github-release
+          rm -rf ./temp
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
