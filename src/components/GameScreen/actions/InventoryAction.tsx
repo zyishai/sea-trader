@@ -14,10 +14,10 @@ export function InventoryAction() {
   const handleSelect = (value: string) => {
     if (value === "B") {
       transactionActor.send({ type: "RESET", action: "buy" });
-      actor.send({ type: "GO_TO_MARKET", action: "buy" });
+      actor.send({ type: "START_BUYING" });
     } else if (value === "S") {
       transactionActor.send({ type: "RESET", action: "sell" });
-      actor.send({ type: "GO_TO_MARKET", action: "sell" });
+      actor.send({ type: "START_SELLING" });
     }
   };
 

@@ -2,21 +2,43 @@ import React from "react";
 import { Box, Newline, Text } from "ink";
 import { Alert, Badge } from "@inkjs/ui";
 import { Table } from "@tqman/ink-table";
+import BigText from "ink-big-text";
 import { GameContext, TransactionContext } from "../../GameContext.js";
 import {
+  calculateIntelligenceReliability,
   calculatePrice,
   getAvailableStorage,
   getBulkinessCategory,
+  getIntelligenceCost,
   getStorageUnitsForGood,
 } from "../../../store/utils.js";
 import { goodsInfo, OVERDRAFT_TRADING_LIMIT, TREND_SYMBOLS } from "../../../store/constants.js";
+import { Port } from "../../../store/types.js";
 
 export function MarketView() {
   const transaction = TransactionContext.useSelector((snapshot) => snapshot.context);
+  const snapshot = GameContext.useSelector((snapshot) => snapshot);
+  const isMenu = snapshot.matches({ gameScreen: { at_market: "menu" } });
+  const isMarketIntelligenceViewing = snapshot.matches({
+    gameScreen: { at_market: { intelligenceAction: "viewing" } },
+  });
+  const isMarketIntelligencePurchasing = snapshot.matches({
+    gameScreen: { at_market: { intelligenceAction: "purchasing" } },
+  });
 
-  if (!transaction.action) {
+  if (isMenu) {
     return <MarketOverview />;
   }
+
+  if (isMarketIntelligenceViewing) {
+    return <MarketIntelligenceView />;
+  }
+
+  if (isMarketIntelligencePurchasing) {
+    return <MarketIntelligencePurchaseView />;
+  }
+
+  if (!transaction.action) return null;
 
   if (!transaction.good) {
     return <GoodsSelectionView action={transaction.action} />;
@@ -26,22 +48,20 @@ export function MarketView() {
 }
 
 function MarketOverview() {
-  return (
-    <Box flexDirection="column" gap={1}>
-      <Text bold>Market Overview</Text>
-      <MarketTable showAllInfo />
-      <Text>Press [S] to Buy or [S] to Sell</Text>
-    </Box>
-  );
+  return <BigText text="Exchange Market" font="tiny" />;
 }
 
 function MarketTable({
+  port,
   showPrices = false,
+  showTrends = false,
   showHoldQuantity = false,
   showBulkiness = false,
   showAllInfo = false,
 }: {
+  port: Port;
   showPrices?: boolean;
+  showTrends?: boolean;
   showHoldQuantity?: boolean;
   showBulkiness?: boolean;
   showAllInfo?: boolean;
@@ -51,8 +71,8 @@ function MarketTable({
 
   const marketData = context.availableGoods.map((good) => {
     const goodInfo = goodsInfo.find((item) => item.name === good)!;
-    const price = context.prices[context.currentPort][good];
-    const trend = context.trends[context.currentPort][good];
+    const price = context.prices[port][good];
+    const trend = context.trends[port][good];
     const quantity = context.ship.hold.get(good) || 0;
     const bulkinessCategory = getBulkinessCategory(goodInfo.bulkiness);
 
@@ -62,6 +82,9 @@ function MarketTable({
 
     if (showAllInfo || showPrices) {
       row["Price"] = `$${price}`;
+    }
+
+    if (showAllInfo || showTrends) {
       row["Trend"] =
         trend === "increasing" ? TREND_SYMBOLS.UP : trend === "decreasing" ? TREND_SYMBOLS.DOWN : TREND_SYMBOLS.SAME;
     }
@@ -83,12 +106,8 @@ function MarketTable({
 
   const columns = [
     { key: "Good", align: "left" as const },
-    ...(showAllInfo || showPrices
-      ? [
-          { key: "Price", align: "right" as const },
-          { key: "Trend", align: "center" as const },
-        ]
-      : []),
+    ...(showAllInfo || showPrices ? [{ key: "Price", align: "right" as const }] : []),
+    ...(showAllInfo || showTrends ? [{ key: "Trend", align: "center" as const }] : []),
     ...(showAllInfo || showHoldQuantity ? [{ key: "In Hold", align: "right" as const }] : []),
     ...(showAllInfo || showBulkiness ? [{ key: "Storage*", align: "left" as const }] : []),
   ];
@@ -129,20 +148,96 @@ function CriticalAlerts() {
   );
 }
 
-function GoodsSelectionView({ action }: { action: "buy" | "sell" }) {
+function MarketIntelligenceView() {
+  const transaction = TransactionContext.useSelector((snapshot) => snapshot.context);
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const port = transaction.port ?? context.currentPort;
+  const intLevel = context.marketIntelligence.level;
+  const reliability = calculateIntelligenceReliability(context);
+
+  return (
+    <Box flexDirection="column">
+      <Text bold>Market Intelligence Level {context.marketIntelligence.level}</Text>
+      <Text>
+        Intelligence Reliability:{" "}
+        <Text color={reliability > 70 ? "green" : reliability > 40 ? "yellow" : "red"}>{reliability}%</Text>
+      </Text>
+      <Box height={1} />
+      <MarketTable port={port} showPrices={port === context.currentPort || intLevel >= 2} showTrends={intLevel >= 3} />
+      <Box height={1} />
+      <Text dimColor>Level 1 - Current port prices only</Text>
+      <Text dimColor>Level 2 - All ports prices</Text>
+      <Text dimColor>Level 3 - All ports prices and trends</Text>
+    </Box>
+  );
+}
+
+function MarketIntelligencePurchaseView() {
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const currentLevel = context.marketIntelligence.level;
+  const reliability = calculateIntelligenceReliability(context);
+
+  return (
+    <Box flexDirection="column">
+      <Text bold underline>
+        Market Intelligence
+      </Text>
+      <Box height={1} />
+
+      <Box flexDirection="column">
+        <Text>
+          Current Level:{" "}
+          <Text bold>{currentLevel === 1 ? "Basic" : currentLevel === 2 ? "Standard" : "Exclusive"}</Text>
+        </Text>
+        <Text>
+          Reliability:{" "}
+          <Text color={reliability > 70 ? "green" : reliability > 40 ? "yellow" : "red"}>{reliability}%</Text>
+        </Text>
+      </Box>
+
+      <Box height={1} />
+      <Text bold>Available Levels:</Text>
+      <Box flexDirection="column" paddingLeft={2}>
+        <Text>{currentLevel === 1 ? ">" : " "} Basic (Free) - Current port prices only</Text>
+        <Text>
+          {currentLevel === 2 ? ">" : " "} Standard (${getIntelligenceCost(2)}) - All connected ports prices
+        </Text>
+        <Text>
+          {currentLevel === 3 ? ">" : " "} Exclusive (${getIntelligenceCost(3)}) - All ports prices and trends
+        </Text>
+      </Box>
+
+      {context.inOverdraft && (
+        <Box marginTop={1}>
+          <Alert variant="warning">
+            Trading funds limited to ${context.balance + OVERDRAFT_TRADING_LIMIT} due to overdraft
+          </Alert>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+function GoodsSelectionView({ action }: { action: "buy" | "sell" | "intelligence" }) {
   const context = GameContext.useSelector((snapshot) => snapshot.context);
   const isBuying = action === "buy";
+  const isSelling = action === "sell";
   const inOverdrawn = context.inOverdraft;
 
   return (
     <Box flexDirection="column">
-      <Text bold>Market Exchange &middot; {isBuying ? "Purchasing" : "Selling"}</Text>
+      <Text bold>Market Exchange &middot; {isBuying ? "Purchasing" : isSelling ? "Selling" : "Intelligence"}</Text>
 
       <Box height={1} />
 
       <CriticalAlerts />
 
-      <MarketTable showPrices={isBuying} showHoldQuantity={!isBuying} showBulkiness={isBuying} />
+      <MarketTable
+        port={context.currentPort}
+        showPrices={isBuying}
+        showHoldQuantity={!isBuying}
+        showBulkiness={isBuying}
+      />
 
       <Box height={1} />
 

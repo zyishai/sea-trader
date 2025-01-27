@@ -39,6 +39,10 @@ export const initialContext = (settings?: GameSettings) => {
     prices: generatePrices(trends),
     nextPriceUpdate: PRICE_UPDATE_INTERVAL,
     nextTrendUpdate: TREND_UPDATE_INTERVAL,
+    marketIntelligence: {
+      level: 1,
+      lastPurchase: 1,
+    },
     inOverdraft: false,
     lastOverdraftChargeDay: 1,
     messages: [],

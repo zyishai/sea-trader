@@ -1,4 +1,4 @@
-import { GameSettings, Good, Port, UpgradeType } from "./types.js";
+import { GameSettings, Good, MarketInfoLevel, Port, UpgradeType } from "./types.js";
 
 export type GameEvents =
   | { type: "START_GAME"; settings?: GameSettings }
@@ -15,8 +15,13 @@ export type GameEvents =
   | { type: "UPGRADE_GUARDS" }
   | { type: "DISMISS_GUARDS"; amount: number }
   | { type: "GO_TO_INVENTORY" }
-  | { type: "GO_TO_MARKET"; action: "buy" | "sell" }
+  | { type: "GO_TO_MARKET" }
+  | { type: "VIEW_MARKET_INTELLIGENCE" }
+  | { type: "START_MARKET_INTELLIGENCE_PURCHASE" }
+  | { type: "PURCHASE_MARKET_INTELLIGENCE"; level: MarketInfoLevel }
+  | { type: "START_BUYING" }
   | { type: "PURCHASE"; good: Good; quantity: number }
+  | { type: "START_SELLING" }
   | { type: "SELL"; good: Good; quantity: number }
   | { type: "SELL_ALL" }
   | { type: "GO_TO_SHIPYARD" }
@@ -34,9 +39,11 @@ export type GameEvents =
   | { type: "RESTART_GAME" }
   | { type: "SHOW_HELP" }
   | { type: "HIDE_HELP" }
-  | { type: "EXIT" };
+  | { type: "EXIT" }
+  | { type: "BACK" };
 
 export type TransactionEvents =
-  | { type: "RESET"; action: "buy" | "sell" }
+  | { type: "RESET"; action: "buy" | "sell" | "intelligence" }
   | { type: "UPDATE_GOOD"; good?: Good }
-  | { type: "UPDATE_QUANTITY"; quantity: number };
+  | { type: "UPDATE_QUANTITY"; quantity: number }
+  | { type: "PICK_MARKET_INTELLIGENCE_PORT"; port: Port };

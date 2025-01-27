@@ -33,6 +33,7 @@ export type Good = (typeof goods)[number];
 export type Port = (typeof ports)[number];
 export type Trend = "increasing" | "decreasing" | "stable";
 export type GoodInfo = (typeof goodsInfo)[number];
+export type MarketInfoLevel = 1 | 2 | 3;
 
 // Context
 export type Context = {
@@ -47,10 +48,13 @@ export type Context = {
   currentEvent?: EventTemplate;
 
   // Market context
-  marketAction?: "buy" | "sell";
   availableGoods: readonly Good[];
   prices: Record<Port, Record<Good, number>>;
   trends: Record<Port, Record<Good, Trend>>;
+  marketIntelligence: {
+    level: MarketInfoLevel;
+    lastPurchase: number;
+  };
   nextPriceUpdate: number;
   nextTrendUpdate: number;
 

@@ -24,6 +24,7 @@ import {
   EventTemplate,
   FleetQuality,
   Good,
+  MarketInfoLevel,
   Port,
   ShipStatus,
   Trend,
@@ -248,6 +249,26 @@ export const calculatePrice = ({
   good: Good;
   quantity: number;
 }) => prices[currentPort][good] * quantity;
+export const getIntelligenceCost = (level: MarketInfoLevel) => {
+  // TODO: dynamic pricing
+  switch (level) {
+    case 1: {
+      return 0;
+    }
+    case 2: {
+      return 200;
+    }
+    case 3: {
+      return 500;
+    }
+  }
+};
+export const calculateIntelligenceReliability = (context: Context) => {
+  const daysSinceUpdate = context.day - context.marketIntelligence.lastPurchase;
+  const reliability = Math.max(0, 100 - daysSinceUpdate * 5); // TODO: Simple degradation for now
+
+  return reliability;
+};
 
 // ** SHIPYARD **
 export const getShipStatus = (health: number): ShipStatus =>
