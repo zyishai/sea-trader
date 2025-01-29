@@ -1,5 +1,16 @@
 # ctrader
 
+## 2.9.0
+
+### Minor Changes
+
+- 6216f33: Price System Update
+
+  - Dynamic trend schedule based on trend duration
+  - Seasons system affects prices
+  - Market specialization system affect trends
+  - Enhanced market trend system
+
 ## 2.8.0
 
 ### Minor Changes
