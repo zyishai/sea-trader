@@ -211,7 +211,9 @@ export function MarketAction() {
         <ActionPromptArrows
           message="Which port would you like view?"
           actions={[
-            ...context.availablePorts.map((port) => ({ label: port, value: port })),
+            ...context.availablePorts
+              .filter((port) => context.marketIntelligence.level >= 2 || port === context.currentPort)
+              .map((port) => ({ label: port, value: port })),
             { label: "Purchase market intelligence", value: "purchase_intelligence" },
           ]}
           onSelect={onPickIntelligenceViewPort}
