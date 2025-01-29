@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Newline, Text } from "ink";
+import { Box, Text } from "ink";
 import { Alert, Badge } from "@inkjs/ui";
 import { Table } from "@tqman/ink-table";
 import BigText from "ink-big-text";
@@ -12,7 +12,13 @@ import {
   getIntelligenceCost,
   getStorageUnitsForGood,
 } from "../../../store/utils.js";
-import { goodsInfo, OVERDRAFT_TRADING_LIMIT, TREND_SYMBOLS } from "../../../store/constants.js";
+import {
+  goodsInfo,
+  OVERDRAFT_TRADING_LIMIT,
+  PORT_SPECIALIZATIONS,
+  SEASONAL_EFFECTS,
+  TREND_SYMBOLS,
+} from "../../../store/constants.js";
 import { Port } from "../../../store/types.js";
 
 export function MarketView() {
@@ -48,7 +54,26 @@ export function MarketView() {
 }
 
 function MarketOverview() {
-  return <BigText text="Exchange Market" font="tiny" />;
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const portSpec = PORT_SPECIALIZATIONS[context.currentPort];
+  const marketVolatility =
+    portSpec.marketSize === "Large" ? "Low" : portSpec.marketSize === "Small" ? "High" : "Medium";
+
+  return (
+    <Box alignSelf="center" flexDirection="column" gap={1}>
+      <BigText text={`${context.currentPort}\nMarket`} font="tiny" space={false} />
+      <Text>
+        <Text underline>Market Size</Text>: {portSpec.marketSize}
+      </Text>
+      <Text>
+        <Text underline>Market Volatility</Text>: {marketVolatility}
+      </Text>
+      {portSpec.tradingHub && <Text color="blue">Trading Hub - Lower prices on all goods</Text>}
+      {portSpec.producedGoods.length > 0 && (
+        <Text color="green">Local Production: {portSpec.producedGoods.join(", ")}</Text>
+      )}
+    </Box>
+  );
 }
 
 function MarketTable({
@@ -72,9 +97,10 @@ function MarketTable({
   const marketData = context.availableGoods.map((good) => {
     const goodInfo = goodsInfo.find((item) => item.name === good)!;
     const price = context.prices[port][good];
-    const trend = context.trends[port][good];
+    const trendInfo = context.trends[port][good];
     const quantity = context.ship.hold.get(good) || 0;
     const bulkinessCategory = getBulkinessCategory(goodInfo.bulkiness);
+    const seasonalEffect = SEASONAL_EFFECTS[context.currentSeason][good];
 
     const row: Record<string, string> = {
       Good: good,
@@ -82,11 +108,23 @@ function MarketTable({
 
     if (showAllInfo || showPrices) {
       row["Price"] = `$${price}`;
+
+      // Add seasonal indicator if applicable
+      if (seasonalEffect) {
+        row["Price"] += seasonalEffect > 1 ? " ▲" : " ▼";
+      }
     }
 
     if (showAllInfo || showTrends) {
-      row["Trend"] =
-        trend === "increasing" ? TREND_SYMBOLS.UP : trend === "decreasing" ? TREND_SYMBOLS.DOWN : TREND_SYMBOLS.SAME;
+      const trendSymbol =
+        trendInfo.direction === "increasing"
+          ? TREND_SYMBOLS.UP
+          : trendInfo.direction === "decreasing"
+            ? TREND_SYMBOLS.DOWN
+            : TREND_SYMBOLS.SAME;
+      const trendStrength = trendInfo.direction === "stable" ? "" : ` (${trendInfo.strength})`;
+      row["Trend"] = `${trendSymbol}${trendStrength}`;
+      row["Reliability"] = `${trendInfo.reliability}%`;
     }
 
     if (showAllInfo || showHoldQuantity) {
@@ -107,7 +145,12 @@ function MarketTable({
   const columns = [
     { key: "Good", align: "left" as const },
     ...(showAllInfo || showPrices ? [{ key: "Price", align: "right" as const }] : []),
-    ...(showAllInfo || showTrends ? [{ key: "Trend", align: "center" as const }] : []),
+    ...(showAllInfo || showTrends
+      ? [
+          { key: "Trend", align: "left" as const },
+          { key: "Reliability", align: "center" as const },
+        ]
+      : []),
     ...(showAllInfo || showHoldQuantity ? [{ key: "In Hold", align: "right" as const }] : []),
     ...(showAllInfo || showBulkiness ? [{ key: "Storage*", align: "left" as const }] : []),
   ];
@@ -115,13 +158,14 @@ function MarketTable({
   return (
     <Box flexDirection="column">
       <Table data={marketData} columns={columns} />
-      {showAllInfo ||
-        (showBulkiness && (
-          <Text dimColor>
-            * Storage units show how much cargo space <Newline />
-            {"  "}one picul of this good will occupy
-          </Text>
-        ))}
+      <Text dimColor>▲▼ Seasonal price effects</Text>
+      {(showAllInfo || showBulkiness) && <Text dimColor>* Storage space needed per picul</Text>}
+      {(showAllInfo || showTrends) && (
+        <Box flexDirection="column">
+          <Text dimColor>* Lower reliability indicates less accurate trend predictions</Text>
+          <Text dimColor>* Trend strength: weak (±5%), moderate (±15%), strong (±25%)</Text>
+        </Box>
+      )}
     </Box>
   );
 }
@@ -157,17 +201,13 @@ function MarketIntelligenceView() {
 
   return (
     <Box flexDirection="column">
-      <Text bold>Market Intelligence Level {context.marketIntelligence.level}</Text>
+      <Text bold>Market Intelligence - {port}</Text>
       <Text>
         Intelligence Reliability:{" "}
         <Text color={reliability > 70 ? "green" : reliability > 40 ? "yellow" : "red"}>{reliability}%</Text>
       </Text>
       <Box height={1} />
       <MarketTable port={port} showPrices={port === context.currentPort || intLevel >= 2} showTrends={intLevel >= 3} />
-      <Box height={1} />
-      <Text dimColor>Level 1 - Current port prices only</Text>
-      <Text dimColor>Level 2 - All ports prices</Text>
-      <Text dimColor>Level 3 - All ports prices and trends</Text>
     </Box>
   );
 }
@@ -200,10 +240,10 @@ function MarketIntelligencePurchaseView() {
       <Box flexDirection="column" paddingLeft={2}>
         <Text>{currentLevel === 1 ? ">" : " "} Basic (Free) - Current port prices only</Text>
         <Text>
-          {currentLevel === 2 ? ">" : " "} Standard (${getIntelligenceCost(2)}) - All connected ports prices
+          {currentLevel === 2 ? ">" : " "} Standard (${getIntelligenceCost(2)}) - All ports prices and production info
         </Text>
         <Text>
-          {currentLevel === 3 ? ">" : " "} Exclusive (${getIntelligenceCost(3)}) - All ports prices and trends
+          {currentLevel === 3 ? ">" : " "} Exclusive (${getIntelligenceCost(3)}) - Full market analysis with trends
         </Text>
       </Box>
 

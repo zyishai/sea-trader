@@ -6,16 +6,20 @@ import {
   goods,
   ports,
   PRICE_UPDATE_INTERVAL,
-  TREND_UPDATE_INTERVAL,
+  SEASON_LENGTH,
+  seasons,
 } from "./constants.js";
 import { Context, GameSettings } from "./types.js";
 import { generatePrices, generateTrends } from "./utils.js";
 
 export const initialContext = (settings?: GameSettings) => {
+  const season = seasons[Math.floor(Math.random() * seasons.length)]!;
   const trends = generateTrends();
   const { extendedGame = false, disableAnimations = false, controls = "keyboard" } = settings || {};
   return {
     currentPort: "Hong Kong",
+    currentSeason: season,
+    nextSeasonDay: SEASON_LENGTH,
     availablePorts: ports,
     availableGoods: goods,
     day: 1,
@@ -36,9 +40,8 @@ export const initialContext = (settings?: GameSettings) => {
       isOverloaded: false,
     },
     trends,
-    prices: generatePrices(trends),
+    prices: generatePrices(trends, season),
     nextPriceUpdate: PRICE_UPDATE_INTERVAL,
-    nextTrendUpdate: TREND_UPDATE_INTERVAL,
     marketIntelligence: {
       level: 1,
       lastPurchase: 1,

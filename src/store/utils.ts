@@ -12,11 +12,18 @@ import {
   goods,
   goodsInfo,
   MAINTENANCE_COST_PER_SHIP,
+  MARKET_SIZE_FACTORS,
   MAX_SHIP_DEFENSE,
   OVERLOAD_BUFFER,
   OVERLOAD_SPEED_PENALTY,
+  PORT_SPECIALIZATIONS,
   ports,
+  SEASONAL_EFFECTS,
+  seasons,
   SPEED_UPGRADES,
+  TREND_DIRECTION,
+  TREND_STRENGTH,
+  TREND_STRENGTH_FACTORS,
 } from "./constants.js";
 import {
   BulkinessCategory,
@@ -26,8 +33,11 @@ import {
   Good,
   MarketInfoLevel,
   Port,
+  Season,
   ShipStatus,
   Trend,
+  TrendInfo,
+  TrendStrength,
   UpgradeType,
 } from "./types.js";
 
@@ -103,6 +113,10 @@ export const calculateTravelTime = (to: Port, context: Context) => {
     : 1;
 
   return Math.max(1, Math.ceil(daysAtSea * healthPenalty * overloadPenalty));
+};
+export const getNextSeason = (season: Season) => {
+  const currentIndex = seasons.indexOf(season);
+  return seasons[(currentIndex + 1) % seasons.length];
 };
 
 // -~ GUARD FLEET ~-
@@ -211,6 +225,26 @@ export const getBulkinessDescription = (good: Good) => {
 };
 
 // +- MARKET +-
+export const generateTrendInfo = (): TrendInfo => {
+  const direction: Trend = TREND_DIRECTION[Math.floor(Math.random() * TREND_DIRECTION.length)]!;
+  const strength: TrendStrength = TREND_STRENGTH[Math.floor(Math.random() * TREND_STRENGTH.length)]!;
+
+  const durationRanges: Record<TrendStrength, { min: number; max: number }> = {
+    weak: { min: 1, max: 3 },
+    moderate: { min: 2, max: 4 },
+    strong: { min: 3, max: 5 },
+  };
+
+  const range = durationRanges[strength];
+  const duration = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
+
+  return {
+    direction,
+    strength,
+    duration,
+    reliability: Math.floor(Math.random() * 30) + 70, // 70%-100%
+  };
+};
 export const generateTrends = () =>
   ports.reduce(
     (accPorts, port) => ({
@@ -218,22 +252,67 @@ export const generateTrends = () =>
       [port]: goods.reduce(
         (accGoods, good) => ({
           ...accGoods,
-          [good]: ["increasing", "decreasing", "stable"][Math.floor(Math.random() / 0.4)],
+          [good]: generateTrendInfo(),
         }),
         {},
       ),
     }),
-    {} as Record<Port, Record<Good, Trend>>,
+    {} as Record<Port, Record<Good, TrendInfo>>,
   );
-export const generatePrices = (trends: Record<Port, Record<Good, Trend>>) =>
+export const updateTrends = (trends: Record<Port, Record<Good, TrendInfo>>) => {
+  return ports.reduce(
+    (accPorts, port) => ({
+      ...accPorts,
+      [port]: goods.reduce((accGoods, good) => {
+        const currentTrend = trends[port][good];
+        if (currentTrend.duration <= 1) {
+          return { ...accGoods, [good]: generateTrendInfo() };
+        }
+
+        return {
+          ...accGoods,
+          [good]: { ...currentTrend, duration: currentTrend.duration - 1 },
+        };
+      }, {}),
+    }),
+    {} as Record<Port, Record<Good, TrendInfo>>,
+  );
+};
+export const getTrendFactor = (trendInfo: TrendInfo) => {
+  const baseFactor =
+    trendInfo.direction === "stable"
+      ? 1
+      : TREND_STRENGTH_FACTORS[trendInfo.strength][trendInfo.direction === "increasing" ? "up" : "down"];
+  // Add randomization based on reliability
+  const maxVariation = (100 - trendInfo.reliability) / 200; // Less reliable = more variation
+  return baseFactor * (1 + (Math.random() - 0.5) * maxVariation);
+};
+export const getSeasonalFactor = (season: Season, good: Good) => {
+  const baseFactor = SEASONAL_EFFECTS[season][good] ?? 1;
+  return baseFactor * (1 + (Math.random() - 0.5) * 0.1); // ±5% variation
+};
+export const getSpecialtyFactor = (port: Port, good: Good) => {
+  const portSpec = PORT_SPECIALIZATIONS[port];
+  const marketSizeFactor = MARKET_SIZE_FACTORS[portSpec.marketSize];
+  const productionFactor = portSpec.producedGoods.includes(good) ? portSpec.productionFactor : 1;
+  const tradingHubFactor = portSpec.tradingHub ? 0.95 : 1;
+
+  return marketSizeFactor * productionFactor * tradingHubFactor;
+};
+export const generatePrices = (trends: Record<Port, Record<Good, TrendInfo>>, season: Season) =>
   ports.reduce(
     (accPorts, port) => ({
       ...accPorts,
       [port]: goodsInfo.reduce((accGoods, good) => {
-        const trend = trends[port][good.name];
-        const trendFactor = trend === "increasing" ? 1.1 : trend === "decreasing" ? 0.9 : 1;
-        const randomFactor = 1 + (Math.random() - 0.5) * 2 * good.volatility; // Opium: [0.75, 1.25)
-        return { ...accGoods, [good.name]: Math.round(good.basePrice * trendFactor * randomFactor) };
+        const trendFactor = getTrendFactor(trends[port][good.name]);
+        const seasonalFactor = getSeasonalFactor(season, good.name);
+        const specialtyFactor = getSpecialtyFactor(port, good.name);
+        const randomFactor = 1 + (Math.random() - 0.5) * 2 * good.volatility;
+
+        return {
+          ...accGoods,
+          [good.name]: Math.round(good.basePrice * trendFactor * specialtyFactor * seasonalFactor * randomFactor),
+        };
       }, {}),
     }),
     {} as Record<Port, Record<Good, number>>,

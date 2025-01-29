@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Box, DOMElement, measureElement, Text, useInput } from "ink";
 import { GameContext } from "./GameContext.js";
 import BigText from "ink-big-text";
-import { OrderedList, UnorderedList, Badge } from "@inkjs/ui";
+import { OrderedList, UnorderedList } from "@inkjs/ui";
 import { GOAL_DAYS } from "../store/constants.js";
 
 export function HelpScreen() {
@@ -86,7 +86,13 @@ export function HelpScreen() {
         <Text bold>Pro Tips:</Text>
         <UnorderedList>
           <UnorderedList.Item>
-            <Text>Each port specializes in different goods - learn the trade routes</Text>
+            <Text>Trading Hubs offer lower prices but more stable markets</Text>
+          </UnorderedList.Item>
+          <UnorderedList.Item>
+            <Text>Large markets have more stable prices than small ones</Text>
+          </UnorderedList.Item>
+          <UnorderedList.Item>
+            <Text>Watch seasonal effects to maximize your profits</Text>
           </UnorderedList.Item>
           <UnorderedList.Item>
             <Text>Guard ships are worth the investment - they protect your cargo</Text>

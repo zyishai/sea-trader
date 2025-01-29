@@ -28,6 +28,8 @@ import {
   getStorageUnitsForGood,
   getAvailableBufferStorage,
   getIntelligenceCost,
+  updateTrends,
+  getNextSeason,
 } from "./utils.js";
 import {
   BANKRUPTCY_THRESHOLD,
@@ -41,7 +43,7 @@ import {
   OVERDRAFT_TRADING_LIMIT,
   ports,
   PRICE_UPDATE_INTERVAL,
-  TREND_UPDATE_INTERVAL,
+  SEASON_LENGTH,
 } from "./constants.js";
 import { type Guard } from "xstate/guards";
 
@@ -57,7 +59,6 @@ export const gameMachine = setup({
     acknoledgeMessage: assign(({ context }) => ({ messages: context.messages.slice(1) })),
   },
 }).createMachine({
-  /** @xstate-layout N4IgpgJg5mDOIC5QAoC2BDAxgCwJYDswBKAOgIBcAnAewGVNKwx8BiWgFQEEAldgfQDinALIBRANoAGALqJQAB2qxc5XNXxyQAD0QBGAEwAaEAE89+gL4XjaLHkKkKNeo2ZsAEgHkA6n3eiAGQAFKVkkEEVlVXVNHQRdAE4EkgBmBMkAVgSMgHYANgAWfQAObN1jMwQM3RqSXWKcgpSc4uLJdOKrGwwcAmISKHRUMBcmVmFaAT5OAGEAaVDNSJU1DXC4-Uz9Ely2lpS0yTzmisQE452cyRSM-RTdAqacjK6QW16HAaGRhjGWAU8fHYgOEPDmonYi3Cy2ia1AG0kujyJDyDQKiXuBmypwQxTyyKS+kSCQMeXaOV0r3e9n6g2GozcAKBILBEPEujCCiUKxi60Q+gKORxaU2JDuj10LTyAoSlmsbx6NNIdJ+rlYHB4-AAQgBVACaAEkAHICKFcqKrWL8ySim4JFJHWU2-R3HE5K4kdEFSQFLLNZ6oqmKvrK74M9VcXh8XWGk3szkRbmwq0IAVC0yIG54kiSXOIvK3aVJF7y6khr7035uDVR2iBALG00yJZJy181OI4o5gqolL6DIFPE4vI5FIkYpZ2WNBLowpBuzllXhtiR-h1gINuMclsW3nw-mC4V45Kjx4u9GbBKdUvBz5LqusAAiohmAR4omjnCNc24OqC7BmPUzUTXc4W0A900qJE+x2HsR30d1BWKDIUnnD5aTDB8WGfV930-b9f3-QD4x3HkwLiJpbhRRFHngwocgSHEagyLtdHaX08jYvF+zlboFzvTC1RYbgIQNETgJhNt91TQ8M1TUddHHTZJU4goSWQks+PQ0NKyEkT2DEiRt2hVs93AhAmmlaiHh7HJ9Hoxi5IMSQuzJGdqgyLJERnNClQrVU-gk0zyMQSztjJGy6MFRyoP7ZI2JnQVcxnXQbl8xdBMC4zzTIlNNis-sUjxX1ziKFIcU8goUQYgsMQMCdry0vz7yE8R9ATSSzIolIims2i7IcpijmRa5UoHQoWKRdKBN0wKUg64K8qObZCuKrJCldOTKJ2cUahqe5bl4hV+Iw2a3HEAoFtApaRxRFJ8Qe-Qr0O4Umk9X0HXODJriaabToC86Miu3L23ylaULW0rNsqc8xVKI5Wj7IkfVQm8Tp0gHWHEPJgeTUHlrFCGJqh8qtrsxSUOcpEDCKyk0e0-zl3EHJcak8z8pyO6HvxJ7kJdHEeyez1KdzB5sjszTjoZlrAuKVmuutAqiZKjbScqX02LFc5kPte5Hj+jGmYSeWQo7W7jm5os+aMLb0S7IkGl2VFjjppqMrOrG2JNm7waK4nVYFp7kmW6orm+tSEgNxmsPZbKQJB6SOa57neZerb8pIK8JU8hpUUj+nmsy5gyAgAAbMB-kBYE+CCTxeCC67QaaMddFuB0HkQ4obag3JFOKQdbkRAUNryKOZeL3Ay4rplq9r+u48603+0aVIShqdIWKvco5LuW7BTuVubhKVFJbLGbMZL8vK+ZGu68hdrSLxxO7cuNpKfsjyCiYwUMjFK57ryPaY4NpUZu3PuGS+08q6AmNAANVEEaYE3AgLNhMo3ROLEqp9mKOvTIpQcFMRHJzBI+Qsj2nRO6Z4Y8i74EgdfautB3AGiCHqHgj4G4J3ZgOLBa9Eh4K3sKRoyJPLuRwUkZooCpaFw9nQmegJ9KGTEIgjhT8uEClXjgvhm8CFbXXp6Mk90WLfSSPnMB-0IGTyvnI-CP4-wARQd7JuvpM7ZCeihCk9lt5QT9pnfIZJ+7eivKYqR7sL6WIrqCI0nABAfgAGIBFEGyVBOVVEUTeqQgsfZ2hXmlDiEozxqKyluI0A4nkcjUJkeElgogAAaBpITJPjqk-klUNG4O0V4zMApJA5kAfkZ4h80gVIvugcgfBFCUHICQeQuBMAAGtHxwFUPgUZqwWDsG4JweBARmQqLZnEB0KExT1CuO6Cc91u78k2C3bOV5SgSwKMMiBozxnUEmdM2ZCylkEFWeoFgMwvwzECHshWqZMFtK0fgzp8QGJdgGlkK4+ISE9ieQ+EgLyJlTJwGAeZQRcCUFGXAUQ+BMDUAAK74HIGASgLAQWmx6i6HY9x8ojjUjomGkh8gkD8Vkey7FUTlILqE55YzMUkGxbi-FhLYDEtJRSqlNKSJoM4Qcoo2x37DWnOyq5PVxwR3qjgjIxxJFn3MWijFbypkzIJVSmVJLyWUupZAFgQQxKcHYKIWgfAEEzE8DqRBohuB8FiQaAQ7gGmOOkpiTmJRSjVFlGkQoasWkwTsgfB0LRhqorVOi0VlqPk2qJfa+VTqIAurdR6r1Pq-UBqDfExJdKUzMpja0MoCbSrJtTEWVIuY4L2UKEcbNYxc2vPeda6VsqHUKuda6zZlbvVGl9f6j1QbPCxNiYGxt7YbiPD1fdDeBYWiXPkv2ccUpEi+kFD2U+t4zU5ote8iVczRAADdmDkFpY0xeTaJY5juH2X0Ot3R5MSL-ftXlEppSFeA81ebH3YBxc+t9lLaUL0Wtu39ICANGJIZBK56IxT4hYvkB4NQ7hDuLg+qZYBkPkE8JgTAZLKCMAgCQCAYAFWoD6HwcgJh5AVy3VGmoPSXIsWlGSMkT08mO3HFbSUEjGohJg-euD1HaP0cY8xyAbGOPUq44QHjfGBNofQeZTEInkLcQkzaGK-JxayYdPvbIspFOmsNrB0dan30aaYyxkg+BqB8BwNQWZETJjTHmIJsz3C92AMyIerueSSTBx6kUicDwEJHTc9HFTnmSA0e8wx3z2nUBktLqoIL2AQuYAriJWgngAjwO9fA5RX70NRpi-3fd8XdjHpKIyji7p7JNBcoKsx7nctiqoOgN9pcCBQE-ZGtRPDNEbyhUxYxYp+0PBYkVWFFHaEvIwJQOZHGSDDHwGSlgsCDSiF8MaD1G5Q0+okG10zcQuI9IpNk54nk7i2YQMyrsdpmWAOdo86Dd7h1HfQCds7F2rsAsXcCt7Kq9CXszg8doAGXZ5EEYOTOATh7HlzKPSHE3odjOO6dqZL7cBgAAO7zYNI60uc2YAkorkEHU3AZjuE4HWPgD36zPeR1FuIuRObNAjqUJEIC8dyUxH3Xl30jVHBQgdkd1Ozt08Z8z1n7PmA1ZdTzvnAuPzC6ezEsXJm0cIGS6-eTiJvq1WFJKLsOsHQ4P3ixTXMO4e0-p0z-AUAWdUrZ7gDnxutSzAWKj5p9vEiO9HM79X0Kd3bGeLmJ6pGWijj91T2HNOSAACMyUmE4JgWEJvef87rOLxAxwqqEjuAhI1Bx7SvVlHUCkAT7SpRJGNpTUPKOF4D6X8vlfq-c9r+bpVKT9mN-qKkP0bQu5JoMMKNIv8-SAMlCN6oJrb0U9H3wbXUyy8V6r2smfZv68P2VQn6UPSKFZ29O4gUwoEKKXtI0W4Nl8kC8z8i8ztL8p81kY9It49F9E9khdgndW409hQ-RCZs8SoHYstj8ctKdgDx9YAwA2dwC-l1wAgG8EAkUe1uJvc2VkJBECl0hpQ8R9oGIgDz8SB8DCDr9iD6x58mkYCCwqpTwmgEIipZR08CxwZe1apvp7JWCQCpkODS4iD1R6xpgNwyCdtm8sd7Rh57gFdKhmgkhPQidERmg3Ej90ZsDT82DFDlCWBIC48ls4gHd4CU9EDXdFd8hwpqhOUHYGg+wb1LDx5DsxlYA8B5ATBYdWMEd6FARGFmFWFuBHw+ARIghOAxIyCnpcwcwBwKRPJsF+ZFd-8e0ZwepRYBogCwjcAIiojztmArtrF4iWE2E+A-wBBNlnxMj0gRNcjW4UJ+tj00hswUZ8hZRSj+wydxsrCQi+AqiajKBoj6j-lAUUcnCDxW4XFbhshmhSRoUyNkhCh+5cNvQcEcFKjwjIiFiSBGB5B0B8V5thJRA0iMjoDQU+wkQ-5RtvRJMBRO0GVM9mUBwyigFzjqjLjWMbi7jKAHjUj0juBeDv1t1iQ7o9hvpngiRPIt97I6gRZmI4pJjh8T8Zi5jwTriwBbj7iQ9Hjnj4SH8F9QUBRT1ixzCPFOImJ6gekHgjj7gSQiRyNydpiR0STajITKSFskcgVSDXj6VMgW5HZD1e8EIv5Fckpxx2IipPJUo+xQT5jWMyV5AoACUIAHi2iOiPwmiyD7hhjcM25UR7JgNFdWhOZr1AE-sDgeodTST9TDT0BjSqTTTOBnw+ALTbcE97gKQdobgfREQ3DBELg2h3JeVfQh9stgihSLjajvSjSHiJTVjH4YDDk5SAxJd6glThR7Qd8nhRwut+8Icpi0yXlGBVBGALsP1cypS1iwVdVsF2l1stoEZM4DErhvQjgfRAjpYaER0S90B8A5lKB9TyBMATBljkcOz8yGTtpmTtjWS9iDhkRBR8QsQN53JNdddg8oA+ACBaM3llz2zMjbgVteyBEnJpRnS-FrhZcioLCJyZEMAVkoB5s+AAAzcueHJY6xAQHUFo-nDcPwQyMgw-ccVfI1GoNoNIPJAeOoe4PBJUzIOswkwUv89AACkPYC0CqZGIiCqCpIvwTgWCphcSUMmA84EaaUQcWcVuAJEDB4JlMjO4a4H0fC1Mycoikii8kCpgCi8C6BQQai5ImCnZAMzo6UlMNSX+IY30IkGcJINSPJIqLsP7DeUTCkKDeskSmc4iwCiSsCy7WI2S6CuixSoIdowMoyTspCblAsTJS8HJPrHPXxH+eoEhCRTXUSqy8iuo2yqihy2CpSiQOkvg0FFi3pAUfuamTBZUmGZlOodoftEUSUBCUKiysSsiySyKhomSyCmKnZR8A0WgYQOq2gBC7IwqBNAShCbEHeUDVIL6K8K4dIA4Iq-88KsqyiyquS2i2C2q+qxqhE9rcyZK5adi9KrineMkKqBKZeJ6J6Ticc6RC+MK0i6yqS2yu8lS9sSUIwnsFybIASwBIoPSkoOoQcT6BFDUoayyo6iKvARgWgcI2AFgBij8IIQNSJBBfgKqpIpq866SNiBCOGdINMNINNPrGMzOLYvfDua4Ak4S384qkas7H6kYf6wGwyGuUGr8cG+yqGua97PQQwsUIoNiBifIpiGcbYdEP2CcF0VoOcAUtMw68S76-FYm6ogGoG8m7gMGxBamx8JqhKxE2Ghmxk5m7IFCJifuX+CcXuQ-S9HGrAgW-Gr6sqomv6sW0mkSSW6WiGuSpq+adc02S65Ia6uNO69mpid0ZEUpace6ONfWoI8y4a42wmkWs2+QAGs6zs0kHpBgpEEhdodfYoNmveLY0cfEEbWUD6kq46kgLM30sAWJcilgOK2W6GqO9oHpeGI1EjI1BoJOneDE3i-aa5bm78-aiBQW0qs7PO9jQuyS4u5ys00u2mu3J2-RG676B0e6vyn0T0J0QBJIbiV2Aiw2oOoWsqnuguouyOh2lMaOzOI4OO-qxOkDAsHMJXd0FCJoVzA2wOz69es7Y02ALjWAWAMOgG6ahq2gL1SGuWjQhM8e12qe92neZoVyF6zIH0Shc4LOgmqZJ+l+t+kmnex-GA-e2OvpBO+yeumGfIwpTxfuCY-Pfmycl5MALQFQFcyU+8woCFNbZ8gwoKnYPpOyI4NSX0KOWAUlaEkPZcOrVcQQEQV7dyhoZIcUbpTlaoWSWKWeuKfqC9YJbLBDUueQZcJhIM-wYIDQoww4LIXIDaONaFF3HpAVM8A-VKKweUALdjeAcINzXe9sAAWnuhxEcYKQjhbyKmjLbvLCcDoAfAceklyAqjYjHHWs5TzFlF+hIY9kCfMmJCGl6i5NVxkOgc13CTiY2B6l-ldKDjsi9Dw3iBHDHCKHxFHGZSvB8eUxwMxUyf5AnDEa4kKCeAaYyDZt6nAyKXkwFSALFRmXmUWVgGWV+TAkVvZidOORcmabAe3zyRdB6X7X8QeDzkUdvpkSo3FQQ0lULTtTlUdUoDqcB2UiUhtDBxIVRB7DmexN7D5OPhlF6fzXHVtUnRLRY0Oe2pWiaceBmc6phlHBPFlALBIQfOvQefg0Q1fXfUOazE5kaCJCxAalHDmYOBzEXoaE7AYndDBa80pR8y0wgHedKCqmRmKhadmZ3ilBRCPMRArruD2uFQ8zFQK1xaK3xZ0042414343efZsmdJZ+baZ3laB6Qxqns5Wgmxfy3U1Zb8wC0q2qzAGhY6s9AH3yF8LQqSxgk4gdB9HsiSBckleZboxlZKzKwq2C1C2hZ5LFAdCGNOXjUKfyQ2qxBziEQeCqZHxmKmwJVm3m2hf7k5klHd1DgaYBwQmzHDL9m+h+k8jkID0Oa2NSGnCCTl13iS3dBXyKR9BPg1xiZGTH2LwR0OdSiZKelHAYnsgFCRHx2doCWqFbgrMHTzZFVwOLzPP13D0N050OYkJ6o+iyJnGuD+KJBKel2uEaFKF1jjeLzAK4NGfmriBPmTyJAGQzWQPtG5Q8dW1HEwIDvWYLbO1sLnZ7ZIRVe8m6SyCvSPAzfYqaHtBtFSmuE9KiPebsjHAifugfaVKRcVzuFckphuD21zHpeqdP2FKuKLdQYZPdEUg-ckwMEaB-YMJIW2BGP7XSD2g9aJPTLBJFPJKhL9ag-pQmO7BRluBQmlHTwfJKO9HRKnALGfauJ7sI-pOI6ojuQOC7g0k30VyCW7CKkHApCREaCErWfzb4CbJFtbNfe9E8qNR8JsjZQFk5U5iBJPj7HLZ9CAOnNnPnPkEXMqFY7yhHAsw6AOECRsiYmyZyMJAYm6cyFPKD0AqvPfRvNfe7zbhHOQhuDskIXuhs-UlOLFlgeDvIEOZGzk+8uyW4g9pYlSBuDByKHf39p-IOqNofpOrJR7dk6ZtlxtFyEHGhX7GzH6vhcFjSGibMrxrXq7qmVNv+uLfrbqCSDjslB+ikx3hRhcU2AxL4pTLE47vS9q9zoNKNK3sksa9nvqE4sQ89pHDmYI1yHzDV2uDKRC4y7Y1wGfq26QbFsm+2FSgei1JqFPDyTIT-QMVHNGMq5XtIbGXIZUHeYFRRAHVyEc0vTdyvBxK9wXqDeXuyy4beXm3DHC-Jl4oRkBfSAB2ckEMvZ66SnfyjmUdUYCaI6bU8ni79BKFKgehCaOByto8id+MsYsCAA */
   initial: "introScreen",
   context: initialContext(),
   states: {
@@ -429,7 +430,7 @@ export const gameMachine = setup({
                     day: Math.min(context.extendedGame ? Infinity : GOAL_DAYS, context.day + travelTime),
                     currentPort: context.destination,
                     nextPriceUpdate: Math.max(0, context.nextPriceUpdate - travelTime),
-                    nextTrendUpdate: Math.max(0, context.nextTrendUpdate - travelTime),
+                    nextSeasonDay: Math.max(0, context.nextSeasonDay - travelTime),
                   };
                 }),
                 // Reset temporary context attributes
@@ -1060,9 +1061,9 @@ export const gameMachine = setup({
                   "You're in overdraft.",
                   "Interest will be charged at 3% per day.",
                   context.guardFleet.ships > 0
-                    ? "Since you can't pay fleet maintenance fee, you fleet effectiveness is reduced."
+                    ? `Since you can't pay fleet maintenance fee,\nyou fleet effectiveness is reduced.`
                     : "",
-                  `Be carefull your debt won't exceed -$${Math.abs(BANKRUPTCY_THRESHOLD)}, otherwise you'll go bankrupt!`,
+                  `Be carefull your debt won't exceed -$${Math.abs(BANKRUPTCY_THRESHOLD)},\notherwise you'll go bankrupt!`,
                 ].filter(Boolean),
             },
           ],
@@ -1099,25 +1100,30 @@ export const gameMachine = setup({
           guard: ({ context }) => !context.canRetire && context.day >= GOAL_DAYS,
           actions: assign({ canRetire: true }),
         },
-        // Update prices if the next price update is due
+        // Update prices (and due trends) if the next price update is due
         {
           guard: ({ context }) => context.nextPriceUpdate <= 0,
           actions: [
             { type: "displayMessages", params: ["Prices updated!"] },
             assign(({ context }) => ({
-              prices: generatePrices(context.trends),
+              prices: generatePrices(context.trends, context.currentSeason),
+              trends: updateTrends(context.trends),
               nextPriceUpdate: PRICE_UPDATE_INTERVAL,
             })),
           ],
         },
-        // Update trends if the next trend update is due
+        // Update season if the next season day is due
         {
-          guard: ({ context }) => context.nextTrendUpdate <= 0,
+          guard: ({ context }) => context.nextSeasonDay <= 0,
           actions: [
-            assign({
-              trends: generateTrends(),
-              nextTrendUpdate: TREND_UPDATE_INTERVAL,
-            }),
+            {
+              type: "displayMessages",
+              params: ({ context }) => [`Season changes to ${getNextSeason(context.currentSeason)}`],
+            },
+            assign(({ context }) => ({
+              currentSeason: getNextSeason(context.currentSeason),
+              nextSeasonDay: SEASON_LENGTH,
+            })),
           ],
         },
       ],

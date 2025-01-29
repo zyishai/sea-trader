@@ -124,12 +124,10 @@ Prices in the game are in **Spanish silver dollars ($)**, the standard currency 
 ## 🚀 What's Coming Next
 > These features are in active development!
 
-- Advanced weather system affecting travel times
-- New ports to explore with unique opportunities
-- Specialized cargo missions
-- Port-specific events and quests
+- Banking and warehouses system
 - Reputation-based trading advantages
-- Historical events affecting markets
+- Port-specific events and quests
+- New ports to explore with unique opportunities
 
 
 ## 🤝 Join the Crew

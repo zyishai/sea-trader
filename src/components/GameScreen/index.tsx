@@ -1,10 +1,8 @@
 import React, { useState } from "react";
 import { Box, DOMElement, Text, useInput } from "ink";
-import { Badge } from "@inkjs/ui";
 import { GameContext, TransactionContext } from "../GameContext.js";
 import { Divider } from "./Divider.js";
 import { Typed } from "./Typed.js";
-import { getShipStatus } from "../../store/utils.js";
 import { MainView, PiratesView, PortView, InventoryView, MarketView, FleetView, ShipyardView } from "./views/index.js";
 import {
   ExitConfirmAction,
@@ -52,44 +50,22 @@ export function Layout({ children }: React.PropsWithChildren) {
 
 function StatusBar() {
   const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const shipHealth = getShipStatus(context.ship.health);
+  const nextPriceUpdateIn = context.nextPriceUpdate;
+  const nextSeasonIn = context.nextSeasonDay;
 
   return (
-    <Box flexDirection="column" gap={1}>
+    <Box flexDirection="column" alignItems="center" gap={1}>
       <Box borderTop={false} borderRight={false} borderLeft={false}>
-        <Text>Day: </Text>
-        <Text inverse>{context.day.toString().padStart(3, " ")}</Text>
-        <Text> | Port: </Text>
-        <Text inverse>{context.currentPort}</Text>
-        <Text> | Balance: </Text>
-        <Text backgroundColor="black" color="whiteBright" inverse={context.balance > 0}>
-          {context.balance >= 0 ? `$${context.balance}` : `-$${Math.abs(context.balance)}`}
+        <Text>Day #{context.day}</Text>
+        <Text>
+          {" "}
+          | Balance: {context.balance < 0 ? "-" : ""}${Math.abs(context.balance)}
         </Text>
-        {context.inOverdraft && <Badge color="red">OVERDRAWN</Badge>}
-        <Text> | Ship: </Text>
-        <Badge
-          color={
-            shipHealth === "Perfect"
-              ? "greenBright"
-              : shipHealth === "Minor damages"
-                ? "yellowBright"
-                : shipHealth === "Major damages"
-                  ? "redBright"
-                  : "gray"
-          }
-        >
-          {shipHealth}
-        </Badge>
+        <Text> | Season: {context.currentSeason}</Text>
       </Box>
       <Box>
-        <Text>
-          Prices update:{" "}
-          <Badge color={context.nextPriceUpdate <= 3 ? "yellow" : "white"}>{context.nextPriceUpdate} days</Badge>{" "}
-        </Text>
-        <Text>
-          | Trends update:{" "}
-          <Badge color={context.nextTrendUpdate <= 3 ? "yellow" : "white"}>{context.nextTrendUpdate} days</Badge>
-        </Text>
+        <Text dimColor>Prices update in {nextPriceUpdateIn} days</Text>
+        <Text dimColor> | Season changes in {nextSeasonIn} days</Text>
       </Box>
     </Box>
   );

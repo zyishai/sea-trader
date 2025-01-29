@@ -1,8 +1,9 @@
-import { EventTemplate, Good, Port } from "./types.js";
+import { EventTemplate, Good, MarketSize, Port, PortSpecialization, Season, TrendStrength } from "./types.js";
 import { getNetCash } from "./utils.js";
 
 export const goods = ["Wheat", "Tea", "Spices", "Opium", "Porcelain"] as const;
 export const ports = ["Hong Kong", "Shanghai", "Nagasaki", "Singapore", "Manila"] as const;
+export const seasons = ["Spring", "Summer", "Autumn", "Winter"] as const;
 // NOTE: The destination gets set in the `traveling` state, if an event changes the course
 // of the travel, then update the `destination`. If an event returns the player back to its
 // home port, then either update the `destination` to be the same as `currentPort`,
@@ -260,6 +261,7 @@ export const goodsInfo: { name: Good; basePrice: number; volatility: number; bul
 // Gameplay
 export const GOAL_DAYS = 200;
 export const EXTENDED_GAME_PENALTY = 0.01;
+export const SEASON_LENGTH = 30; // days
 
 // Player Vessel
 export const BASE_SHIP_CAPACITY = 120; // In tons burden
@@ -295,12 +297,61 @@ export const OVERLOAD_DAMAGE_PENALTY = 0.5;
 
 // Market
 export const PRICE_UPDATE_INTERVAL = 14;
-export const TREND_UPDATE_INTERVAL = 21;
+export const TREND_DIRECTION = ["increasing", "decreasing", "stable"] as const;
+export const TREND_STRENGTH = ["weak", "moderate", "strong"] as const;
 export const TREND_SYMBOLS = {
   UP: "▲",
   DOWN: "▽",
   SAME: "―",
 } as const;
+export const TREND_STRENGTH_FACTORS: Record<TrendStrength, { up: number; down: number }> = {
+  weak: { up: 1.05, down: 0.95 },
+  moderate: { up: 1.15, down: 0.85 },
+  strong: { up: 1.25, down: 0.75 },
+};
+export const SEASONAL_EFFECTS: Record<Season, Partial<Record<Good, number>>> = {
+  Spring: { Tea: 1.15, Spices: 1.1, Wheat: 0.9 },
+  Summer: { Porcelain: 1.2, Spices: 1.15, Tea: 0.9 },
+  Autumn: { Opium: 1.1, Porcelain: 0.9 },
+  Winter: { Tea: 1.2, Spices: 0.9 },
+};
+export const PORT_SPECIALIZATIONS: Record<Port, PortSpecialization> = {
+  "Hong Kong": {
+    producedGoods: [],
+    tradingHub: true,
+    marketSize: "Large",
+    productionFactor: 0.95,
+  },
+  Shanghai: {
+    producedGoods: ["Tea", "Opium"],
+    tradingHub: false,
+    marketSize: "Large",
+    productionFactor: 0.85,
+  },
+  Nagasaki: {
+    producedGoods: ["Porcelain"],
+    tradingHub: false,
+    marketSize: "Medium",
+    productionFactor: 0.9,
+  },
+  Singapore: {
+    producedGoods: [],
+    tradingHub: true,
+    marketSize: "Medium",
+    productionFactor: 0.95,
+  },
+  Manila: {
+    producedGoods: ["Spices"],
+    tradingHub: false,
+    marketSize: "Small",
+    productionFactor: 0.9,
+  },
+};
+export const MARKET_SIZE_FACTORS: Record<MarketSize, number> = {
+  Small: 1.1, // Higher prices, more volatile
+  Medium: 1,
+  Large: 0.95, // Lower prices, more stable
+};
 
 // Guard Ships
 export const MAX_GUARD_SHIPS = 10;

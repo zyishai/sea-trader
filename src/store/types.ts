@@ -1,4 +1,4 @@
-import { goods, goodsInfo, ports } from "./constants.js";
+import { goods, goodsInfo, ports, seasons, TREND_DIRECTION, TREND_STRENGTH } from "./constants.js";
 
 export type GameSettings = {
   extendedGame?: boolean;
@@ -31,7 +31,22 @@ export type FleetQuality = "Basic" | "Trained" | "Elite";
 export type BulkinessCategory = "Compact" | "Standard" | "Bulky";
 export type Good = (typeof goods)[number];
 export type Port = (typeof ports)[number];
-export type Trend = "increasing" | "decreasing" | "stable";
+export type MarketSize = "Small" | "Medium" | "Large";
+export type PortSpecialization = {
+  producedGoods: Good[];
+  tradingHub: boolean;
+  marketSize: MarketSize;
+  productionFactor: number;
+};
+export type Trend = (typeof TREND_DIRECTION)[number];
+export type TrendStrength = (typeof TREND_STRENGTH)[number];
+export type TrendInfo = {
+  direction: Trend;
+  strength: TrendStrength;
+  duration: number; // How many updates this trend will last
+  reliability: number; // 0-100, affects price prediction accuracy
+};
+export type Season = (typeof seasons)[number];
 export type GoodInfo = (typeof goodsInfo)[number];
 export type MarketInfoLevel = 1 | 2 | 3;
 
@@ -41,6 +56,8 @@ export type Context = {
   currentPort: Port;
   day: number;
   balance: number;
+  currentSeason: Season;
+  nextSeasonDay: number;
 
   // Port context
   availablePorts: readonly Port[];
@@ -50,13 +67,12 @@ export type Context = {
   // Market context
   availableGoods: readonly Good[];
   prices: Record<Port, Record<Good, number>>;
-  trends: Record<Port, Record<Good, Trend>>;
+  trends: Record<Port, Record<Good, TrendInfo>>;
   marketIntelligence: {
     level: MarketInfoLevel;
     lastPurchase: number;
   };
   nextPriceUpdate: number;
-  nextTrendUpdate: number;
 
   // Shipyard context
   guardFleet: {
