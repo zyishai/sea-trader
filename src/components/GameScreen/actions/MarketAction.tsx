@@ -142,9 +142,9 @@ export function MarketAction() {
           <ActionPromptKeyboard
             message="What kind of information would you like to purchase?"
             actions={[
-              { label: `Basic ($${getIntelligenceCost(1)})`, value: "B", key: "B" },
-              { label: `Standard ($${getIntelligenceCost(2)})`, value: "S", key: "S" },
-              { label: `Exclusive ($${getIntelligenceCost(3)})`, value: "E", key: "E" },
+              { label: `Basic ($${getIntelligenceCost(1, context)})`, value: "B", key: "B" },
+              { label: `Standard ($${getIntelligenceCost(2, context)})`, value: "S", key: "S" },
+              { label: `Exclusive ($${getIntelligenceCost(3, context)})`, value: "E", key: "E" },
             ]}
             onSelect={onPurchaseIntelligence}
             onCancel={() => actor.send({ type: "BACK" })}
@@ -223,9 +223,9 @@ export function MarketAction() {
         <ActionPromptArrows
           message="What kind of information would you like to purchase?"
           actions={[
-            { label: `Basic ($${getIntelligenceCost(1)})`, value: "B" },
-            { label: `Standard ($${getIntelligenceCost(2)})`, value: "S" },
-            { label: `Exclusive ($${getIntelligenceCost(3)})`, value: "E" },
+            { label: `Basic ($${getIntelligenceCost(1, context)})`, value: "B" },
+            { label: `Standard ($${getIntelligenceCost(2, context)})`, value: "S" },
+            { label: `Exclusive ($${getIntelligenceCost(3, context)})`, value: "E" },
           ]}
           onSelect={onPurchaseIntelligence}
           onCancel={() => actor.send({ type: "BACK" })}

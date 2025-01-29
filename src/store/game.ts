@@ -30,6 +30,7 @@ import {
   getIntelligenceCost,
   updateTrends,
   getNextSeason,
+  updatePriceHistory,
 } from "./utils.js";
 import {
   BANKRUPTCY_THRESHOLD,
@@ -470,7 +471,7 @@ export const gameMachine = setup({
                       {
                         guard: ({ context, event }) =>
                           context.balance + (context.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0) <
-                          getIntelligenceCost(event.level),
+                          getIntelligenceCost(event.level, context),
                         actions: {
                           type: "displayMessages",
                           params: ["You don't have enough money to purchase intelligence"],
@@ -483,8 +484,11 @@ export const gameMachine = setup({
                               ...context.marketIntelligence,
                               level: event.level,
                               lastPurchase: context.day,
+                              priceUpdates: 0,
+                              trendChanges: 0,
+                              seasonChanges: 0,
                             },
-                            balance: context.balance - getIntelligenceCost(event.level),
+                            balance: context.balance - getIntelligenceCost(event.level, context),
                           })),
                           {
                             type: "displayMessages",
@@ -1105,11 +1109,26 @@ export const gameMachine = setup({
           guard: ({ context }) => context.nextPriceUpdate <= 0,
           actions: [
             { type: "displayMessages", params: ["Prices updated!"] },
-            assign(({ context }) => ({
-              prices: generatePrices(context.trends, context.currentSeason),
-              trends: updateTrends(context.trends),
-              nextPriceUpdate: PRICE_UPDATE_INTERVAL,
-            })),
+            assign(({ context }) => {
+              const newPrices = generatePrices(context.trends, context.currentSeason);
+              const newTrends = updateTrends(context.trends);
+              const shouldIncreaseTrendChanges = Object.values(context.trends).some((rec) =>
+                Object.values(rec).some((trend) => trend.duration <= 1),
+              );
+              const newIntelligence = {
+                ...context.marketIntelligence,
+                priceUpdates: context.marketIntelligence.priceUpdates + 1,
+                trendChanges: context.marketIntelligence.trendChanges + Number(shouldIncreaseTrendChanges),
+                analysis: updatePriceHistory({ ...context, prices: newPrices }),
+              };
+
+              return {
+                prices: newPrices,
+                trends: newTrends,
+                nextPriceUpdate: PRICE_UPDATE_INTERVAL,
+                marketIntelligence: newIntelligence,
+              };
+            }),
           ],
         },
         // Update season if the next season day is due
@@ -1123,6 +1142,10 @@ export const gameMachine = setup({
             assign(({ context }) => ({
               currentSeason: getNextSeason(context.currentSeason),
               nextSeasonDay: SEASON_LENGTH,
+              marketIntelligence: {
+                ...context.marketIntelligence,
+                seasonChanges: context.marketIntelligence.seasonChanges + 1,
+              },
             })),
           ],
         },

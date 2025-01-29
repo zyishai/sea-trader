@@ -9,13 +9,32 @@ import {
   SEASON_LENGTH,
   seasons,
 } from "./constants.js";
-import { Context, GameSettings } from "./types.js";
+import { Context, GameSettings, Good, Port, PriceHistory } from "./types.js";
 import { generatePrices, generateTrends } from "./utils.js";
 
 export const initialContext = (settings?: GameSettings) => {
+  const { extendedGame = false, disableAnimations = false, controls = "keyboard" } = settings || {};
   const season = seasons[Math.floor(Math.random() * seasons.length)]!;
   const trends = generateTrends();
-  const { extendedGame = false, disableAnimations = false, controls = "keyboard" } = settings || {};
+  const initialPrices = generatePrices(trends, season);
+
+  const emptyPriceHistory = {} as Record<Port, Record<Good, PriceHistory[]>>;
+  const emptyTypicalRanges = {} as Record<Port, Record<Good, { min: number; max: number }>>;
+
+  ports.forEach((port) => {
+    // @ts-expect-error temporary value
+    emptyPriceHistory[port] = {};
+    // @ts-expect-error temporary value
+    emptyTypicalRanges[port] = {};
+    goods.forEach((good) => {
+      emptyPriceHistory[port][good] = [];
+      emptyTypicalRanges[port][good] = {
+        min: initialPrices[port][good],
+        max: initialPrices[port][good],
+      };
+    });
+  });
+
   return {
     currentPort: "Hong Kong",
     currentSeason: season,
@@ -40,11 +59,18 @@ export const initialContext = (settings?: GameSettings) => {
       isOverloaded: false,
     },
     trends,
-    prices: generatePrices(trends, season),
+    prices: initialPrices,
     nextPriceUpdate: PRICE_UPDATE_INTERVAL,
     marketIntelligence: {
       level: 1,
       lastPurchase: 1,
+      trendChanges: 0,
+      seasonChanges: 0,
+      priceUpdates: 0,
+      analysis: {
+        priceHistory: emptyPriceHistory,
+        typicalRanges: emptyTypicalRanges,
+      },
     },
     inOverdraft: false,
     lastOverdraftChargeDay: 1,

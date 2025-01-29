@@ -22,7 +22,7 @@ export function Layout({ children }: React.PropsWithChildren) {
   const [ref, setRef] = useState<DOMElement | null>(null);
   return (
     <Box width="100%" flexDirection="column" alignItems="center">
-      <Box flexDirection="column" alignItems="stretch" borderStyle="round" padding={1} ref={setRef}>
+      <Box flexDirection="column" alignItems="stretch" borderStyle="round" padding={1} minWidth={75} ref={setRef}>
         {/* Status Bar (always visible) */}
         <StatusBar />
 

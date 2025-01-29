@@ -10,6 +10,7 @@ import {
   getAvailableStorage,
   getBulkinessCategory,
   getIntelligenceCost,
+  getMerchantTip,
   getStorageUnitsForGood,
 } from "../../../store/utils.js";
 import {
@@ -58,6 +59,7 @@ function MarketOverview() {
   const portSpec = PORT_SPECIALIZATIONS[context.currentPort];
   const marketVolatility =
     portSpec.marketSize === "Large" ? "Low" : portSpec.marketSize === "Small" ? "High" : "Medium";
+  const merchantTip = getMerchantTip(context);
 
   return (
     <Box alignSelf="center" flexDirection="column" gap={1}>
@@ -71,6 +73,12 @@ function MarketOverview() {
       {portSpec.tradingHub && <Text color="blue">Trading Hub - Lower prices on all goods</Text>}
       {portSpec.producedGoods.length > 0 && (
         <Text color="green">Local Production: {portSpec.producedGoods.join(", ")}</Text>
+      )}
+      {merchantTip && (
+        <Box flexDirection="column">
+          <Text bold>Merchant Tip:</Text>
+          <Text color="yellow">&ldquo;{merchantTip}&rdquo;</Text>
+        </Box>
       )}
     </Box>
   );
@@ -111,7 +119,7 @@ function MarketTable({
 
       // Add seasonal indicator if applicable
       if (seasonalEffect) {
-        row["Price"] += seasonalEffect > 1 ? " ▲" : " ▼";
+        row["Price"] = `${seasonalEffect > 1 ? " ▲" : " ▼"} ${row["Price"]}`;
       }
     }
 
@@ -202,10 +210,16 @@ function MarketIntelligenceView() {
   return (
     <Box flexDirection="column">
       <Text bold>Market Intelligence - {port}</Text>
-      <Text>
-        Intelligence Reliability:{" "}
-        <Text color={reliability > 70 ? "green" : reliability > 40 ? "yellow" : "red"}>{reliability}%</Text>
-      </Text>
+      <Box height={1} />
+      <Box flexDirection="column">
+        <Text>
+          Intelligence Level: <Text bold>{intLevel === 1 ? "Basic" : intLevel === 2 ? "Standard" : "Exlusive"}</Text>
+        </Text>
+        <Text>
+          Reliability:{" "}
+          <Text color={reliability > 70 ? "green" : reliability > 40 ? "yellow" : "red"}>{reliability}%</Text>
+        </Text>
+      </Box>
       <Box height={1} />
       <MarketTable port={port} showPrices={port === context.currentPort || intLevel >= 2} showTrends={intLevel >= 3} />
     </Box>
@@ -240,10 +254,12 @@ function MarketIntelligencePurchaseView() {
       <Box flexDirection="column" paddingLeft={2}>
         <Text>{currentLevel === 1 ? ">" : " "} Basic (Free) - Current port prices only</Text>
         <Text>
-          {currentLevel === 2 ? ">" : " "} Standard (${getIntelligenceCost(2)}) - All ports prices and production info
+          {currentLevel === 2 ? ">" : " "} Standard (${getIntelligenceCost(2, context)}) - All ports prices and
+          production info
         </Text>
         <Text>
-          {currentLevel === 3 ? ">" : " "} Exclusive (${getIntelligenceCost(3)}) - Full market analysis with trends
+          {currentLevel === 3 ? ">" : " "} Exclusive (${getIntelligenceCost(3, context)}) - Full market analysis with
+          trends
         </Text>
       </Box>
 

@@ -14,6 +14,7 @@ import {
   MAINTENANCE_COST_PER_SHIP,
   MARKET_SIZE_FACTORS,
   MAX_SHIP_DEFENSE,
+  merchantTipTemplate,
   OVERLOAD_BUFFER,
   OVERLOAD_SPEED_PENALTY,
   PORT_SPECIALIZATIONS,
@@ -33,6 +34,7 @@ import {
   Good,
   MarketInfoLevel,
   Port,
+  PriceHistory,
   Season,
   ShipStatus,
   Trend,
@@ -116,7 +118,7 @@ export const calculateTravelTime = (to: Port, context: Context) => {
 };
 export const getNextSeason = (season: Season) => {
   const currentIndex = seasons.indexOf(season);
-  return seasons[(currentIndex + 1) % seasons.length];
+  return seasons[(currentIndex + 1) % seasons.length]!;
 };
 
 // -~ GUARD FLEET ~-
@@ -328,25 +330,80 @@ export const calculatePrice = ({
   good: Good;
   quantity: number;
 }) => prices[currentPort][good] * quantity;
-export const getIntelligenceCost = (level: MarketInfoLevel) => {
-  // TODO: dynamic pricing
-  switch (level) {
-    case 1: {
-      return 0;
-    }
-    case 2: {
-      return 200;
-    }
-    case 3: {
-      return 500;
-    }
-  }
+export const getIntelligenceCost = (level: MarketInfoLevel, context: Context) => {
+  const basePrice = {
+    1: 0,
+    2: 200,
+    3: 500,
+  }[level];
+
+  const wealthFactor = Math.min(3, Math.max(1, Math.sqrt(context.balance / 5000)));
+  return Math.round(basePrice * wealthFactor);
 };
 export const calculateIntelligenceReliability = (context: Context) => {
-  const daysSinceUpdate = context.day - context.marketIntelligence.lastPurchase;
-  const reliability = Math.max(0, 100 - daysSinceUpdate * 5); // TODO: Simple degradation for now
+  const intel = context.marketIntelligence;
 
+  const trendPenalty = intel.trendChanges * 15; // -15% per trend change
+  const seasonPenalty = intel.seasonChanges * 20;
+  const pricePenalty = intel.priceUpdates * 10;
+
+  const reliability = Math.max(0, 100 - trendPenalty - seasonPenalty - pricePenalty);
   return reliability;
+};
+export const getMerchantTip = (context: Context) => {
+  if (context.reputation < 30) return null;
+
+  const availableTips = merchantTipTemplate
+    .filter((tip) => context.reputation >= tip.minRep)
+    .map((tip) => tip.getMessage(context))
+    .filter(Boolean);
+  return availableTips[availableTips.length - 1] ?? null;
+};
+export const updatePriceHistory = (context: Context) => {
+  const { prices, currentSeason, day } = context;
+  const history = context.marketIntelligence.analysis.priceHistory;
+
+  // Add new price update
+  Object.entries(prices).forEach(([port, portPrices]) => {
+    Object.entries(portPrices).forEach(([good, price]) => {
+      const goodHistory = history[port as Port][good as Good];
+      goodHistory.push({ price, day, season: currentSeason });
+
+      // Keep only last 5 updates
+      if (goodHistory.length > 5) goodHistory.shift();
+    });
+  });
+
+  // Update typical ranges
+  const typicalRanges = calculateTypicalRanges(history);
+
+  return {
+    priceHistory: history,
+    typicalRanges,
+  };
+};
+export const calculateTypicalRanges = (history: Record<Port, Record<Good, PriceHistory[]>>) => {
+  const ranges = {} as Record<Port, Record<Good, { min: number; max: number }>>;
+
+  Object.entries(history).forEach(([port, portHistory]) => {
+    // @ts-expect-error temp
+    ranges[port] = {};
+    Object.entries(portHistory).forEach(([good, prices]) => {
+      const values = prices.map((p) => p.price);
+      ranges[port as Port][good as Good] = {
+        min: Math.min(...values),
+        max: Math.max(...values),
+      };
+    });
+  });
+
+  return ranges;
+};
+export const isPriceUnusual = (price: number, ranges: { min: number; max: number }) => {
+  const range = ranges.max - ranges.min;
+  if (price < ranges.min + range * 0.2) return "low";
+  if (price > ranges.max - range * 0.2) return "high";
+  return;
 };
 
 // ** SHIPYARD **
@@ -425,3 +482,7 @@ export const calculateScore = (context: Context) => {
 
   return score;
 };
+
+// % MISC %
+export const joinWords = (words: string[]) =>
+  words.length <= 2 ? words.join(" and ") : `${words.slice(0, -1).join(", ")}, and ${words[words.length - 1]}`;

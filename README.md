@@ -35,7 +35,9 @@ $ npx ctrader
 
 - Dynamic market system with realistic price fluctuations
 - Strategic trading between 5 major Asian ports
-- Market trends that shift every 14 days
+- Port specialization and local production
+- Three levels of market intelligence
+- Merchant tips based on crew reputation
 - Risk vs reward decisions with cargo space management
 - Historically accurate cargo overloading mechanics
 </details>
