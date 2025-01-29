@@ -1,5 +1,11 @@
 # ctrader
 
+## 2.10.0
+
+### Minor Changes
+
+- 635a02e: Market Analysis and Merchant Tips
+
 ## 2.9.0
 
 ### Minor Changes
