@@ -9,7 +9,7 @@ export function StartScreen() {
   const [ref, setRef] = useState<DOMElement | null>(null);
   const [width, setWidth] = useState(0);
   const [extendedGame, setExtendedGame] = useState(false);
-  const [disableAnimations, setDisableAnimations] = useState(false);
+  const [disableAnimations, setDisableAnimations] = useState(true);
   const [controls, setControls] = useState<"keyboard" | "arrows">("keyboard");
 
   useEffect(() => {

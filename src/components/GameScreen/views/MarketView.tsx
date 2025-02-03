@@ -1,381 +1,318 @@
 import React from "react";
 import { Box, Text } from "ink";
-import { Alert, Badge } from "@inkjs/ui";
 import { Table } from "@tqman/ink-table";
-import BigText from "ink-big-text";
-import { GameContext, TransactionContext } from "../../GameContext.js";
-import {
-  calculateIntelligenceReliability,
-  calculatePrice,
-  getAvailableStorage,
-  getBulkinessCategory,
-  getIntelligenceCost,
-  getMerchantTip,
-  getStorageUnitsForGood,
-} from "../../../store/utils.js";
-import {
-  goodsInfo,
-  OVERDRAFT_TRADING_LIMIT,
-  PORT_SPECIALIZATIONS,
-  SEASONAL_EFFECTS,
-  TREND_SYMBOLS,
-} from "../../../store/constants.js";
-import { Port } from "../../../store/types.js";
+import { GameContext } from "../../GameContext.js";
+import { displayMonetaryValue, getMerchantTip, getStorageUsed } from "../../../store/utils.js";
+import { OVERDRAFT_TRADING_LIMIT, ports } from "../../../store/constants.js";
+import { Good } from "../../../store/types.js";
+import { MarketContext } from "../MarketContext.js";
+import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
+import { ActionPrompt as ActionPromptArrows } from "../../prompts/arrows/ActionPrompt.js";
+import { InputPrompt as InputPromptKeyboard } from "../../prompts/keyboard/InputPrompt.js";
+import { InputPrompt as InputPromptArrows } from "../../prompts/arrows/InputPrompt.js";
+import { Columns } from "../Columns.js";
+import { assert } from "node:console";
+import figlet from "figlet";
 
 export function MarketView() {
-  const transaction = TransactionContext.useSelector((snapshot) => snapshot.context);
-  const snapshot = GameContext.useSelector((snapshot) => snapshot);
-  const isMenu = snapshot.matches({ gameScreen: { at_market: "menu" } });
-  const isMarketIntelligenceViewing = snapshot.matches({
-    gameScreen: { at_market: { intelligenceAction: "viewing" } },
-  });
-  const isMarketIntelligencePurchasing = snapshot.matches({
-    gameScreen: { at_market: { intelligenceAction: "purchasing" } },
-  });
+  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const snapshot = MarketContext.useSelector((snapshot) => snapshot);
 
-  if (isMenu) {
-    return <MarketOverview />;
-  }
+  return (
+    <Box flexDirection="column" gap={1} width="100%">
+      <Text>{figlet.textSync("Market")}</Text>
 
-  if (isMarketIntelligenceViewing) {
-    return <MarketIntelligenceView />;
-  }
+      <Box flexDirection="column" borderStyle="single">
+        <Text bold>
+          Cargo Hold ({getStorageUsed(context.ship)}/{context.ship.capacity})
+        </Text>
+        <Box flexDirection="column" paddingLeft={3}>
+          <Columns columns={2} data={[...context.ship.hold.entries()]} />
+        </Box>
+      </Box>
 
-  if (isMarketIntelligencePurchasing) {
-    return <MarketIntelligencePurchaseView />;
-  }
+      <Box flexDirection="column" borderStyle="single">
+        <Text bold>Prices in {context.currentPort}</Text>
+        <Box flexDirection="column" paddingLeft={3}>
+          <Columns
+            columns={2}
+            data={Object.entries(context.prices[context.currentPort]).map(([good, price], index) => [
+              good,
+              <Box key={index} flexDirection="column" alignItems="flex-end">
+                <Text>{displayMonetaryValue(price)}</Text>
+              </Box>,
+            ])}
+          />
+        </Box>
+      </Box>
 
-  if (!transaction.action) return null;
-
-  if (!transaction.good) {
-    return <GoodsSelectionView action={transaction.action} />;
-  }
-
-  return <QuantitySelectionView />;
+      {snapshot.matches("menu") ? (
+        <MarketOverview />
+      ) : snapshot.matches("buying") ? (
+        <BuyMarket />
+      ) : snapshot.matches("selling") ? (
+        <SellMarket />
+      ) : snapshot.matches("compare_prices") ? (
+        <CompareMarketPrices />
+      ) : null}
+    </Box>
+  );
 }
 
 function MarketOverview() {
+  const actor = GameContext.useActorRef();
   const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const portSpec = PORT_SPECIALIZATIONS[context.currentPort];
-  const marketVolatility =
-    portSpec.marketSize === "Large" ? "Low" : portSpec.marketSize === "Small" ? "High" : "Medium";
+  const market = MarketContext.useActorRef();
+
   const merchantTip = getMerchantTip(context);
+  const controls = context.settings.controls;
 
-  return (
-    <Box alignSelf="center" flexDirection="column" gap={1}>
-      <BigText text={`${context.currentPort}\nMarket`} font="tiny" space={false} />
-      <Text>
-        <Text underline>Market Size</Text>: {portSpec.marketSize}
-      </Text>
-      <Text>
-        <Text underline>Market Volatility</Text>: {marketVolatility}
-      </Text>
-      {portSpec.tradingHub && <Text color="blue">Trading Hub - Lower prices on all goods</Text>}
-      {portSpec.producedGoods.length > 0 && (
-        <Text color="green">Local Production: {portSpec.producedGoods.join(", ")}</Text>
-      )}
-      {merchantTip && (
-        <Box flexDirection="column">
-          <Text bold>Merchant Tip:</Text>
-          <Text color="yellow">&ldquo;{merchantTip}&rdquo;</Text>
-        </Box>
-      )}
-    </Box>
-  );
-}
-
-function MarketTable({
-  port,
-  showPrices = false,
-  showTrends = false,
-  showHoldQuantity = false,
-  showBulkiness = false,
-  showAllInfo = false,
-}: {
-  port: Port;
-  showPrices?: boolean;
-  showTrends?: boolean;
-  showHoldQuantity?: boolean;
-  showBulkiness?: boolean;
-  showAllInfo?: boolean;
-}) {
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const transaction = TransactionContext.useSelector((snapshot) => snapshot.context);
-
-  const marketData = context.availableGoods.map((good) => {
-    const goodInfo = goodsInfo.find((item) => item.name === good)!;
-    const price = context.prices[port][good];
-    const trendInfo = context.trends[port][good];
-    const quantity = context.ship.hold.get(good) || 0;
-    const bulkinessCategory = getBulkinessCategory(goodInfo.bulkiness);
-    const seasonalEffect = SEASONAL_EFFECTS[context.currentSeason][good];
-
-    const row: Record<string, string> = {
-      Good: good,
-    };
-
-    if (showAllInfo || showPrices) {
-      row["Price"] = `$${price}`;
-
-      // Add seasonal indicator if applicable
-      if (seasonalEffect) {
-        row["Price"] = `${seasonalEffect > 1 ? " ▲" : " ▼"} ${row["Price"]}`;
+  const availableActions = [
+    { label: "Buy Goods", value: "buy_goods" },
+    { label: "Sell Goods", value: "sell_goods" },
+    { label: "Compare Prices", value: "compare_prices" },
+  ];
+  const onSelectAction = (value: string) => {
+    switch (value) {
+      case "buy_goods": {
+        market.send({ type: "SELECT_ACTION", action: "buy" });
+        break;
+      }
+      case "sell_goods": {
+        market.send({ type: "SELECT_ACTION", action: "sell" });
+        break;
+      }
+      case "compare_prices": {
+        market.send({ type: "SELECT_ACTION", action: "compare_prices" });
+        break;
       }
     }
+  };
 
-    if (showAllInfo || showTrends) {
-      const trendSymbol =
-        trendInfo.direction === "increasing"
-          ? TREND_SYMBOLS.UP
-          : trendInfo.direction === "decreasing"
-            ? TREND_SYMBOLS.DOWN
-            : TREND_SYMBOLS.SAME;
-      const trendStrength = trendInfo.direction === "stable" ? "" : ` (${trendInfo.strength})`;
-      row["Trend"] = `${trendSymbol}${trendStrength}`;
-      row["Reliability"] = `${trendInfo.reliability}%`;
+  return (
+    <Box flexDirection="column" gap={1}>
+      {merchantTip ? (
+        <Box flexDirection="column">
+          <Text color="green">Merchant Tip:</Text>
+          <Text>&ldquo;{merchantTip}&rdquo;</Text>
+        </Box>
+      ) : (
+        <Box flexDirection="column">
+          <Text color="green">Tip:</Text>
+          <Text>Increase your reputation to get insider tips.</Text>
+        </Box>
+      )}
+
+      {controls === "keyboard" ? (
+        <ActionPromptKeyboard
+          message="Actions:"
+          actions={availableActions.map((action, index) => ({ ...action, key: String(index + 1) }))}
+          onSelect={onSelectAction}
+          onCancel={() => actor.send({ type: "CANCEL" })}
+          backMessage="Press [Esc] to leave marke"
+        />
+      ) : (
+        <ActionPromptArrows
+          message="Actions:"
+          actions={availableActions}
+          onSelect={onSelectAction}
+          onCancel={() => actor.send({ type: "CANCEL" })}
+          backMessage="Press [Esc] to leave marke"
+        />
+      )}
+    </Box>
+  );
+}
+
+function BuyMarket() {
+  const marketSnapshot = MarketContext.useSelector((snapshot) => snapshot);
+
+  return marketSnapshot.matches({ buying: "pick_good" }) ? (
+    <PickGood action="buy" />
+  ) : marketSnapshot.matches({ buying: "select_quantity" }) ? (
+    <SelectQuantity action="buy" />
+  ) : null;
+}
+
+function PickGood({ action }: { action: "buy" | "sell" }) {
+  const market = MarketContext.useActorRef();
+  const gameContext = GameContext.useSelector((snapshot) => snapshot.context);
+  const controls = gameContext.settings.controls;
+
+  const availableActions = gameContext.availableGoods.map((good) => ({
+    label: good,
+    value: good,
+  }));
+  const onSelectGood = (value: string) => {
+    assert(gameContext.availableGoods.includes(value as Good));
+    market.send({ type: "PICK_GOOD", good: value as Good });
+  };
+
+  return controls === "keyboard" ? (
+    <ActionPromptKeyboard
+      message={action === "buy" ? "Which good would you like to buy, captain?" : "What do you offer to sell, captain?"}
+      actions={availableActions.map((action, index) => ({ ...action, key: String(index + 1) }))}
+      onSelect={onSelectGood}
+      onCancel={() => market.send({ type: "CANCEL" })}
+    />
+  ) : (
+    <ActionPromptArrows
+      message={action === "buy" ? "Which good would you like to buy, captain?" : "What do you offer to sell, captain?"}
+      actions={availableActions}
+      onSelect={onSelectGood}
+      onCancel={() => market.send({ type: "CANCEL" })}
+    />
+  );
+}
+
+function SelectQuantity({ action }: { action: "buy" | "sell" }) {
+  const actor = GameContext.useActorRef();
+  const market = MarketContext.useActorRef();
+  const marketSnapshot = MarketContext.useSelector((snapshot) => snapshot);
+  const marketContext = marketSnapshot.context;
+  const gameContext = GameContext.useSelector((snapshot) => snapshot.context);
+  const controls = gameContext.settings.controls;
+  const affordance = Math.max(
+    0,
+    Math.floor(
+      (gameContext.balance + (gameContext.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0)) /
+        gameContext.prices[gameContext.currentPort][marketContext.good!],
+    ),
+  );
+
+  const onValidateQuantity = (value: string) => {
+    const quantity = +value;
+    if (isNaN(quantity) || quantity < 0) return "Invalid quantity";
+
+    return;
+  };
+  const onSubmit = (values: Record<string, string>) => {
+    const { quantity = "" } = values;
+
+    if (action === "buy") {
+      actor.send({ type: "PURCHASE", good: marketContext.good!, quantity: +quantity });
+      market.send({ type: "COMMIT" });
+    } else {
+      actor.send({ type: "SELL", good: marketContext.good!, quantity: +quantity });
+      market.send({ type: "COMMIT" });
     }
+  };
 
-    if (showAllInfo || showHoldQuantity) {
-      row["In Hold"] = `${quantity} picul`;
-    }
+  return !marketContext.good ? null : (
+    <Box flexDirection="column" gap={1}>
+      {action === "buy" ? (
+        <Text>
+          You can afford {affordance} picul{affordance !== 1 ? "s" : ""}.
+        </Text>
+      ) : null}
 
-    if (showAllInfo || showBulkiness) {
-      row["Storage*"] = `${goodInfo.bulkiness} (${bulkinessCategory})`;
-    }
+      {controls === "keyboard" ? (
+        <InputPromptKeyboard
+          steps={[
+            {
+              id: "quantity",
+              type: "text",
+              message:
+                action === "buy"
+                  ? `How many piculs of ${marketContext.good.toLocaleLowerCase()} would you like, captain?`
+                  : `How many piculs of ${marketContext.good.toLocaleLowerCase()} are you selling, captain?`,
+              validate: onValidateQuantity,
+            },
+          ]}
+          onComplete={onSubmit}
+          onCancel={() => market.send({ type: "CANCEL" })}
+        />
+      ) : (
+        <InputPromptArrows
+          steps={[
+            {
+              id: "quantity",
+              type: "text",
+              message:
+                action === "buy"
+                  ? `How many piculs of ${marketContext.good.toLocaleLowerCase()} would you like, captain?`
+                  : `How many piculs of ${marketContext.good.toLocaleLowerCase()} are you selling, captain?`,
+              validate: onValidateQuantity,
+            },
+          ]}
+          onComplete={onSubmit}
+          onCancel={() => market.send({ type: "CANCEL" })}
+        />
+      )}
+    </Box>
+  );
+}
 
-    if (transaction.good === good) {
-      row["Good"] = `> ${row["Good"]}`;
-    }
+function SellMarket() {
+  const marketSnapshot = MarketContext.useSelector((snapshot) => snapshot);
 
-    return row;
-  });
+  return marketSnapshot.matches({ selling: "pick_good" }) ? (
+    <PickGood action="sell" />
+  ) : marketSnapshot.matches({ selling: "select_quantity" }) ? (
+    <SelectQuantity action="sell" />
+  ) : null;
+}
 
+function CompareMarketPrices() {
+  const market = MarketContext.useActorRef();
+  const gameContext = GameContext.useSelector((snapshot) => snapshot.context);
+  const controls = gameContext.settings.controls;
+
+  const data = ports.map((port) => ({
+    Port: port,
+    ...gameContext.availableGoods.reduce(
+      (acc, good) => ({
+        ...acc,
+        [good]: `$${gameContext.prices[port][good]}`,
+      }),
+      {},
+    ),
+  }));
   const columns = [
-    { key: "Good", align: "left" as const },
-    ...(showAllInfo || showPrices ? [{ key: "Price", align: "right" as const }] : []),
-    ...(showAllInfo || showTrends
-      ? [
-          { key: "Trend", align: "left" as const },
-          { key: "Reliability", align: "center" as const },
-        ]
-      : []),
-    ...(showAllInfo || showHoldQuantity ? [{ key: "In Hold", align: "right" as const }] : []),
-    ...(showAllInfo || showBulkiness ? [{ key: "Storage*", align: "left" as const }] : []),
+    { key: "Port", align: "left" },
+    ...gameContext.availableGoods.map((good) => ({
+      key: good,
+      align: "left",
+    })),
   ];
 
+  const availableActions = [
+    { label: "Buy Goods", value: "buy_goods" },
+    { label: "Sell Goods", value: "sell_goods" },
+  ];
+  const onSelectAction = (action: string) => {
+    switch (action) {
+      case "buy_goods": {
+        market.send({ type: "SELECT_ACTION", action: "buy" });
+        break;
+      }
+      case "sell_goods": {
+        market.send({ type: "SELECT_ACTION", action: "sell" });
+        break;
+      }
+    }
+  };
+
   return (
-    <Box flexDirection="column">
-      <Table data={marketData} columns={columns} />
-      <Text dimColor>▲▼ Seasonal price effects</Text>
-      {(showAllInfo || showBulkiness) && <Text dimColor>* Storage space needed per picul</Text>}
-      {(showAllInfo || showTrends) && (
-        <Box flexDirection="column">
-          <Text dimColor>* Lower reliability indicates less accurate trend predictions</Text>
-          <Text dimColor>* Trend strength: weak (±5%), moderate (±15%), strong (±25%)</Text>
-        </Box>
+    <Box flexDirection="column" gap={1}>
+      {/* @ts-expect-error Type inference issue with column names */}
+      <Table data={data} columns={columns} />
+
+      {controls === "keyboard" ? (
+        <ActionPromptKeyboard
+          message="What would you like to do, captain?"
+          actions={availableActions.map((action, index) => ({ ...action, key: String(index + 1) }))}
+          onSelect={onSelectAction}
+          onCancel={() => market.send({ type: "CANCEL" })}
+        />
+      ) : (
+        <ActionPromptArrows
+          message="What would you like to do, captain?"
+          actions={availableActions}
+          onSelect={onSelectAction}
+          onCancel={() => market.send({ type: "CANCEL" })}
+        />
       )}
-    </Box>
-  );
-}
-
-function CriticalAlerts() {
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const availableStorage = getAvailableStorage(context.ship);
-  const isOverdrawn = context.inOverdraft;
-  const isHoldNearlyFull = availableStorage <= context.ship.capacity * 0.2;
-  const isOverloaded = context.ship.isOverloaded;
-
-  return (
-    <>
-      {isOverdrawn && (
-        <Alert variant="error">Trading limited to ${context.balance + OVERDRAFT_TRADING_LIMIT} due to overdraft</Alert>
-      )}
-
-      {isOverloaded && <Alert variant="error">Ship is overloaded! Ship speed is affected</Alert>}
-
-      {isHoldNearlyFull && !isOverloaded && (
-        <Alert variant="warning">Limited storage: {availableStorage} units remains before overload.</Alert>
-      )}
-    </>
-  );
-}
-
-function MarketIntelligenceView() {
-  const transaction = TransactionContext.useSelector((snapshot) => snapshot.context);
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const port = transaction.port ?? context.currentPort;
-  const intLevel = context.marketIntelligence.level;
-  const reliability = calculateIntelligenceReliability(context);
-
-  return (
-    <Box flexDirection="column">
-      <Text bold>Market Intelligence - {port}</Text>
-      <Box height={1} />
-      <Box flexDirection="column">
-        <Text>
-          Intelligence Level: <Text bold>{intLevel === 1 ? "Basic" : intLevel === 2 ? "Standard" : "Exlusive"}</Text>
-        </Text>
-        <Text>
-          Reliability:{" "}
-          <Text color={reliability > 70 ? "green" : reliability > 40 ? "yellow" : "red"}>{reliability}%</Text>
-        </Text>
-      </Box>
-      <Box height={1} />
-      <MarketTable port={port} showPrices={port === context.currentPort || intLevel >= 2} showTrends={intLevel >= 3} />
-    </Box>
-  );
-}
-
-function MarketIntelligencePurchaseView() {
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const currentLevel = context.marketIntelligence.level;
-  const reliability = calculateIntelligenceReliability(context);
-
-  return (
-    <Box flexDirection="column">
-      <Text bold underline>
-        Market Intelligence
-      </Text>
-      <Box height={1} />
-
-      <Box flexDirection="column">
-        <Text>
-          Current Level:{" "}
-          <Text bold>{currentLevel === 1 ? "Basic" : currentLevel === 2 ? "Standard" : "Exclusive"}</Text>
-        </Text>
-        <Text>
-          Reliability:{" "}
-          <Text color={reliability > 70 ? "green" : reliability > 40 ? "yellow" : "red"}>{reliability}%</Text>
-        </Text>
-      </Box>
-
-      <Box height={1} />
-      <Text bold>Available Levels:</Text>
-      <Box flexDirection="column" paddingLeft={2}>
-        <Text>{currentLevel === 1 ? ">" : " "} Basic (Free) - Current port prices only</Text>
-        <Text>
-          {currentLevel === 2 ? ">" : " "} Standard (${getIntelligenceCost(2, context)}) - All ports prices and
-          production info
-        </Text>
-        <Text>
-          {currentLevel === 3 ? ">" : " "} Exclusive (${getIntelligenceCost(3, context)}) - Full market analysis with
-          trends
-        </Text>
-      </Box>
-
-      {context.inOverdraft && (
-        <Box marginTop={1}>
-          <Alert variant="warning">
-            Trading funds limited to ${context.balance + OVERDRAFT_TRADING_LIMIT} due to overdraft
-          </Alert>
-        </Box>
-      )}
-    </Box>
-  );
-}
-
-function GoodsSelectionView({ action }: { action: "buy" | "sell" | "intelligence" }) {
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const isBuying = action === "buy";
-  const isSelling = action === "sell";
-  const inOverdrawn = context.inOverdraft;
-
-  return (
-    <Box flexDirection="column">
-      <Text bold>Market Exchange &middot; {isBuying ? "Purchasing" : isSelling ? "Selling" : "Intelligence"}</Text>
-
-      <Box height={1} />
-
-      <CriticalAlerts />
-
-      <MarketTable
-        port={context.currentPort}
-        showPrices={isBuying}
-        showHoldQuantity={!isBuying}
-        showBulkiness={isBuying}
-      />
-
-      <Box height={1} />
-
-      {isBuying && (
-        <Box>
-          <Text>Available Funds: ${inOverdrawn ? context.balance + OVERDRAFT_TRADING_LIMIT : context.balance}</Text>
-          <Text> | Available Storage: {getAvailableStorage(context.ship)} units</Text>
-        </Box>
-      )}
-    </Box>
-  );
-}
-
-function QuantitySelectionView() {
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const transaction = TransactionContext.useSelector((snapshot) => snapshot.context);
-  const isBuying = transaction.action === "buy";
-  const good = goodsInfo.find((item) => item.name === transaction.good)!;
-  const maxQuantity = isBuying
-    ? Math.min(
-        Math.floor(context.balance / context.prices[context.currentPort][good.name]),
-        Math.floor(getAvailableStorage(context.ship) / good.bulkiness),
-      )
-    : (context.ship.hold.get(good.name) ?? 0);
-  const remainingFunds =
-    context.balance -
-    calculatePrice({
-      prices: context.prices,
-      currentPort: context.currentPort,
-      good: good.name,
-      quantity: transaction.quantity,
-    });
-
-  return (
-    <Box flexGrow={1} flexDirection="column" columnGap={1}>
-      <CriticalAlerts />
-
-      <Box gap={4}>
-        <Box flexDirection="column" gap={1}>
-          <Badge color="whiteBright">{transaction.good}</Badge>
-          <Box flexDirection="column">
-            <Text bold>Market Price:</Text>
-            <Text>
-              $
-              {calculatePrice({
-                prices: context.prices,
-                currentPort: context.currentPort,
-                good: good.name,
-                quantity: 1,
-              })}
-            </Text>
-          </Box>
-          <Box flexDirection="column">
-            <Text bold>Storage Factor:</Text>
-            <Text>
-              {good.bulkiness} ({getBulkinessCategory(good.bulkiness)})
-            </Text>
-          </Box>
-          <Box flexDirection="column">
-            <Text bold>Purchase Limit:</Text>
-            <Text>{maxQuantity} picul</Text>
-          </Box>
-        </Box>
-
-        <Box flexGrow={1} flexDirection="column" borderStyle="single" borderDimColor paddingX={1} gap={1}>
-          <Text bold>Transaction Preview:</Text>
-          <Text>Quantity: {transaction.quantity} picul</Text>
-          <Text>
-            Total Cost: $
-            {calculatePrice({
-              prices: context.prices,
-              currentPort: context.currentPort,
-              good: good.name,
-              quantity: transaction.quantity,
-            })}
-          </Text>
-          <Text>Storage Used: {getStorageUnitsForGood(good.name, transaction.quantity)} units</Text>
-          {isBuying && (
-            <Text>Remaining Funds: {remainingFunds < 0 ? `-$${Math.abs(remainingFunds)}` : `$${remainingFunds}`}</Text>
-          )}
-        </Box>
-      </Box>
     </Box>
   );
 }

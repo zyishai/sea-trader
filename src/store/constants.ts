@@ -32,7 +32,7 @@ export const eventTemplates: EventTemplate[] = [
     type: "weather",
     severity: "moderate",
     baseChance: (context) => Math.min(0.25, 0.15 + (context.ship.speed - BASE_SHIP_SPEED) * 0.015),
-    message: "A storm approaches your vessel. What's your course of action?",
+    message: "A storm approaches your vessel.\nWhat's your course of action?",
     choices: [
       {
         label: "Brave the storm",
@@ -262,10 +262,15 @@ export const distanceMatrix: Record<Port, Record<Port, number>> = {
 } as const;
 export const goodsInfo: { name: Good; basePrice: number; volatility: number; bulkiness: number }[] = [
   { name: "Wheat", basePrice: 25, volatility: 0.1, bulkiness: 1.0 },
-  { name: "Tea", basePrice: 80, volatility: 0.15, bulkiness: 1.4 },
-  { name: "Spices", basePrice: 150, volatility: 0.2, bulkiness: 0.8 },
-  { name: "Opium", basePrice: 300, volatility: 0.25, bulkiness: 0.6 },
-  { name: "Porcelain", basePrice: 45, volatility: 0.05, bulkiness: 1.2 },
+  { name: "Tea", basePrice: 80, volatility: 0.15, bulkiness: 1.0 },
+  { name: "Spices", basePrice: 150, volatility: 0.2, bulkiness: 1.0 },
+  { name: "Opium", basePrice: 300, volatility: 0.25, bulkiness: 1.0 },
+  { name: "Porcelain", basePrice: 45, volatility: 0.05, bulkiness: 1.0 },
+  // { name: "Wheat", basePrice: 25, volatility: 0.1, bulkiness: 1.0 },
+  // { name: "Tea", basePrice: 80, volatility: 0.15, bulkiness: 1.4 },
+  // { name: "Spices", basePrice: 150, volatility: 0.2, bulkiness: 0.8 },
+  // { name: "Opium", basePrice: 300, volatility: 0.25, bulkiness: 0.6 },
+  // { name: "Porcelain", basePrice: 45, volatility: 0.05, bulkiness: 1.2 },
 ] as const;
 
 // Gameplay

@@ -1,4 +1,4 @@
-import { assign, enqueueActions, setup, stateIn } from "xstate";
+import { assign, enqueueActions, setup } from "xstate";
 import { initialContext } from "./defaults.js";
 import { Context, Good } from "./types.js";
 import { GameEvents } from "./events.js";
@@ -14,7 +14,6 @@ import {
   calculateFleetUpgradeCost,
   checkForEvent,
   generatePrices,
-  generateTrends,
   getAvailableStorage,
   getNetCash,
   getShipStatus,
@@ -27,7 +26,6 @@ import {
   canStoreCargo,
   getStorageUnitsForGood,
   getAvailableBufferStorage,
-  getIntelligenceCost,
   updateTrends,
   getNextSeason,
   updatePriceHistory,
@@ -70,52 +68,51 @@ export const gameMachine = setup({
       },
     },
     gameScreen: {
-      initial: "idle",
+      initial: "menu",
       states: {
-        idle: {
-          id: "idle",
+        menu: {
+          id: "mainMenu",
           on: {
             GO_TO_PORT: [
               {
-                guard: ({ context }) => getShipStatus(context.ship.health) === "Wreckage",
-                actions: {
-                  type: "displayMessages",
-                  params: ["Your ship is in wreckage condition.", "You can't travel until you repair it."],
+                meta: {
+                  description: "Check the player can travel (or explore)",
                 },
-              },
-              {
-                guard: ({ context }) => context.day < GOAL_DAYS || context.extendedGame,
-                target: "at_port",
-              },
-              {
+                guard: ({ context }) => context.day >= GOAL_DAYS && !context.extendedGame,
                 actions: {
                   type: "displayMessages",
                   params: [`You've finished your ${GOAL_DAYS} days voyage.`],
                 },
               },
+              { target: "at_port" },
             ],
-            GO_TO_INVENTORY: { target: "viewing_inventory" },
+            GO_TO_MARKET: { target: "at_market" },
             GO_TO_SHIPYARD: { target: "at_shipyard" },
-            GO_TO_RETIREMENT: { target: "at_retirement" },
-            GO_TO_BANKRUPTCY: { target: "at_bankruptcy" },
-            MANAGE_FLEET: { target: "managing_fleet" },
-            EXIT: { target: "at_exit" },
           },
         },
         at_port: {
           entry: assign(({ context }) => ({ availablePorts: ports.filter((p) => p !== context.currentPort) })),
-          initial: "pickDestination",
+          initial: "menu",
           states: {
-            pickDestination: {
+            menu: {
               on: {
-                TRAVEL_TO: {
-                  target: "checkPiratesEncounter",
-                  actions: assign(({ event, context }) => ({
-                    destination: event.destination,
-                    currentEvent: checkForEvent(context),
-                  })),
-                },
-                CANCEL: { target: "#idle" },
+                TRAVEL_TO: [
+                  {
+                    guard: ({ context }) => getShipStatus(context.ship.health) === "Wreckage",
+                    actions: {
+                      type: "displayMessages",
+                      params: ["Your ship is a wreckage.", "You can't travel until you repair it."],
+                    },
+                  },
+                  {
+                    target: "checkPiratesEncounter",
+                    actions: assign(({ event, context }) => ({
+                      destination: event.destination,
+                      currentEvent: checkForEvent(context),
+                    })),
+                  },
+                ],
+                CANCEL: { target: "#mainMenu" },
               },
             },
             checkPiratesEncounter: {
@@ -441,533 +438,381 @@ export const gameMachine = setup({
                   params: ({ context }) => [`Arrived to ${context.currentPort}`],
                 },
               ],
-              always: [{ target: "#idle" }],
+              always: [{ target: "#mainMenu" }],
             },
           },
         },
         at_market: {
-          id: "market",
           entry: assign({ availableGoods: goods }),
-          initial: "menu",
-          states: {
-            menu: {
-              on: {
-                VIEW_MARKET_INTELLIGENCE: { target: "intelligenceAction" },
-                CANCEL: { target: "#idle" },
-              },
-            },
-            intelligenceAction: {
-              initial: "viewing",
-              states: {
-                viewing: {
-                  on: {
-                    START_MARKET_INTELLIGENCE_PURCHASE: { target: "purchasing" },
-                    BACK: { target: "#market.menu" },
-                  },
+          on: {
+            PURCHASE: [
+              {
+                meta: {
+                  description: "Check that player has enough cash",
                 },
-                purchasing: {
-                  on: {
-                    PURCHASE_MARKET_INTELLIGENCE: [
-                      {
-                        guard: ({ context, event }) =>
-                          context.balance + (context.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0) <
-                          getIntelligenceCost(event.level, context),
-                        actions: {
-                          type: "displayMessages",
-                          params: ["You don't have enough money to purchase intelligence"],
-                        },
-                      },
-                      {
-                        actions: [
-                          assign(({ context, event }) => ({
-                            marketIntelligence: {
-                              ...context.marketIntelligence,
-                              level: event.level,
-                              lastPurchase: context.day,
-                              priceUpdates: 0,
-                              trendChanges: 0,
-                              seasonChanges: 0,
-                            },
-                            balance: context.balance - getIntelligenceCost(event.level, context),
-                          })),
-                          {
-                            type: "displayMessages",
-                            params: ({ event }) => [`Purchased intelligence level ${event.level}`],
-                          },
-                        ],
-                        target: "viewing",
-                      },
-                    ],
-                    BACK: { target: "viewing" },
-                  },
-                },
-              },
-              exit: assign(({ context }) => ({
-                marketIntelligence: { ...context.marketIntelligence, port: undefined },
-              })),
-            },
-            buyAction: {
-              id: "buying",
-              on: {
-                PURCHASE: [
-                  {
-                    guard: ({ context, event }) =>
-                      calculatePrice({ ...context, ...event }) >
-                      context.balance + (context.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0),
-                    actions: {
-                      type: "displayMessages",
-                      params: ({ context, event }) => [
-                        `Not enough money. Need $${calculatePrice({ ...context, ...event })} to purchase ${event.quantity} picul of ${event.good.toLowerCase()}`,
-                      ],
-                    },
-                  },
-                  {
-                    guard: ({ context, event }) => !canStoreCargo(context, event.good, event.quantity),
-                    actions: {
-                      type: "displayMessages",
-                      params: ({ context, event }) => [
-                        `Not enough storage space for ${event.quantity} picul of ${event.good.toLowerCase()} (needs ${getStorageUnitsForGood(event.good, event.quantity)} storage units)`,
-                        `Available storage: ${getAvailableStorage(context.ship)} picul (+${getAvailableBufferStorage(context.ship)} overload)`,
-                      ],
-                    },
-                  },
-                  {
-                    actions: [
-                      assign(({ context, event }) => ({
-                        ship: {
-                          ...context.ship,
-                          hold: context.ship.hold.set(
-                            event.good,
-                            (context.ship.hold.get(event.good) ?? 0) + event.quantity,
-                          ),
-                        },
-                        balance: context.balance - calculatePrice({ ...context, ...event }),
-                      })),
-                      {
-                        type: "displayMessages",
-                        params: ({ context, event }) => [
-                          `Purchased ${event.quantity} ${event.good} for $${calculatePrice({
-                            ...context,
-                            ...event,
-                          })}.`,
-                          `You have ${getAvailableStorage(context.ship)} units of storage left.`,
-                        ],
-                      },
-                    ],
-                  },
-                ],
-                // REVIEW: "Cancel" event doesn't seem to work here,
-                // when sending the CANCEL event in this state, it jumps
-                // to the idle state.. seems like it's been handled by the menu's handler
-                // (when printing a message there and here - both messages are displayed
-                // in response to the cancel event)
-                // See the `at_shipyard` state as a working example (the key difference is
-                // the `id` property of the sub-states; Maybe a bug?)
-                BACK: { target: "menu" },
-              },
-            },
-            sellAction: {
-              id: "selling",
-              on: {
-                SELL: [
-                  {
-                    guard: ({ context, event }) => (context.ship.hold.get(event.good) ?? 0) < event.quantity,
-                    actions: {
-                      type: "displayMessages",
-                      params: ({ event }) => [`You don't have enought ${event.good.toLowerCase()} in your hold.`],
-                    },
-                  },
-                  {
-                    actions: [
-                      assign(({ context, event }) => ({
-                        ship: {
-                          ...context.ship,
-                          hold: context.ship.hold.set(
-                            event.good,
-                            (context.ship.hold.get(event.good) ?? 0) - event.quantity,
-                          ),
-                        },
-                        balance: context.balance + calculatePrice({ ...context, ...event }),
-                      })),
-                      {
-                        type: "displayMessages",
-                        params: ({ context, event }) => [
-                          `Sold ${event.quantity} ${event.good} for $${calculatePrice({
-                            ...context,
-                            ...event,
-                          })}.`,
-                          `You have ${getAvailableStorage(context.ship)} units of storage left.`,
-                        ],
-                      },
-                    ],
-                  },
-                ],
-                SELL_ALL: {
-                  target: "#idle",
-                  actions: [
-                    {
-                      type: "displayMessages",
-                      params: ({ context }) => [
-                        `Selling all goods for $${calculateInventoryValue(context)}`,
-                        `You have ${context.ship.capacity} picul of storage left.`,
-                      ],
-                    },
-                    assign(({ context }) => ({
-                      balance: context.balance + calculateInventoryValue(context),
-                      ship: {
-                        ...context.ship,
-                        hold: goods.reduce((map, good) => map.set(good, 0), new Map()),
-                      },
-                    })),
+                guard: ({ context, event }) =>
+                  calculatePrice({ ...context, ...event }) >
+                  context.balance + (context.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0),
+                actions: {
+                  type: "displayMessages",
+                  params: ({ context, event }) => [
+                    `Not enough money. Need $${calculatePrice({ ...context, ...event })} to purchase ${event.quantity} picul of ${event.good.toLowerCase()}`,
                   ],
                 },
-                BACK: { target: "menu" },
               },
+              {
+                meta: {
+                  description: "Check that player has enough cargo space",
+                },
+                guard: ({ context, event }) => !canStoreCargo(context, event.good, event.quantity),
+                actions: {
+                  type: "displayMessages",
+                  params: ({ context, event }) => [
+                    `Not enough storage space for ${event.quantity} picul of ${event.good.toLowerCase()} (needs ${getStorageUnitsForGood(event.good, event.quantity)} storage units)`,
+                    `Available storage: ${getAvailableStorage(context.ship)} piculs (+${getAvailableBufferStorage(context.ship)} overloaded)`,
+                  ],
+                },
+              },
+              {
+                actions: [
+                  assign(({ context, event }) => ({
+                    ship: {
+                      ...context.ship,
+                      hold: context.ship.hold.set(
+                        event.good,
+                        (context.ship.hold.get(event.good) ?? 0) + event.quantity,
+                      ),
+                    },
+                    balance: context.balance - calculatePrice({ ...context, ...event }),
+                  })),
+                  {
+                    type: "displayMessages",
+                    params: ({ context, event }) => [
+                      `Purchased ${event.quantity} piculs of ${event.good} for $${calculatePrice({
+                        ...context,
+                        ...event,
+                      })}.`,
+                      `You have ${getAvailableStorage(context.ship)} units of storage left.`,
+                    ],
+                  },
+                ],
+              },
+            ],
+            SELL: [
+              {
+                meta: {
+                  description: "Check that player has enough to sell",
+                },
+                guard: ({ context, event }) => (context.ship.hold.get(event.good) ?? 0) < event.quantity,
+                actions: {
+                  type: "displayMessages",
+                  params: ({ event }) => [`You don't have enough ${event.good.toLowerCase()} in your hold.`],
+                },
+              },
+              {
+                actions: [
+                  assign(({ context, event }) => ({
+                    ship: {
+                      ...context.ship,
+                      hold: context.ship.hold.set(
+                        event.good,
+                        (context.ship.hold.get(event.good) ?? 0) - event.quantity,
+                      ),
+                    },
+                    balance: context.balance + calculatePrice({ ...context, ...event }),
+                  })),
+                  {
+                    type: "displayMessages",
+                    params: ({ context, event }) => [
+                      `Sold ${event.quantity} piculs of ${event.good} for $${calculatePrice({
+                        ...context,
+                        ...event,
+                      })}.`,
+                      `You have ${getAvailableStorage(context.ship)} units of storage left.`,
+                    ],
+                  },
+                ],
+              },
+            ],
+            SELL_ALL: {
+              actions: [
+                {
+                  type: "displayMessages",
+                  params: ({ context }) => [
+                    `Selling all goods for $${calculateInventoryValue(context)}.`,
+                    `You have ${context.ship.capacity} units of storage left.`,
+                  ],
+                },
+                assign(({ context }) => ({
+                  balance: context.balance + calculateInventoryValue(context),
+                  ship: {
+                    ...context.ship,
+                    hold: goods.reduce((map, good) => map.set(good, 0), new Map()),
+                  },
+                })),
+              ],
             },
+            CANCEL: { target: "#mainMenu" },
           },
         },
         at_shipyard: {
-          initial: "menu",
-          states: {
-            menu: {
-              on: {
-                GO_TO_SHIPYARD_REPAIR: { target: "repairing" },
-                GO_TO_SHIPYARD_UPGRADE: { target: "upgrading" },
-                CANCEL: { target: "#idle" },
+          on: {
+            REPAIR: [
+              {
+                meta: {
+                  description: "Check that player's ship is damaged",
+                },
+                guard: ({ context }) => context.ship.health === 100,
+                actions: { type: "displayMessages", params: ["Your ship is already in perfect condition"] },
               },
-            },
-            repairing: {
-              on: {
-                REPAIR: [
+              {
+                meta: {
+                  description: "Check the player has enough cash",
+                },
+                guard: ({ context, event }) =>
+                  context.balance + (context.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0) < event.cash,
+                actions: { type: "displayMessages", params: ["You don't have enough cash"] },
+              },
+              {
+                actions: [
                   {
-                    guard: ({ context }) => context.ship.health === 100,
-                    actions: { type: "displayMessages", params: ["Your ship is already in perfect condition"] },
+                    type: "displayMessages",
+                    params: ({ context, event }) => {
+                      const damageToRepair = Math.min(
+                        /* ship's damage */ 100 - context.ship.health,
+                        calculateRepairForCost(event.cash, context),
+                      );
+                      return [`Repaired ${damageToRepair} damage`];
+                    },
                   },
-                  {
-                    guard: ({ context, event }) => context.balance < event.cash,
-                    actions: { type: "displayMessages", params: ["You don't have enough cash"] },
-                  },
-                  {
-                    actions: [
-                      {
-                        type: "displayMessages",
-                        params: ({ context, event }) => {
-                          const damageToRepair = Math.min(
-                            /* ship's damage */ 100 - context.ship.health,
-                            calculateRepairForCost(event.cash, context),
-                          );
-                          return [`Repaired ${damageToRepair} damage`];
-                        },
+                  assign(({ context, event }) => {
+                    const damageToRepair = Math.min(
+                      /* ship's damage */ 100 - context.ship.health,
+                      calculateRepairForCost(event.cash, context),
+                    );
+                    const cost = calculateCostForRepair(damageToRepair, context);
+                    return {
+                      balance: context.balance - cost,
+                      ship: {
+                        ...context.ship,
+                        health: context.ship.health + damageToRepair,
                       },
-                      assign(({ context, event }) => {
-                        const damageToRepair = Math.min(
-                          /* ship's damage */ 100 - context.ship.health,
-                          calculateRepairForCost(event.cash, context),
-                        );
-                        const cost = calculateCostForRepair(damageToRepair, context);
-                        return {
-                          balance: context.balance - cost,
-                          ship: {
-                            ...context.ship,
-                            health: context.ship.health + damageToRepair,
-                          },
-                        };
-                      }),
-                    ],
-                    target: "#idle",
-                  },
+                    };
+                  }),
                 ],
-                CANCEL: { target: "menu" },
               },
-            },
-            upgrading: {
-              on: {
-                UPGRADE_SHIP: [
-                  {
-                    guard: ({ context, event }) => !canAffordUpgrade(event.upgradeType, context),
-                    actions: [{ type: "displayMessages", params: ["Not enough money for this upgrade."] }],
-                  },
-                  {
-                    actions: [
-                      assign(({ context, event }) => {
-                        const upgrade = getNextUpgrade(event.upgradeType, context);
+            ],
+            UPGRADE_SHIP: [
+              {
+                meta: {
+                  description: "Check the player has enough cash",
+                },
+                guard: ({ context, event }) => !canAffordUpgrade(event.upgradeType, context),
+                actions: [{ type: "displayMessages", params: ["Not enough money for this upgrade."] }],
+              },
+              {
+                actions: [
+                  assign(({ context, event }) => {
+                    const upgrade = getNextUpgrade(event.upgradeType, context);
 
-                        if (!upgrade) return context;
+                    if (!upgrade) return context;
 
-                        return {
-                          ship: {
-                            ...context.ship,
-                            // @ts-expect-error ts can't infer exact type
-                            [event.upgradeType]: upgrade[event.upgradeType],
-                          },
-                          balance: context.balance - upgrade.cost,
-                        };
-                      }),
-                      {
-                        type: "displayMessages",
-                        params: ({ event }) => [`Upgrade ship's ${event.upgradeType} completed!`],
+                    return {
+                      ship: {
+                        ...context.ship,
+                        // @ts-expect-error ts can't infer exact type
+                        [event.upgradeType]: upgrade[event.upgradeType],
                       },
-                    ],
+                      balance: context.balance - upgrade.cost,
+                    };
+                  }),
+                  {
+                    type: "displayMessages",
+                    params: ({ event }) => [`Upgrade ship's ${event.upgradeType} completed!`],
                   },
                 ],
-                CANCEL: { target: "menu" },
               },
-            },
-          },
-        },
-        at_retirement: {
-          on: {
-            CANCEL: { target: "#idle" },
-          },
-        },
-        at_bankruptcy: {
-          on: {
-            CANCEL: { target: "#idle" },
-          },
-        },
-        viewing_inventory: {
-          on: {
-            CANCEL: { target: "#idle" },
-          },
-        },
-        managing_fleet: {
-          initial: "menu",
-          states: {
-            menu: {
-              on: {
-                GO_TO_GUARD_HALL_HIRE: [
-                  {
-                    guard: ({ context }) => context.guardFleet.ships >= MAX_GUARD_SHIPS,
-                    actions: {
-                      type: "displayMessages",
-                      params: [`Your fleet is at maximum capacity (${MAX_GUARD_SHIPS} ships)`],
-                    },
-                  },
-                  { target: "hireShips" },
-                ],
-                GO_TO_GUARD_HALL_UPGRADE: [
-                  {
-                    guard: ({ context }) => context.guardFleet.quality >= MAX_GUARD_QUALITY,
-                    actions: {
-                      type: "displayMessages",
-                      params: ["Your fleet is already at maximum quality"],
-                    },
-                  },
-                  {
-                    guard: ({ context }) => context.guardFleet.ships === 0,
-                    actions: {
-                      type: "displayMessages",
-                      params: ["You don't have any guard ships to upgrade"],
-                    },
-                  },
-                  { target: "upgradeFleet" },
-                ],
-                GO_TO_GUARD_HALL_DISMISS: [
-                  {
-                    guard: ({ context }) => context.guardFleet.ships === 0,
-                    actions: {
-                      type: "displayMessages",
-                      params: ["You don't have any guard ships to dismiss"],
-                    },
-                  },
-                  { target: "dismissShips" },
-                ],
-                CANCEL: { target: "#idle" },
+            ],
+            HIRE_PERMANENT_GUARDS: [
+              {
+                meta: {
+                  description: "Check the player's fleet is not at maximum capacity",
+                },
+                guard: ({ context }) => context.guardFleet.ships >= MAX_GUARD_SHIPS,
+                actions: {
+                  type: "displayMessages",
+                  params: [`Your fleet is at maximum capacity (${MAX_GUARD_SHIPS} ships)`],
+                },
               },
-            },
-            hireShips: {
-              on: {
-                HIRE_PERMANENT_GUARDS: [
-                  {
-                    guard: ({ context }) => context.guardFleet.ships >= MAX_GUARD_SHIPS,
-                    actions: {
-                      type: "displayMessages",
-                      params: [`Your fleet is at maximum capacity (${MAX_GUARD_SHIPS} ships)`],
-                    },
-                    target: "menu",
-                  },
-                  {
-                    guard: ({ context, event }) => {
-                      const totalShips = context.guardFleet.ships + event.amount;
-                      return totalShips > MAX_GUARD_SHIPS;
-                    },
-                    actions: {
-                      type: "displayMessages",
-                      params: [`Cannot hire that many ships. Maximum fleet size is ${MAX_GUARD_SHIPS} ships`],
-                    },
-                  },
-                  {
-                    guard: ({ context, event }) => {
-                      const cost = calculateGuardShipCost(context, event.amount);
-                      return context.balance < cost;
-                    },
-                    actions: {
-                      type: "displayMessages",
-                      params: ({ context, event }) => {
-                        const cost = calculateGuardShipCost(context, event.amount);
-                        return [`Not enough money. Need $${cost} to hire ${event.amount} ships`];
-                      },
-                    },
-                  },
-                  {
-                    actions: [
-                      assign(({ context, event }) => {
-                        const cost = calculateGuardShipCost(context, event.amount);
-                        return {
-                          guardFleet: {
-                            ...context.guardFleet,
-                            ships: context.guardFleet.ships + event.amount,
-                            lastMaintenanceDay: context.day,
-                          },
-                          balance: context.balance - cost,
-                          reputation: Math.min(100, context.reputation + event.amount),
-                        };
-                      }),
-                      {
-                        type: "displayMessages",
-                        params: ({ event }) => [`Hired ${event.amount} permanent guard ships`],
-                      },
-                    ],
-                    target: "#idle",
-                  },
-                ],
-                CANCEL: { target: "menu" },
+              {
+                meta: {
+                  description: "Check the player doesn't hire more guards than his maximum fleet capacity",
+                },
+                guard: ({ context, event }) => {
+                  const totalShips = context.guardFleet.ships + event.amount;
+                  return totalShips > MAX_GUARD_SHIPS;
+                },
+                actions: {
+                  type: "displayMessages",
+                  params: [`Cannot hire that many ships. Maximum fleet size is ${MAX_GUARD_SHIPS} ships`],
+                },
               },
-            },
-            upgradeFleet: {
-              on: {
-                UPGRADE_GUARDS: [
-                  {
-                    guard: ({ context }) => {
-                      const cost = calculateFleetUpgradeCost(context);
-                      return context.balance < cost;
-                    },
-                    actions: {
-                      type: "displayMessages",
-                      params: ({ context }) => {
-                        const cost = calculateFleetUpgradeCost(context);
-                        return [`Not enough money. Need $${cost} to upgrade fleet`];
-                      },
-                    },
-                    target: "menu",
+              {
+                meta: {
+                  description: "Check the player has enough cash",
+                },
+                guard: ({ context, event }) => {
+                  const cost = calculateGuardShipCost(context, event.amount);
+                  return context.balance + (context.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0) < cost;
+                },
+                actions: {
+                  type: "displayMessages",
+                  params: ({ context, event }) => {
+                    const cost = calculateGuardShipCost(context, event.amount);
+                    return [`Not enough cash. Need $${cost} to hire ${event.amount} ships`];
                   },
-                  {
-                    actions: [
-                      assign(({ context }) => {
-                        const cost = calculateFleetUpgradeCost(context);
-                        return {
-                          guardFleet: {
-                            ...context.guardFleet,
-                            quality: context.guardFleet.quality + 1,
-                          },
-                          balance: context.balance - cost,
-                        };
-                      }),
-                      {
-                        type: "displayMessages",
-                        params: ({ context }) => [`Fleet upgraded to quality level ${context.guardFleet.quality}`],
-                      },
-                    ],
-                    target: "#idle",
-                  },
-                ],
-                CANCEL: { target: "menu" },
+                },
               },
-            },
-            dismissShips: {
-              on: {
-                DISMISS_GUARDS: {
-                  actions: [
-                    assign(({ context, event }) => ({
+              {
+                actions: [
+                  assign(({ context, event }) => {
+                    const cost = calculateGuardShipCost(context, event.amount);
+                    return {
                       guardFleet: {
                         ...context.guardFleet,
-                        ships: Math.max(0, context.guardFleet.ships - event.amount),
+                        ships: context.guardFleet.ships + event.amount,
+                        lastMaintenanceDay: context.day,
                       },
-                      reputation: Math.max(0, context.reputation - event.amount * 2),
-                    })),
-                    {
-                      type: "displayMessages",
-                      params: ({ event }) => [`Dismissed ${event.amount} guard ships`],
-                    },
-                  ],
-                  target: "#idle",
-                },
-                CANCEL: { target: "menu" },
+                      balance: context.balance - cost,
+                      reputation: Math.min(100, context.reputation + event.amount),
+                    };
+                  }),
+                  {
+                    type: "displayMessages",
+                    params: ({ event }) => [`Hired ${event.amount} permanent guard ships`],
+                  },
+                ],
               },
-            },
-          },
-        },
-        at_exit: {
-          on: {
-            CANCEL: { target: "#idle" },
+            ],
+            UPGRADE_GUARDS: [
+              {
+                meta: {
+                  description: "Check the player has guard ships",
+                },
+                guard: ({ context }) => context.guardFleet.ships === 0,
+                actions: {
+                  type: "displayMessages",
+                  params: ["You don't have any guard ships to upgrade"],
+                },
+              },
+              {
+                meta: {
+                  description: "Check the fleet can upgrade",
+                },
+                guard: ({ context }) => context.guardFleet.quality >= MAX_GUARD_QUALITY,
+                actions: {
+                  type: "displayMessages",
+                  params: ["Your fleet is already at maximum quality"],
+                },
+              },
+              {
+                meta: {
+                  description: "Check the player has enough cash",
+                },
+                guard: ({ context }) => {
+                  const cost = calculateFleetUpgradeCost(context);
+                  return context.balance < cost;
+                },
+                actions: {
+                  type: "displayMessages",
+                  params: ({ context }) => {
+                    const cost = calculateFleetUpgradeCost(context);
+                    return [`Not enough cash. Need $${cost} to upgrade fleet`];
+                  },
+                },
+                target: "menu",
+              },
+              {
+                actions: [
+                  assign(({ context }) => {
+                    const cost = calculateFleetUpgradeCost(context);
+                    return {
+                      guardFleet: {
+                        ...context.guardFleet,
+                        quality: context.guardFleet.quality + 1,
+                      },
+                      balance: context.balance - cost,
+                    };
+                  }),
+                  {
+                    type: "displayMessages",
+                    params: ({ context }) => [`Fleet upgraded to quality level ${context.guardFleet.quality}!`],
+                  },
+                ],
+              },
+            ],
+            DISMISS_GUARDS: [
+              {
+                meta: {
+                  description: "Check the player has guard ships",
+                },
+                guard: ({ context }) => context.guardFleet.ships === 0,
+                actions: {
+                  type: "displayMessages",
+                  params: ["You don't have any guard ships to dismiss"],
+                },
+              },
+              {
+                actions: [
+                  assign(({ context, event }) => ({
+                    guardFleet: {
+                      ...context.guardFleet,
+                      ships: Math.max(0, context.guardFleet.ships - event.amount),
+                    },
+                    reputation: Math.max(0, context.reputation - event.amount * 2),
+                  })),
+                  {
+                    type: "displayMessages",
+                    params: ({ event }) => [`Dismissed ${event.amount} guard ships`],
+                  },
+                ],
+              },
+            ],
+            CANCEL: { target: "#mainMenu" },
           },
         },
       },
       on: {
         MSG_ACK: { actions: { type: "acknoledgeMessage" } },
-        GO_TO_MARKET: [
-          {
-            guard: () => !stateIn({ gamescreen: "viewing_inventory" }) && !stateIn({ gamescreen: "idle" }),
-            actions: {
-              type: "displayMessages",
-              params: ["You can't go to the market"],
-            },
-          },
-          { target: "#market" },
-        ],
-        START_BUYING: [
-          {
-            guard: ({ context }) =>
-              context.availableGoods.every(
-                (good) =>
-                  context.prices[context.currentPort][good] >
-                  context.balance + (context.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0),
-              ),
-            actions: {
-              type: "displayMessages",
-              params: ["You don't have enough money to buy any goods."],
-            },
-          },
-          { target: "#buying" },
-        ],
-        START_SELLING: [
-          {
-            guard: ({ context }) => [...context.ship.hold.values()].every((value) => value === 0),
-            actions: {
-              type: "displayMessages",
-              params: ["You don't have any goods to sell."],
-            },
-          },
-          { target: "#selling" },
-        ],
         DECLARE_BANKRUPTCY: [
           {
+            meta: {
+              description: "Check if the player is actually bankrupt",
+            },
             guard: ({ context }) => context.balance > 0,
             actions: { type: "displayMessages", params: ["You're not bankrupt!"] },
-            target: "#idle",
+            target: "#mainMenu",
           },
           { target: "scoringScreen" },
         ],
         RETIRE: [
           {
-            guard: ({ context }) => !context.canRetire || !stateIn({ gamescreen: "at_retirement" }),
+            meta: {
+              description: "Make sure the player can retire",
+            },
+            guard: ({ context }) => !context.canRetire,
             actions: { type: "displayMessages", params: ["You haven't finished your voyage yet"] },
-            target: "#idle",
+            target: "#mainMenu",
           },
           { target: "scoringScreen" },
         ],
       },
-      /**NOTE
-       * Time-based opportunities:
-       * - When an opportunity is accepted - every trip, reduce the trip duration from the `timeLimit` and if the result is <= 0
-       * and the player has not fullfilled the opportunity, the opportunity is failed.
-       */
       always: [
         // Check if the ship is in wreckage condition and the player does not have enough money to repair it, game over
         {
           guard: ({ context }) =>
             getShipStatus(context.ship.health) === "Wreckage" &&
-            context.day < GOAL_DAYS &&
+            context.day < GOAL_DAYS && // Make sure the player can't retire yet
             getShipStatus(calculateRepairForCost(getNetCash(context), context) + context.ship.health) === "Wreckage",
           actions: {
             type: "displayMessages",
@@ -1065,9 +910,9 @@ export const gameMachine = setup({
                   "You're in overdraft.",
                   "Interest will be charged at 3% per day.",
                   context.guardFleet.ships > 0
-                    ? `Since you can't pay fleet maintenance fee,\nyou fleet effectiveness is reduced.`
+                    ? `Since you can't pay fleet maintenance fee, you fleet effectiveness is reduced.`
                     : "",
-                  `Be carefull your debt won't exceed -$${Math.abs(BANKRUPTCY_THRESHOLD)},\notherwise you'll go bankrupt!`,
+                  `Be carefull your debt won't exceed -$${Math.abs(BANKRUPTCY_THRESHOLD)}, otherwise you'll go bankrupt!`,
                 ].filter(Boolean),
             },
           ],
