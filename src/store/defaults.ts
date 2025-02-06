@@ -9,7 +9,7 @@ import {
   SEASON_LENGTH,
   seasons,
 } from "./constants.js";
-import { Context, GameSettings, Good, Port, PriceHistory } from "./types.js";
+import { Context, GameSettings, Good, Port, PriceHistory, Range } from "./types.js";
 import { generatePrices, generateTrends } from "./utils.js";
 
 export const initialContext = (settings?: GameSettings) => {
@@ -19,7 +19,7 @@ export const initialContext = (settings?: GameSettings) => {
   const initialPrices = generatePrices(trends, season);
 
   const emptyPriceHistory = {} as Record<Port, Record<Good, PriceHistory[]>>;
-  const emptyTypicalRanges = {} as Record<Port, Record<Good, { min: number; max: number }>>;
+  const emptyTypicalRanges = {} as Record<Port, Record<Good, Range>>;
 
   ports.forEach((port) => {
     // @ts-expect-error temporary value
@@ -31,6 +31,7 @@ export const initialContext = (settings?: GameSettings) => {
       emptyTypicalRanges[port][good] = {
         min: initialPrices[port][good],
         max: initialPrices[port][good],
+        mean: initialPrices[port][good],
       };
     });
   });

@@ -1,15 +1,5 @@
-import {
-  EventTemplate,
-  Good,
-  MarketSize,
-  MerchantTip,
-  Port,
-  PortSpecialization,
-  Season,
-  TrendInfo,
-  TrendStrength,
-} from "./types.js";
-import { getNetCash, getNextSeason, joinWords } from "./utils.js";
+import { EventTemplate, Good, MarketSize, Port, PortSpecialization, Season, TrendStrength } from "./types.js";
+import { getNetCash } from "./utils.js";
 
 export const goods = ["Wheat", "Tea", "Spices", "Opium", "Porcelain"] as const;
 export const ports = ["Hong Kong", "Shanghai", "Nagasaki", "Singapore", "Manila"] as const;
@@ -367,41 +357,6 @@ export const MARKET_SIZE_FACTORS: Record<MarketSize, number> = {
   Medium: 1,
   Large: 0.95, // Lower prices, more stable
 };
-export const merchantTipTemplate: MerchantTip[] = [
-  {
-    minRep: 30,
-    getMessage: (context) => {
-      const spec = PORT_SPECIALIZATIONS[context.currentPort];
-      return spec.tradingHub
-        ? "Prices here are more stable than other ports."
-        : spec.producedGoods.length > 0
-          ? `Local merchants specialize in ${joinWords(spec.producedGoods)}.`
-          : undefined;
-    },
-  },
-  {
-    minRep: 60,
-    getMessage: (context) => {
-      const nextSeason = getNextSeason(context.currentSeason);
-      const affectedGoods = Object.entries(SEASONAL_EFFECTS[nextSeason])
-        .filter(([_, factor]) => factor > 1)
-        .map(([good]) => good);
-      return `${joinWords(affectedGoods)} will be in higher demand next season.`;
-    },
-  },
-  {
-    minRep: 85,
-    getMessage: (context) => {
-      type Trend = TrendInfo & { good: Good };
-      const mostReliableTrend = Object.entries(context.trends[context.currentPort]).reduce(
-        (acc, [good, info]) => (info.reliability > (acc?.reliability ?? 0) ? { good: good as Good, ...info } : acc),
-        {} as Trend,
-      );
-      if (!mostReliableTrend) return;
-      return `${mostReliableTrend.good} prices are ${mostReliableTrend.direction} (${mostReliableTrend.strength}).`;
-    },
-  },
-];
 
 // Guard Ships
 export const MAX_GUARD_SHIPS = 10;

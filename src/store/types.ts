@@ -49,17 +49,24 @@ export type TrendInfo = {
 export type Season = (typeof seasons)[number];
 export type GoodInfo = (typeof goodsInfo)[number];
 export type MarketInfoLevel = 1 | 2 | 3;
-export type MerchantTip = {
-  minRep: number;
-  getMessage(context: Context): string | undefined;
-};
 
-// Context
+// Intelligence
 export type PriceHistory = {
   price: number;
   day: number;
   season: Season;
 };
+export type Range = {
+  min: number;
+  max: number;
+  mean: number;
+};
+export type MerchantTip = {
+  priority: number;
+  message: string;
+};
+
+// Context
 export type Context = {
   // Game-wide context
   currentPort: Port;
@@ -85,7 +92,7 @@ export type Context = {
     priceUpdates: number;
     analysis: {
       priceHistory: Record<Port, Record<Good, PriceHistory[]>>;
-      typicalRanges: Record<Port, Record<Good, { min: number; max: number }>>;
+      typicalRanges: Record<Port, Record<Good, Range>>;
     };
   };
   nextPriceUpdate: number;

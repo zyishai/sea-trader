@@ -94,7 +94,7 @@ function MarketOverview() {
       {merchantTip ? (
         <Box flexDirection="column">
           <Text color="green">Merchant Tip:</Text>
-          <Text>&ldquo;{merchantTip}&rdquo;</Text>
+          <Text>&ldquo;{merchantTip.message}&rdquo;</Text>
         </Box>
       ) : (
         <Box flexDirection="column">
