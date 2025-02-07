@@ -1,14 +1,108 @@
-import { EventTemplate, Good, MarketSize, Port, PortSpecialization, Season, TrendStrength } from "./types.js";
+import {
+  EventTemplate,
+  EventType,
+  Good,
+  MarketSize,
+  Port,
+  PortSpecialization,
+  Season,
+  TrendStrength,
+} from "./types.js";
 import { getNetCash } from "./utils.js";
 
 export const goods = ["Wheat", "Tea", "Spices", "Opium", "Porcelain"] as const;
 export const ports = ["Hong Kong", "Shanghai", "Nagasaki", "Singapore", "Manila"] as const;
 export const seasons = ["Spring", "Summer", "Autumn", "Winter"] as const;
+export const seasonEventEffects: Record<Season, Partial<Record<EventType, number>>> = {
+  Spring: {
+    weather: 1.2,
+    discovery: 1.3,
+  },
+  Summer: {
+    weather: 0.8,
+    market: 1.2,
+  },
+  Autumn: {
+    weather: 1.4,
+    cargo: 1.2,
+  },
+  Winter: {
+    weather: 1.3,
+    discovery: 0.7,
+    cargo: 1.3,
+  },
+};
 // NOTE: The destination gets set in the `traveling` state, if an event changes the course
 // of the travel, then update the `destination`. If an event returns the player back to its
 // home port, then either update the `destination` to be the same as `currentPort`,
 // or set `destination` to `undefined`.
 export const eventTemplates: EventTemplate[] = [
+  {
+    type: "weather",
+    severity: "major",
+    baseChance: (context) => (context.currentSeason === "Winter" ? 0.25 : 0.1),
+    message: "A freezing winter storm approaches! Your crew suggests finding shelter.",
+    choices: [
+      {
+        label: "Push through",
+        key: "P",
+        effect: (context) => {
+          const baseSuccess = context.currentSeason === "Winter" ? 0.3 : 0.5;
+          const healthFactor = context.ship.health / 100;
+          const success = Math.random() < baseSuccess * healthFactor;
+
+          if (success) {
+            return {
+              reputation: Math.min(100, context.reputation + 8),
+              messages: [...context.messages, ["Your crew's bravery in facing the storm has earned you respect!"]],
+            };
+          }
+
+          const damage =
+            context.currentSeason === "Winter"
+              ? Math.floor(Math.random() * 25) + 15 // 15-40 damage
+              : Math.floor(Math.random() * 15) + 10; // 10-25 damage
+          const guardDamage = context.guardFleet.ships > 0 ? Math.floor(damage * 0.7) : 0;
+          return {
+            ship: {
+              ...context.ship,
+              health: Math.max(0, context.ship.health - damage),
+            },
+            guardFleet:
+              guardDamage > 0
+                ? {
+                    ...context.guardFleet,
+                    damage: context.guardFleet.damage + guardDamage,
+                  }
+                : context.guardFleet,
+            messages: [
+              ...context.messages,
+              [
+                `The harsh weather caused ${damage} damage to your ship${guardDamage ? ` and ${guardDamage} damage to your guard fleet` : ""}.`,
+              ],
+            ],
+          };
+        },
+      },
+      {
+        label: "Seek shelter (costs $300)",
+        key: "S",
+        effect: (context) => ({
+          balance: context.balance - 300,
+          day: context.day + 2,
+          messages: [...context.messages, ["You paid for safe harbor and waited out the storm."]],
+        }),
+      },
+      {
+        label: "Take a long detour",
+        key: "D",
+        effect: (context) => ({
+          day: context.day + 4,
+          messages: [...context.messages, ["You avoided the storm but lost significant time navigating around it."]],
+        }),
+      },
+    ],
+  },
   {
     type: "weather",
     severity: "minor",

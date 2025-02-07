@@ -20,6 +20,7 @@ import {
   ports,
   SEASON_LENGTH,
   SEASONAL_EFFECTS,
+  seasonEventEffects,
   seasons,
   SPEED_UPGRADES,
   TREND_DIRECTION,
@@ -65,6 +66,9 @@ export const calculateGuardEffectiveness = (context: Context) => {
 export const calculateEventChance = (template: EventTemplate, context: Context) => {
   let chance = typeof template.baseChance === "number" ? template.baseChance : template.baseChance(context);
   const speedFactor = Math.max(1, 1 - (context.ship.speed - 8) / 24);
+
+  const seasonalModifier = seasonEventEffects[context.currentSeason]?.[template.type] ?? 1;
+  chance *= seasonalModifier;
 
   switch (template.type) {
     case "weather": {
