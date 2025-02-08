@@ -367,26 +367,26 @@ export const BASE_SHIP_CAPACITY = 120; // In tons burden
 export const CAPACITY_UPGRADES = [
   { capacity: 180, cost: 2000 },
   { capacity: 240, cost: 3500 },
-  { capacity: 320, cost: 5000 },
+  { capacity: 320, cost: 5000, reputation: 5 },
   { capacity: 400, cost: 8000 },
-  { capacity: 500, cost: 12_000 },
-  { capacity: 650, cost: 25_000 },
+  { capacity: 500, cost: 12_000, reputation: 8 },
+  { capacity: 650, cost: 25_000, reputation: 10 },
 ] as const;
 export const BASE_SHIP_SPEED = 8; // In knots
 export const SPEED_UPGRADES = [
   { speed: 10, cost: 1500 },
   { speed: 12, cost: 2500 },
-  { speed: 14, cost: 4000 },
+  { speed: 14, cost: 4000, reputation: 5 },
   { speed: 16, cost: 6000 },
   { speed: 18, cost: 9000 },
-  { speed: 20, cost: 15_000 },
+  { speed: 20, cost: 15_000, reputation: 10 },
 ] as const;
 export const BASE_SHIP_DEFENSE = 5;
 export const DEFENSE_UPGRADES = [
   { defense: 20, cost: 1200 },
-  { defense: 35, cost: 3000 },
-  { defense: 55, cost: 6000 },
-  { defense: 80, cost: 12_000 },
+  { defense: 35, cost: 3000, reputation: 5 },
+  { defense: 55, cost: 6000, reputation: 8 },
+  { defense: 80, cost: 12_000, reputation: 10 },
 ] as const;
 export const MAX_SHIP_DEFENSE = DEFENSE_UPGRADES[DEFENSE_UPGRADES.length - 1]!.defense;
 export const DAMAGE_REPAIR_COST_PER_UNIT = 75;

@@ -617,6 +617,12 @@ export const gameMachine = setup({
 
                     if (!upgrade) return context;
 
+                    const messages = [`Upgrade ship's ${event.upgradeType} completed!`];
+
+                    if ("reputation" in upgrade) {
+                      messages.push(`Your ship improvements have earned you ${upgrade.reputation} reputation points!`);
+                    }
+
                     return {
                       ship: {
                         ...context.ship,
@@ -624,12 +630,13 @@ export const gameMachine = setup({
                         [event.upgradeType]: upgrade[event.upgradeType],
                       },
                       balance: context.balance - upgrade.cost,
+                      messages: [...context.messages, messages],
+                      reputation: Math.min(
+                        100,
+                        context.reputation + ("reputation" in upgrade ? upgrade.reputation : 0),
+                      ),
                     };
                   }),
-                  {
-                    type: "displayMessages",
-                    params: ({ event }) => [`Upgrade ship's ${event.upgradeType} completed!`],
-                  },
                 ],
               },
             ],
