@@ -31,20 +31,22 @@ export function MarketView() {
         </Box>
       </Box>
 
-      <Box flexDirection="column" borderStyle="single">
-        <Text bold>Prices in {context.currentPort}</Text>
-        <Box flexDirection="column" paddingLeft={3}>
-          <Columns
-            columns={2}
-            data={Object.entries(context.prices[context.currentPort]).map(([good, price], index) => [
-              good,
-              <Box key={index} flexDirection="column" alignItems="flex-end">
-                <Text>{displayMonetaryValue(price)}</Text>
-              </Box>,
-            ])}
-          />
+      {snapshot.matches("compare_prices") ? null : (
+        <Box flexDirection="column" borderStyle="single">
+          <Text bold>Prices in {context.currentPort}</Text>
+          <Box flexDirection="column" paddingLeft={3}>
+            <Columns
+              columns={2}
+              data={Object.entries(context.prices[context.currentPort]).map(([good, price], index) => [
+                good,
+                <Box key={index} flexDirection="column" alignItems="flex-end">
+                  <Text>{displayMonetaryValue(price)}</Text>
+                </Box>,
+              ])}
+            />
+          </Box>
         </Box>
-      </Box>
+      )}
 
       {snapshot.matches("menu") ? (
         <MarketOverview />

@@ -8,7 +8,6 @@ import {
   Season,
   TrendStrength,
 } from "./types.js";
-import { getNetCash } from "./utils.js";
 
 export const goods = ["Wheat", "Tea", "Spices", "Opium", "Porcelain"] as const;
 export const ports = ["Hong Kong", "Shanghai", "Nagasaki", "Singapore", "Manila"] as const;
@@ -32,66 +31,64 @@ export const seasonEventEffects: Record<Season, Partial<Record<EventType, number
     cargo: 1.3,
   },
 };
-// NOTE: The destination gets set in the `traveling` state, if an event changes the course
-// of the travel, then update the `destination`. If an event returns the player back to its
-// home port, then either update the `destination` to be the same as `currentPort`,
-// or set `destination` to `undefined`.
-export const eventTemplates: EventTemplate[] = [
+const weatherEvents: EventTemplate[] = [
   {
     type: "weather",
     severity: "major",
-    baseChance: (context) => (context.currentSeason === "Winter" ? 0.25 : 0.1),
+    baseChance: (context) => (context.currentSeason === "Winter" ? 0.2 : 0.08),
     message: "A freezing winter storm approaches! Your crew suggests finding shelter.",
     choices: [
       {
         label: "Push through",
         key: "P",
         effect: (context) => {
-          const baseSuccess = context.currentSeason === "Winter" ? 0.3 : 0.5;
-          const healthFactor = context.ship.health / 100;
-          const success = Math.random() < baseSuccess * healthFactor;
+          const baseSuccess = 0.4 + context.ship.health / 200;
+          const success = Math.random() < baseSuccess;
 
           if (success) {
+            const reputationGain = Math.round(5 + (context.day / GOAL_DAYS) * 5);
             return {
-              reputation: Math.min(100, context.reputation + 8),
-              messages: [...context.messages, ["Your crew's bravery in facing the storm has earned you respect!"]],
+              reputation: Math.min(100, context.reputation + reputationGain),
+              messages: [
+                ...context.messages,
+                [
+                  "Your crew's bravery in facing the storm has earned you respect!",
+                  `Gained ${reputationGain} reputation.`,
+                ],
+              ],
             };
           }
 
-          const damage =
-            context.currentSeason === "Winter"
-              ? Math.floor(Math.random() * 25) + 15 // 15-40 damage
-              : Math.floor(Math.random() * 15) + 10; // 10-25 damage
-          const guardDamage = context.guardFleet.ships > 0 ? Math.floor(damage * 0.7) : 0;
+          const baseDamage = Math.floor(Math.random() * 20) + 15; // 15-35 damage
+          const seasonMultiplier = context.currentSeason === "Winter" ? 1.3 : 1;
+          const damage = Math.round(baseDamage * seasonMultiplier);
           return {
             ship: {
               ...context.ship,
               health: Math.max(0, context.ship.health - damage),
             },
-            guardFleet:
-              guardDamage > 0
-                ? {
-                    ...context.guardFleet,
-                    damage: context.guardFleet.damage + guardDamage,
-                  }
-                : context.guardFleet,
+            reputation: Math.max(0, context.reputation - 3),
             messages: [
               ...context.messages,
               [
-                `The harsh weather caused ${damage} damage to your ship${guardDamage ? ` and ${guardDamage} damage to your guard fleet` : ""}.`,
+                `The harsh weather caused ${damage} damage to your ship.`,
+                "Some question your judgment in challenging such weather..",
               ],
             ],
           };
         },
       },
       {
-        label: "Seek shelter (costs $300)",
+        label: "Seek shelter (costs $200-400)",
         key: "S",
-        effect: (context) => ({
-          balance: context.balance - 300,
-          day: context.day + 2,
-          messages: [...context.messages, ["You paid for safe harbor and waited out the storm."]],
-        }),
+        effect: (context) => {
+          const harborFee = Math.round(200 * (1 + context.day / GOAL_DAYS));
+          return {
+            balance: context.balance - harborFee,
+            day: context.day + 2,
+            messages: [...context.messages, [`Paid $${harborFee} for safe harbor and waited out the storm.`]],
+          };
+        },
       },
       {
         label: "Take a long detour",
@@ -116,7 +113,7 @@ export const eventTemplates: EventTemplate[] = [
     type: "weather",
     severity: "moderate",
     baseChance: (context) => Math.min(0.25, 0.15 + (context.ship.speed - BASE_SHIP_SPEED) * 0.015),
-    message: "A storm approaches your vessel.\nWhat's your course of action?",
+    message: "A storm approaches your vessel. What's your course of action?",
     choices: [
       {
         label: "Brave the storm",
@@ -150,7 +147,7 @@ export const eventTemplates: EventTemplate[] = [
     type: "weather",
     severity: "major",
     baseChance: 0.18,
-    message: "A typhoon has been spotted ahead!\nSeeking shelter will cost 200 silver dollars in harbor fees.",
+    message: "A typhoon has been spotted ahead! Seeking shelter will cost 200 silver dollars in harbor fees.",
     choices: [
       {
         label: "Pay harbor fees (200 silver dollars)",
@@ -209,22 +206,55 @@ export const eventTemplates: EventTemplate[] = [
       };
     },
   },
+];
+const cargoEvents: EventTemplate[] = [
   {
     type: "cargo",
     severity: "minor",
-    baseChance: (context) => ([...context.ship.hold.values()].some((quantity) => quantity > 0) ? 0.15 : 0),
-    message: "Your crew reports cargo stability issues\ndue to poor loading at port.",
+    baseChance: (context) => {
+      const cargoLoad = [...context.ship.hold.values()].reduce((sum, qty) => sum + qty, 0);
+      const capacityRatio = cargoLoad / context.ship.capacity;
+      return Math.min(0.25, 0.15 + capacityRatio * 0.2);
+    },
+    message: "Your crew reports cargo stability issues due to poor loading at port.",
     choices: [
       {
         label: "Take time to redistribute the load",
         key: "R",
-        effect: (context) => ({
-          day: context.day + 1,
-          messages: [...context.messages, ["You spent a day rebalancing the cargo."]],
-        }),
+        effect: (context) => {
+          const success = Math.random() < 0.8;
+          if (success) {
+            return {
+              day: context.day + 1,
+              reputation: Math.min(100, context.reputation + 2),
+              messages: [
+                ...context.messages,
+                [
+                  "You spent a day rebalancing the cargo.",
+                  "The crew's efficiency impressed local merchants (+2 reputation).",
+                ],
+              ],
+            };
+          }
+
+          const lossRatio = 0.1 + Math.random() * 0.15; // 0.1-0.25
+          const goodsInHold = [...context.ship.hold.entries()].filter(([_, qty]) => qty > 0);
+          const newHold = new Map(context.ship.hold);
+
+          goodsInHold.forEach(([good, quantity]) => {
+            const loss = Math.ceil(quantity * lossRatio);
+            newHold.set(good, quantity - loss);
+          });
+
+          return {
+            ship: { ...context.ship, hold: newHold },
+            day: context.day + 1,
+            messages: [...context.messages, ["Despite your best efforts, some cargo was lost during redistribution."]],
+          };
+        },
       },
       {
-        label: "Continue as is",
+        label: "Continue carefully",
         key: "C",
         effect: (context) => {
           const success = Math.random() < 0.6; // 60% chance to make it safely
@@ -258,6 +288,24 @@ export const eventTemplates: EventTemplate[] = [
     ],
   },
   {
+    type: "cargo",
+    severity: "minor",
+    baseChance: (context) => (context.ship.health > 80 ? 0.2 : 0),
+    message: "Your well-maintained ship allows for efficient cargo storage!",
+    effect: (context) => {
+      const extraSpace = Math.floor(context.ship.capacity * 0.1);
+      return {
+        ship: {
+          ...context.ship,
+          capacity: context.ship.capacity + extraSpace,
+        },
+        messages: [...context.messages, [`Expert maintenance has yielded ${extraSpace} additional cargo space!`]],
+      };
+    },
+  },
+];
+const marketEvents: EventTemplate[] = [
+  {
     type: "market",
     severity: "minor",
     baseChance: (context) =>
@@ -274,9 +322,171 @@ export const eventTemplates: EventTemplate[] = [
     }),
   },
   {
+    type: "market",
+    severity: "moderate",
+    baseChance: (context) => (context.currentPort === "Nagasaki" ? 0.15 : 0),
+    message: "The Shogunate has announced new trade regulations in Nagasaki.",
+    effect: (context) => ({
+      prices: {
+        ...context.prices,
+        Nagasaki: {
+          ...context.prices.Nagasaki,
+          Porcelain: Math.round(context.prices.Nagasaki.Porcelain * 0.7),
+          Opium: Math.round(context.prices.Nagasaki.Opium * 1.5),
+        },
+      },
+      messages: [...context.messages, ["New regulations have shifted demand in the Japanese market."]],
+    }),
+  },
+  {
+    type: "market",
+    severity: "major",
+    baseChance: (context) => (context.currentPort === "Hong Kong" || context.currentPort === "Shanghai" ? 0.12 : 0.08),
+    message: "A foreign trade delegation has arrived! Their presence could significantly impact the market.",
+    choices: [
+      {
+        label: "Host a banquet ($500)",
+        key: "H",
+        effect: (context) => {
+          const success = Math.random() < 0.8;
+          if (success) {
+            const targetGoods = ["Porcelain", "Tea"] as const;
+            return {
+              balance: context.balance - 500,
+              reputation: Math.min(100, context.reputation + 5),
+              prices: {
+                ...context.prices,
+                [context.currentPort]: {
+                  ...context.prices[context.currentPort],
+                  ...Object.fromEntries(
+                    targetGoods.map((good) => [good, Math.round(context.prices[context.currentPort][good] * 1.4)]),
+                  ),
+                },
+              },
+              messages: [
+                ...context.messages,
+                [
+                  "The delegation was impressed by your hospitality!",
+                  "Demand for Porcelain and Tea has increased significantly.",
+                ],
+              ],
+            };
+          }
+
+          return {
+            balance: context.balance - 500,
+            reputation: Math.min(100, context.reputation + 2),
+            messages: [...context.messages, ["The delegation was unimpressed by your efforts."]],
+          };
+        },
+      },
+      {
+        label: "Observe from afar",
+        key: "O",
+        effect: (context) => {
+          const success = Math.random() < 0.4;
+          if (success) {
+            return {
+              prices: {
+                ...context.prices,
+                [context.currentPort]: {
+                  ...context.prices[context.currentPort],
+                  Tea: Math.round(context.prices[context.currentPort].Tea * 1.2),
+                },
+              },
+              messages: [
+                ...context.messages,
+                [
+                  "You gathered some useful market intelligence by watching the delegation's activities.",
+                  "Tea prices are rising by 20%.",
+                ],
+              ],
+            };
+          }
+
+          return {
+            messages: [...context.messages, ["You missed an opportunity to influence the market."]],
+          };
+        },
+      },
+    ],
+  },
+  {
+    type: "market",
+    severity: "moderate",
+    baseChance: 0.15,
+    message: "Your network of informants reports unusual merchant activity in nearby ports.",
+    choices: [
+      {
+        label: "Investigate ($300)",
+        key: "I",
+        effect: (context) => {
+          const success = Math.random() < 0.75;
+          if (success) {
+            const targetPort = [...ports]
+              .sort(() => (Math.random() < 0.5 ? 1 : -1))
+              .find((p) => p !== context.currentPort);
+            if (!targetPort) return {};
+
+            return {
+              balance: context.balance - 300,
+              prices: {
+                ...context.prices,
+                [targetPort]: {
+                  ...context.prices[targetPort],
+                  Opium: Math.round(context.prices[targetPort].Opium * 1.5),
+                  Spices: Math.round(context.prices[targetPort].Spices * 1.4),
+                },
+              },
+              messages: [
+                ...context.messages,
+                [`Your contacts reveal high demand for Opium and Spices in ${targetPort}!`],
+              ],
+            };
+          }
+
+          return {
+            balance: context.balance - 300,
+            messages: [...context.messages, ["The information proved unreliable."]],
+          };
+        },
+      },
+      {
+        label: "Trade on rumors",
+        key: "T",
+        effect: (context) => {
+          const success = Math.random() < 0.5;
+          if (success) {
+            return {
+              reputation: Math.min(100, context.reputation + 3),
+              prices: {
+                ...context.prices,
+                [context.currentPort]: {
+                  ...context.prices[context.currentPort],
+                  Spices: Math.round(context.prices[context.currentPort].Spices * 1.25),
+                },
+              },
+              messages: [
+                ...context.messages,
+                ["Your market speculation created a minor surge to the price of spices!"],
+              ],
+            };
+          }
+
+          return {
+            reputation: Math.max(0, context.reputation - 2),
+            messages: [...context.messages, ["Your speculation backfired, slightly damaging your reputation."]],
+          };
+        },
+      },
+    ],
+  },
+];
+const discoveryEvents: EventTemplate[] = [
+  {
     type: "discovery",
     severity: "minor",
-    baseChance: 0.15,
+    baseChance: (context) => Math.min(0.15, 0.05 + (context.day / GOAL_DAYS) * 0.1),
     message: "You spot an uncharted island! Investigate?",
     choices: [
       {
@@ -284,27 +494,43 @@ export const eventTemplates: EventTemplate[] = [
         key: "E",
         effect: (context) => {
           const outcome = Math.random();
+          const baseReward = Math.max(500, context.balance * 0.15);
 
-          // 60% chance of finding goods
-          if (outcome < 0.6) {
-            const randomGood = goods[Math.floor(Math.random() * goods.length)] as Good;
-            const baseAmount = 15;
-            const wealthFactor = Math.max(1, Math.log10(getNetCash(context) / 1000));
-            const amount = Math.round(baseAmount * wealthFactor);
+          // 50% chance of finding goods
+          if (outcome < 0.5) {
+            const goodsFound = Math.floor(2 + Math.random() * 3); // 2-4
+            const newHold = new Map(context.ship.hold);
+            const discoveries = [];
+
+            for (let i = 0; i < goodsFound; i++) {
+              const good = goods[Math.floor(Math.random() * goods.length)] as Good;
+              const amount = Math.round(10 * (1 + context.day / GOAL_DAYS));
+              newHold.set(good, (newHold.get(good) || 0) + amount);
+              discoveries.push(`${amount} picul of ${good}.`);
+            }
 
             return {
               ship: {
                 ...context.ship,
-                hold: context.ship.hold.set(randomGood, (context.ship.hold.get(randomGood) || 0) + amount),
+                hold: newHold,
               },
               day: context.day + 1,
-              messages: [...context.messages, [`Found ${amount} picul of ${randomGood} after a day of exploration!`]],
+              reputation: Math.min(100, context.reputation + 3),
+              balance: context.balance + baseReward,
+              messages: [
+                ...context.messages,
+                [
+                  "A successful expedition!",
+                  `Found $${baseReward} in a buried chest.`,
+                  ...discoveries.map((d) => `Found ${d}`),
+                ],
+              ],
             };
           }
 
-          // 25% of ship damage
-          if (outcome < 0.85) {
-            const damage = Math.floor(Math.random() * 15) + 5;
+          // 30% of ship damage
+          if (outcome < 0.8) {
+            const damage = Math.floor(Math.random() * 15) + 10; // 10-24 damage
             return {
               ship: {
                 ...context.ship,
@@ -315,10 +541,10 @@ export const eventTemplates: EventTemplate[] = [
             };
           }
 
-          // 15% chance of losing time and some crew morale (represented by reputation)
+          // 20% chance of losing time and some crew morale (represented by reputation)
           return {
             day: context.day + 2,
-            reputation: Math.max(0, context.reputation - 2),
+            reputation: Math.max(0, context.reputation - 3),
             messages: [
               ...context.messages,
               ["The island exploration yielded nothing but wasted time.", "The crew's morale has suffered slightly."],
@@ -335,7 +561,78 @@ export const eventTemplates: EventTemplate[] = [
       },
     ],
   },
+  {
+    type: "discovery",
+    severity: "major",
+    baseChance: (context) => (context.reputation >= 75 ? 0.08 : 0),
+    message: "A veteran sailor shares rumors of a secret trading route!",
+    choices: [
+      {
+        label: "Follow the lead",
+        key: "F",
+        effect: (context) => {
+          const success = Math.random() < 0.6;
+          if (success) {
+            return {
+              reputation: Math.min(100, context.reputation + 5),
+              prices: {
+                ...context.prices,
+                [context.currentPort]: {
+                  ...context.prices[context.currentPort],
+                  Spices: Math.round(context.prices[context.currentPort].Spices * 1.8),
+                  Tea: Math.round(context.prices[context.currentPort].Tea * 1.6),
+                },
+              },
+              messages: [
+                ...context.messages,
+                [
+                  "You've discovered a lucrative trade route!",
+                  "Knowledge of this route has increased your reputation.",
+                  "Local merchants are offering premium prices for Tea and Spices.",
+                ],
+              ],
+            };
+          }
+
+          return {
+            day: context.day + 2,
+            messages: [...context.messages, ["The lead turned out to be a dead end."]],
+          };
+        },
+      },
+      {
+        label: "Share with merchants",
+        key: "S",
+        effect: (context) => {
+          return {
+            reputation: Math.min(100, context.reputation + 8),
+            prices: {
+              ...context.prices,
+              [context.currentPort]: {
+                ...context.prices[context.currentPort],
+                Spices: Math.round(context.prices[context.currentPort].Spices * 1.3),
+                Tea: Math.round(context.prices[context.currentPort].Tea * 1.3),
+              },
+            },
+            messages: [
+              ...context.messages,
+              [
+                "The merchants appreciate your openness!",
+                "Your reputation has increased significantly.",
+                "The shared route has moderately increased local prices.",
+              ],
+            ],
+          };
+        },
+      },
+    ],
+  },
 ];
+// NOTE: The destination gets set in the `traveling` state, if an event changes the course
+// of the travel, then update the `destination`. If an event returns the player back to its
+// home port, then either update the `destination` to be the same as `currentPort`,
+// or set `destination` to `undefined`.
+export const eventTemplates: EventTemplate[] = [...weatherEvents, ...cargoEvents, ...marketEvents, ...discoveryEvents];
 // Distances given in nautical miles (nmi)
 export const distanceMatrix: Record<Port, Record<Port, number>> = {
   "Hong Kong": { "Hong Kong": 0, Shanghai: 819, Nagasaki: 1150, Singapore: 1460, Manila: 706 },
@@ -389,7 +686,7 @@ export const DEFENSE_UPGRADES = [
   { defense: 80, cost: 12_000, reputation: 10 },
 ] as const;
 export const MAX_SHIP_DEFENSE = DEFENSE_UPGRADES[DEFENSE_UPGRADES.length - 1]!.defense;
-export const DAMAGE_REPAIR_COST_PER_UNIT = 75;
+export const DAMAGE_REPAIR_COST_PER_UNIT = 37;
 export const OVERLOAD_BUFFER = 0.2;
 export const OVERLOAD_SPEED_PENALTY = 0.3;
 export const OVERLOAD_DAMAGE_PENALTY = 0.5;
