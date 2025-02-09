@@ -324,7 +324,7 @@ const marketEvents: EventTemplate[] = [
   {
     type: "market",
     severity: "moderate",
-    baseChance: (context) => (context.currentPort === "Nagasaki" ? 0.15 : 0),
+    baseChance: (context) => (context.destination && context.destination === "Nagasaki" ? 0.15 : 0),
     message: "The Shogunate has announced new trade regulations in Nagasaki.",
     effect: (context) => ({
       prices: {
@@ -341,7 +341,8 @@ const marketEvents: EventTemplate[] = [
   {
     type: "market",
     severity: "major",
-    baseChance: (context) => (context.currentPort === "Hong Kong" || context.currentPort === "Shanghai" ? 0.12 : 0.08),
+    baseChance: (context) =>
+      context.destination === "Hong Kong" || context.destination === "Shanghai" ? 0.12 : context.destination ? 0.08 : 0,
     message: "A foreign trade delegation has arrived! Their presence could significantly impact the market.",
     choices: [
       {
@@ -356,10 +357,10 @@ const marketEvents: EventTemplate[] = [
               reputation: Math.min(100, context.reputation + 5),
               prices: {
                 ...context.prices,
-                [context.currentPort]: {
-                  ...context.prices[context.currentPort],
+                [context.destination!]: {
+                  ...context.prices[context.destination!],
                   ...Object.fromEntries(
-                    targetGoods.map((good) => [good, Math.round(context.prices[context.currentPort][good] * 1.4)]),
+                    targetGoods.map((good) => [good, Math.round(context.prices[context.destination!][good] * 1.4)]),
                   ),
                 },
               },
@@ -389,9 +390,9 @@ const marketEvents: EventTemplate[] = [
             return {
               prices: {
                 ...context.prices,
-                [context.currentPort]: {
-                  ...context.prices[context.currentPort],
-                  Tea: Math.round(context.prices[context.currentPort].Tea * 1.2),
+                [context.destination!]: {
+                  ...context.prices[context.destination!],
+                  Tea: Math.round(context.prices[context.destination!].Tea * 1.2),
                 },
               },
               messages: [
@@ -414,7 +415,7 @@ const marketEvents: EventTemplate[] = [
   {
     type: "market",
     severity: "moderate",
-    baseChance: 0.15,
+    baseChance: (context) => (context.destination ? 0.15 : 0),
     message: "Your network of informants reports unusual merchant activity in nearby ports.",
     choices: [
       {
@@ -425,7 +426,7 @@ const marketEvents: EventTemplate[] = [
           if (success) {
             const targetPort = [...ports]
               .sort(() => (Math.random() < 0.5 ? 1 : -1))
-              .find((p) => p !== context.currentPort);
+              .find((p) => p !== context.destination);
             if (!targetPort) return {};
 
             return {
@@ -461,9 +462,9 @@ const marketEvents: EventTemplate[] = [
               reputation: Math.min(100, context.reputation + 3),
               prices: {
                 ...context.prices,
-                [context.currentPort]: {
-                  ...context.prices[context.currentPort],
-                  Spices: Math.round(context.prices[context.currentPort].Spices * 1.25),
+                [context.destination!]: {
+                  ...context.prices[context.destination!],
+                  Spices: Math.round(context.prices[context.destination!].Spices * 1.25),
                 },
               },
               messages: [
@@ -480,6 +481,47 @@ const marketEvents: EventTemplate[] = [
         },
       },
     ],
+  },
+  {
+    type: "market",
+    severity: "major",
+    baseChance: (context) => (context.destination ? 0.08 : 0),
+    message: "A perfect trade opportunity presents itself!",
+    effect: (context) => {
+      const good = goods[Math.floor(Math.random() * goods.length)];
+      const multiplier = 2 + Math.random();
+
+      if (!good) return {};
+
+      return {
+        prices: {
+          ...context.prices,
+          [context.destination!]: {
+            ...context.prices[context.destination!],
+            [good]: Math.round(context.prices[context.destination!][good] * multiplier),
+          },
+        },
+        messages: [
+          ...context.messages,
+          [`Extraordinary demand for ${good.toLocaleLowerCase()} has caused prices to skyrocket!`],
+        ],
+      };
+    },
+  },
+  {
+    type: "market",
+    severity: "minor",
+    baseChance: (context) => (context.destination === "Shanghai" ? 0.12 : 0),
+    message: "Local merchants are stockpiling goods!",
+    effect: (context) => ({
+      prices: {
+        ...context.prices,
+        Shanghai: {
+          ...context.prices.Shanghai,
+          Tea: Math.round(context.prices.Shanghai.Tea * 0.8),
+        },
+      },
+    }),
   },
 ];
 const discoveryEvents: EventTemplate[] = [
@@ -564,7 +606,7 @@ const discoveryEvents: EventTemplate[] = [
   {
     type: "discovery",
     severity: "major",
-    baseChance: (context) => (context.reputation >= 75 ? 0.08 : 0),
+    baseChance: (context) => (context.destination && context.reputation >= 75 ? 0.08 : 0),
     message: "A veteran sailor shares rumors of a secret trading route!",
     choices: [
       {
@@ -577,10 +619,10 @@ const discoveryEvents: EventTemplate[] = [
               reputation: Math.min(100, context.reputation + 5),
               prices: {
                 ...context.prices,
-                [context.currentPort]: {
-                  ...context.prices[context.currentPort],
-                  Spices: Math.round(context.prices[context.currentPort].Spices * 1.8),
-                  Tea: Math.round(context.prices[context.currentPort].Tea * 1.6),
+                [context.destination!]: {
+                  ...context.prices[context.destination!],
+                  Spices: Math.round(context.prices[context.destination!].Spices * 1.8),
+                  Tea: Math.round(context.prices[context.destination!].Tea * 1.6),
                 },
               },
               messages: [
@@ -608,10 +650,10 @@ const discoveryEvents: EventTemplate[] = [
             reputation: Math.min(100, context.reputation + 8),
             prices: {
               ...context.prices,
-              [context.currentPort]: {
-                ...context.prices[context.currentPort],
-                Spices: Math.round(context.prices[context.currentPort].Spices * 1.3),
-                Tea: Math.round(context.prices[context.currentPort].Tea * 1.3),
+              [context.destination!]: {
+                ...context.prices[context.destination!],
+                Spices: Math.round(context.prices[context.destination!].Spices * 1.3),
+                Tea: Math.round(context.prices[context.destination!].Tea * 1.3),
               },
             },
             messages: [
@@ -642,11 +684,11 @@ export const distanceMatrix: Record<Port, Record<Port, number>> = {
   Manila: { "Hong Kong": 706, Shanghai: 1307, Nagasaki: 1668, Singapore: 1308, Manila: 0 },
 } as const;
 export const goodsInfo: { name: Good; basePrice: number; volatility: number; bulkiness: number }[] = [
-  { name: "Wheat", basePrice: 25, volatility: 0.1, bulkiness: 1.0 },
-  { name: "Tea", basePrice: 80, volatility: 0.15, bulkiness: 1.0 },
-  { name: "Spices", basePrice: 150, volatility: 0.2, bulkiness: 1.0 },
-  { name: "Opium", basePrice: 300, volatility: 0.25, bulkiness: 1.0 },
-  { name: "Porcelain", basePrice: 45, volatility: 0.05, bulkiness: 1.0 },
+  { name: "Wheat", basePrice: 100, volatility: 0.35, bulkiness: 1.0 },
+  { name: "Tea", basePrice: 400, volatility: 0.45, bulkiness: 1.0 },
+  { name: "Spices", basePrice: 800, volatility: 0.55, bulkiness: 1.0 },
+  { name: "Opium", basePrice: 2000, volatility: 0.65, bulkiness: 1.0 },
+  { name: "Porcelain", basePrice: 300, volatility: 0.4, bulkiness: 1.0 },
   // { name: "Wheat", basePrice: 25, volatility: 0.1, bulkiness: 1.0 },
   // { name: "Tea", basePrice: 80, volatility: 0.15, bulkiness: 1.4 },
   // { name: "Spices", basePrice: 150, volatility: 0.2, bulkiness: 0.8 },
@@ -701,52 +743,52 @@ export const TREND_SYMBOLS = {
   SAME: "―",
 } as const;
 export const TREND_STRENGTH_FACTORS: Record<TrendStrength, { up: number; down: number }> = {
-  weak: { up: 1.05, down: 0.95 },
-  moderate: { up: 1.15, down: 0.85 },
-  strong: { up: 1.25, down: 0.75 },
+  weak: { up: 1.15, down: 0.85 },
+  moderate: { up: 1.35, down: 0.65 },
+  strong: { up: 1.6, down: 0.4 },
 };
 export const SEASONAL_EFFECTS: Record<Season, Partial<Record<Good, number>>> = {
-  Spring: { Tea: 1.15, Spices: 1.1, Wheat: 0.9 },
-  Summer: { Porcelain: 1.2, Spices: 1.15, Tea: 0.9 },
-  Autumn: { Opium: 1.1, Porcelain: 0.9 },
-  Winter: { Tea: 1.2, Spices: 0.9 },
+  Spring: { Tea: 1.4, Spices: 1.25, Wheat: 0.7 },
+  Summer: { Porcelain: 1.5, Spices: 1.3, Tea: 0.7 },
+  Autumn: { Opium: 1.35, Porcelain: 0.7 },
+  Winter: { Tea: 1.45, Spices: 0.65 },
 };
 export const PORT_SPECIALIZATIONS: Record<Port, PortSpecialization> = {
   "Hong Kong": {
     producedGoods: [],
     tradingHub: true,
     marketSize: "Large",
-    productionFactor: 0.95,
+    productionFactor: 0.8,
   },
   Shanghai: {
     producedGoods: ["Tea", "Opium"],
     tradingHub: false,
     marketSize: "Large",
-    productionFactor: 0.85,
+    productionFactor: 0.7,
   },
   Nagasaki: {
     producedGoods: ["Porcelain"],
     tradingHub: false,
     marketSize: "Medium",
-    productionFactor: 0.9,
+    productionFactor: 0.75,
   },
   Singapore: {
     producedGoods: [],
     tradingHub: true,
     marketSize: "Medium",
-    productionFactor: 0.95,
+    productionFactor: 0.8,
   },
   Manila: {
     producedGoods: ["Spices"],
     tradingHub: false,
     marketSize: "Small",
-    productionFactor: 0.9,
+    productionFactor: 0.75,
   },
 };
 export const MARKET_SIZE_FACTORS: Record<MarketSize, number> = {
-  Small: 1.1, // Higher prices, more volatile
+  Small: 1.25, // Higher prices, more volatile
   Medium: 1,
-  Large: 0.95, // Lower prices, more stable
+  Large: 0.85, // Lower prices, more stable
 };
 
 // Guard Ships

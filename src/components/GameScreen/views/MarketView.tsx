@@ -265,7 +265,7 @@ function CompareMarketPrices() {
     ...gameContext.availableGoods.reduce(
       (acc, good) => ({
         ...acc,
-        [good]: `$${gameContext.prices[port][good]}`,
+        [good]: displayMonetaryValue(gameContext.prices[port][good]),
       }),
       {},
     ),
@@ -274,7 +274,7 @@ function CompareMarketPrices() {
     { key: "Port", align: "left" },
     ...gameContext.availableGoods.map((good) => ({
       key: good,
-      align: "left",
+      align: "right",
     })),
   ];
 
