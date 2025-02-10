@@ -2,18 +2,20 @@ import React from "react";
 import { Box, Text } from "ink";
 
 export function Columns({
-  gap = 3,
+  colGap = 3,
+  rowGap,
   data,
   columns,
 }: {
-  gap?: number;
-  columns: number;
+  colGap?: number;
+  rowGap?: number;
+  columns?: number;
   data: Array<Array<React.ReactNode>>;
 }) {
   return (
-    <Box gap={gap}>
-      {new Array(columns).fill(0).map((_, index) => (
-        <Box flexDirection="column" key={index}>
+    <Box gap={colGap}>
+      {new Array(columns ?? data[0]?.length).fill(0).map((_, index) => (
+        <Box flexDirection="column" gap={rowGap} key={index}>
           {data
             .map((item) => item[index])
             .map((value, i) =>

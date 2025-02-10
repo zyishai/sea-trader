@@ -7,12 +7,8 @@ export const shipyardMachine = setup({
       | { type: "MANAGE_FLEET"; action: "hire" | "upgrade" | "dismiss" }
       | { type: "COMMIT" }
       | { type: "CANCEL" },
-    context: {} as {
-      temp?: never;
-    },
   },
 }).createMachine({
-  context: {},
   initial: "menu",
   states: {
     menu: {

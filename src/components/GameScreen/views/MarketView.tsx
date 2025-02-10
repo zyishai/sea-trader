@@ -1,8 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
-import { Table } from "@tqman/ink-table";
 import { GameContext } from "../../GameContext.js";
-import { displayMonetaryValue, getMerchantTip, getStorageUsed } from "../../../store/utils.js";
+import { displayMonetaryValue, getAvailableStorage, getMerchantTip, getStorageUsed } from "../../../store/utils.js";
 import { OVERDRAFT_TRADING_LIMIT, ports } from "../../../store/constants.js";
 import { Good } from "../../../store/types.js";
 import { MarketContext } from "../MarketContext.js";
@@ -17,36 +16,49 @@ import figlet from "figlet";
 export function MarketView() {
   const context = GameContext.useSelector((snapshot) => snapshot.context);
   const snapshot = MarketContext.useSelector((snapshot) => snapshot);
+  const availableGoods = context.availableGoods;
 
   return (
     <Box flexDirection="column" gap={1} width="100%">
       <Text>{figlet.textSync("Market")}</Text>
 
       <Box flexDirection="column" borderStyle="single">
-        <Text bold>
-          Cargo Hold ({getStorageUsed(context.ship)}/{context.ship.capacity})
-        </Text>
+        <Box justifyContent="space-between">
+          <Text bold>
+            Cargo Hold ({getStorageUsed(context.ship)}/{context.ship.capacity})
+          </Text>
+          <Text>Available: {getAvailableStorage(context.ship)}</Text>
+        </Box>
         <Box flexDirection="column" paddingLeft={3}>
-          <Columns columns={2} data={[...context.ship.hold.entries()]} />
+          <Columns data={[...context.ship.hold.entries()].map(([good, quantity]) => [`- ${good}`, quantity])} />
         </Box>
       </Box>
 
-      {snapshot.matches("compare_prices") ? null : (
-        <Box flexDirection="column" borderStyle="single">
-          <Text bold>Prices in {context.currentPort}</Text>
-          <Box flexDirection="column" paddingLeft={3}>
-            <Columns
-              columns={2}
-              data={Object.entries(context.prices[context.currentPort]).map(([good, price], index) => [
-                good,
-                <Box key={index} flexDirection="column" alignItems="flex-end">
-                  <Text>{displayMonetaryValue(price)}</Text>
-                </Box>,
-              ])}
-            />
-          </Box>
+      <Box flexDirection="column" borderStyle="single">
+        <Text bold>Price List</Text>
+        <Box flexDirection="column" paddingLeft={0}>
+          <Columns
+            data={[
+              [
+                " ",
+                ...availableGoods.map((good, index) => (
+                  <Text key={"header" + index} bold>
+                    {good}
+                  </Text>
+                )),
+              ],
+              ...ports.map((port) => [
+                port,
+                ...availableGoods.map((good, index) => (
+                  <Box key={port + index} justifyContent="flex-end">
+                    <Text>{displayMonetaryValue(context.prices[port][good])}</Text>
+                  </Box>
+                )),
+              ]),
+            ]}
+          />
         </Box>
-      )}
+      </Box>
 
       {snapshot.matches("menu") ? (
         <MarketOverview />
@@ -54,8 +66,6 @@ export function MarketView() {
         <BuyMarket />
       ) : snapshot.matches("selling") ? (
         <SellMarket />
-      ) : snapshot.matches("compare_prices") ? (
-        <CompareMarketPrices />
       ) : null}
     </Box>
   );
@@ -72,7 +82,6 @@ function MarketOverview() {
   const availableActions = [
     { label: "Buy Goods", value: "buy_goods" },
     { label: "Sell Goods", value: "sell_goods" },
-    { label: "Compare Prices", value: "compare_prices" },
   ];
   const onSelectAction = (value: string) => {
     switch (value) {
@@ -82,10 +91,6 @@ function MarketOverview() {
       }
       case "sell_goods": {
         market.send({ type: "SELECT_ACTION", action: "sell" });
-        break;
-      }
-      case "compare_prices": {
-        market.send({ type: "SELECT_ACTION", action: "compare_prices" });
         break;
       }
     }
@@ -255,66 +260,66 @@ function SellMarket() {
   ) : null;
 }
 
-function CompareMarketPrices() {
-  const market = MarketContext.useActorRef();
-  const gameContext = GameContext.useSelector((snapshot) => snapshot.context);
-  const controls = gameContext.settings.controls;
+// function CompareMarketPrices() {
+//   const market = MarketContext.useActorRef();
+//   const gameContext = GameContext.useSelector((snapshot) => snapshot.context);
+//   const controls = gameContext.settings.controls;
 
-  const data = ports.map((port) => ({
-    Port: port,
-    ...gameContext.availableGoods.reduce(
-      (acc, good) => ({
-        ...acc,
-        [good]: displayMonetaryValue(gameContext.prices[port][good]),
-      }),
-      {},
-    ),
-  }));
-  const columns = [
-    { key: "Port", align: "left" },
-    ...gameContext.availableGoods.map((good) => ({
-      key: good,
-      align: "right",
-    })),
-  ];
+//   const data = ports.map((port) => ({
+//     Port: port,
+//     ...gameContext.availableGoods.reduce(
+//       (acc, good) => ({
+//         ...acc,
+//         [good]: displayMonetaryValue(gameContext.prices[port][good]),
+//       }),
+//       {},
+//     ),
+//   }));
+//   const columns = [
+//     { key: "Port", align: "left" },
+//     ...gameContext.availableGoods.map((good) => ({
+//       key: good,
+//       align: "right",
+//     })),
+//   ];
 
-  const availableActions = [
-    { label: "Buy Goods", value: "buy_goods" },
-    { label: "Sell Goods", value: "sell_goods" },
-  ];
-  const onSelectAction = (action: string) => {
-    switch (action) {
-      case "buy_goods": {
-        market.send({ type: "SELECT_ACTION", action: "buy" });
-        break;
-      }
-      case "sell_goods": {
-        market.send({ type: "SELECT_ACTION", action: "sell" });
-        break;
-      }
-    }
-  };
+//   const availableActions = [
+//     { label: "Buy Goods", value: "buy_goods" },
+//     { label: "Sell Goods", value: "sell_goods" },
+//   ];
+//   const onSelectAction = (action: string) => {
+//     switch (action) {
+//       case "buy_goods": {
+//         market.send({ type: "SELECT_ACTION", action: "buy" });
+//         break;
+//       }
+//       case "sell_goods": {
+//         market.send({ type: "SELECT_ACTION", action: "sell" });
+//         break;
+//       }
+//     }
+//   };
 
-  return (
-    <Box flexDirection="column" gap={1}>
-      {/* @ts-expect-error Type inference issue with column names */}
-      <Table data={data} columns={columns} />
+//   return (
+//     <Box flexDirection="column" gap={1}>
+//       {/* @ts-expect-error Type inference issue with column names */}
+//       <Table data={data} columns={columns} />
 
-      {controls === "keyboard" ? (
-        <ActionPromptKeyboard
-          message="What would you like to do, captain?"
-          actions={availableActions.map((action, index) => ({ ...action, key: String(index + 1) }))}
-          onSelect={onSelectAction}
-          onCancel={() => market.send({ type: "CANCEL" })}
-        />
-      ) : (
-        <ActionPromptArrows
-          message="What would you like to do, captain?"
-          actions={availableActions}
-          onSelect={onSelectAction}
-          onCancel={() => market.send({ type: "CANCEL" })}
-        />
-      )}
-    </Box>
-  );
-}
+//       {controls === "keyboard" ? (
+//         <ActionPromptKeyboard
+//           message="What would you like to do, captain?"
+//           actions={availableActions.map((action, index) => ({ ...action, key: String(index + 1) }))}
+//           onSelect={onSelectAction}
+//           onCancel={() => market.send({ type: "CANCEL" })}
+//         />
+//       ) : (
+//         <ActionPromptArrows
+//           message="What would you like to do, captain?"
+//           actions={availableActions}
+//           onSelect={onSelectAction}
+//           onCancel={() => market.send({ type: "CANCEL" })}
+//         />
+//       )}
+//     </Box>
+//   );
+// }

@@ -4,7 +4,7 @@ import { Good } from "../types.js";
 export const marketMachine = setup({
   types: {
     events: {} as
-      | { type: "SELECT_ACTION"; action: "buy" | "sell" | "compare_prices" }
+      | { type: "SELECT_ACTION"; action: "buy" | "sell" }
       | { type: "PICK_GOOD"; good: Good }
       | { type: "COMMIT" }
       | { type: "CANCEL" },
@@ -27,10 +27,6 @@ export const marketMachine = setup({
           {
             guard: ({ event }) => event.action === "sell",
             target: "selling",
-          },
-          {
-            guard: ({ event }) => event.action === "compare_prices",
-            target: "compare_prices",
           },
         ],
       },
@@ -73,21 +69,6 @@ export const marketMachine = setup({
             CANCEL: { target: "pick_good" },
           },
         },
-      },
-    },
-    compare_prices: {
-      on: {
-        SELECT_ACTION: [
-          {
-            guard: ({ event }) => event.action === "buy",
-            target: "buying",
-          },
-          {
-            guard: ({ event }) => event.action === "sell",
-            target: "selling",
-          },
-        ],
-        CANCEL: { target: "menu" },
       },
     },
   },

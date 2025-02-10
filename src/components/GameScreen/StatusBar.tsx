@@ -15,21 +15,29 @@ export function StatusBar() {
 
   return (
     <Box flexDirection="column" alignItems="stretch" gap={1} flexShrink={0} paddingX={1} paddingY={1}>
-      <Box flexDirection="column" alignItems="stretch" flexWrap="nowrap">
+      <Box flexDirection="column" alignItems="center" flexWrap="nowrap">
         <Text>Day</Text>
-        <Text inverse>{context.day}</Text>
+        <Text dimColor>{context.day}</Text>
       </Box>
-      <Box flexDirection="column" alignItems="stretch" flexWrap="nowrap">
+      <Box flexDirection="column" alignItems="center" flexWrap="nowrap">
         <Text>Location</Text>
-        <Text inverse>{context.currentPort}</Text>
+        <Text inverse dimColor>
+          {context.currentPort}
+        </Text>
       </Box>
-      <Box flexDirection="column" alignItems="stretch" flexWrap="nowrap">
+      <Box flexDirection="column" alignItems="center" flexWrap="nowrap">
+        <Text>Ship Health</Text>
+        <Text dimColor>{context.ship.health}%</Text>
+      </Box>
+      <Box flexDirection="column" alignItems="center" flexWrap="nowrap">
         <Text>Cash</Text>
-        <Text inverse>{displayMonetaryValue(context.balance)}</Text>
+        <Text inverse dimColor>
+          {displayMonetaryValue(context.balance)}
+        </Text>
       </Box>
-      <Box flexDirection="column" alignItems="stretch" flexWrap="nowrap">
+      <Box flexDirection="column" alignItems="center" flexWrap="nowrap">
         <Text>Reputation</Text>
-        <Text inverse>{context.reputation}</Text>
+        <Text dimColor>{context.reputation}</Text>
       </Box>
     </Box>
   );

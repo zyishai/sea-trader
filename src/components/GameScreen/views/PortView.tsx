@@ -39,7 +39,7 @@ export function PortView() {
               const dailyCost = calculateDailyMaintenanceCost(context);
               const maintenanceCost = dailyCost * travelTime;
               return [
-                port,
+                `- ${port}`,
                 `Travel: ${travelTime} days`,
                 hasFleet ? `Maintenance: ${displayMonetaryValue(maintenanceCost)}` : "",
               ];

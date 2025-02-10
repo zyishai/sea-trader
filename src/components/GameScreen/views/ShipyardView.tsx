@@ -40,9 +40,9 @@ export function ShipyardView() {
           <Columns
             columns={2}
             data={[
-              ["Capacity", `${getStorageUsed(gameContext.ship)}/${gameContext.ship.capacity}`],
-              ["Speed", `${gameContext.ship.speed} knots`],
-              ["Condition", `${getShipStatus(gameContext.ship.health)} (${gameContext.ship.health}%)`],
+              ["- Capacity", `${getStorageUsed(gameContext.ship)}/${gameContext.ship.capacity}`],
+              ["- Speed", `${gameContext.ship.speed} knots`],
+              ["- Condition", `${getShipStatus(gameContext.ship.health)} (${gameContext.ship.health}%)`],
             ]}
           />
         </Box>
@@ -54,15 +54,15 @@ export function ShipyardView() {
           <Columns
             columns={2}
             data={[
-              ["Fleet Size", `${gameContext.guardFleet.ships} ship${gameContext.guardFleet.ships !== 1 ? "s" : ""}`],
+              ["- Fleet Size", `${gameContext.guardFleet.ships} ship${gameContext.guardFleet.ships !== 1 ? "s" : ""}`],
               [
-                "Fleet Quality",
+                "- Fleet Quality",
                 hasFleet
                   ? `${getFleetQuality(gameContext.guardFleet.quality)} (${gameContext.guardFleet.quality})`
                   : "--",
               ],
               [
-                "Daily Maintenance Cost",
+                "- Daily Maintenance Cost",
                 hasFleet ? `${displayMonetaryValue(calculateDailyMaintenanceCost(gameContext))}` : "--",
               ],
             ]}
