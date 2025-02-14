@@ -1,5 +1,16 @@
 # ctrader
 
+## 3.0.0
+
+### Major Changes
+
+- 77f52ea: Simplified UI and Personalized Messages
+
+  - Completely new ui: simple, smooth, and intuitive
+  - Personalized messages
+  - Balanced events and prices
+  - New features: market tips, reputation, port specialization, and more
+
 ## 2.10.0
 
 ### Minor Changes
