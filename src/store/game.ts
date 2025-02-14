@@ -101,7 +101,7 @@ export const gameMachine = setup({
                     guard: ({ context }) => getShipStatus(context.ship.health) === "Wreckage",
                     actions: {
                       type: "displayMessages",
-                      params: ["Your ship is a wreckage.", "You can't travel until you repair it."],
+                      params: ["Our ship is a wreckage, Captain.", "We can't travel until we repair it."],
                     },
                   },
                   {
@@ -147,18 +147,15 @@ export const gameMachine = setup({
                       const potentialLoot = Math.max(500, Math.floor(baseLoot * factor));
                       const actualLoot = Math.min(15_000, potentialLoot);
 
-                      const messages = [
-                        "Your guard fleet successfully fought off the pirates!",
-                        `You looted $${actualLoot} from the pirates' ship.`,
-                      ];
+                      const messages = ["We drove them off, Captain!", `Found $${actualLoot} in their hold.`];
 
                       if (shipDamage > 0) {
-                        messages.push(`Your ship took ${shipDamage} damage in the battle.`);
+                        messages.push(`Captain, our ship took ${shipDamage} damage in the battle!`);
                         if (shipsLost > 0) {
                           messages.push(
-                            `Lost ${Math.min(shipsLost, context.guardFleet.ships)} guard ship${
+                            `We lost ${Math.min(shipsLost, context.guardFleet.ships)} guard ship${
                               Math.min(shipsLost, context.guardFleet.ships) > 1 ? "s" : ""
-                            } protecting your vessel.`,
+                            }.`,
                           );
                         }
                       }
@@ -198,13 +195,13 @@ export const gameMachine = setup({
                       enqueue({
                         type: "displayMessages",
                         params: [
-                          "Despite your guard fleet's efforts, the pirates prevailed!",
-                          `Your ship took ${Math.min(shipDamage, context.ship.health)} damage in the battle.`,
+                          "Despite our guard fleet's efforts, the pirates prevailed!",
+                          `We took ${Math.min(shipDamage, context.ship.health)} damage in the battle.`,
                           randomGood
-                            ? `Pirates stole ${Math.min(stolenGoods, context.ship.hold.get(randomGood)!)} ${randomGood}`
+                            ? `The pirates stole ${Math.min(stolenGoods, context.ship.hold.get(randomGood)!)} ${randomGood} from our hold.`
                             : "",
                           shipsLost > 0
-                            ? `Lost ${Math.min(shipsLost, context.guardFleet.ships)} guard ship${
+                            ? `We lost ${Math.min(shipsLost, context.guardFleet.ships)} guard ship${
                                 Math.min(shipsLost, context.guardFleet.ships) > 1 ? "s" : ""
                               } in the battle.`
                             : "",
@@ -246,22 +243,22 @@ export const gameMachine = setup({
                       if (noDamage) {
                         enqueue({
                           type: "displayMessages",
-                          params: ["You masterfully maneuvered away from the pirates without a scratch!"],
+                          params: ["Captain, you managed to maneuver away from the pirates without a scratch!"],
                         });
                       } else {
                         const damage = Math.floor(Math.random() * 8) + 3; // 3 - 11 damage
                         const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
 
                         const messages = [
-                          "You've successfully escaped from the pirates!",
-                          `Your ship took ${shipDamage} damage while fleeing.`,
+                          "Captain, we've successfully escaped from the pirates!",
+                          `Our ship took ${shipDamage} damage while fleeing.`,
                         ];
 
                         if (shipsLost > 0) {
                           messages.push(
-                            `Lost ${Math.min(shipsLost, context.guardFleet.ships)} guard ship${
+                            `We've lost ${Math.min(shipsLost, context.guardFleet.ships)} guard ship${
                               Math.min(shipsLost, context.guardFleet.ships) > 1 ? "s" : ""
-                            } covering your escape.`,
+                            } covering our escape.`,
                           );
                         }
 
@@ -286,10 +283,10 @@ export const gameMachine = setup({
                       const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
 
                       const messages = [
-                        "Failed to escape from the pirates!",
-                        `Your ship took ${shipDamage} damage while attempting to flee.`,
+                        "Failed to escape from the pirates, Captain!",
+                        `Our ship took ${shipDamage} damage while attempting to flee.`,
                         shipsLost > 0
-                          ? `Lost ${Math.min(shipsLost, context.guardFleet.ships)} guard ship${
+                          ? `We've lost ${Math.min(shipsLost, context.guardFleet.ships)} guard ship${
                               Math.min(shipsLost, context.guardFleet.ships) > 1 ? "s" : ""
                             } to the pirates.`
                           : "",
@@ -326,7 +323,7 @@ export const gameMachine = setup({
                       enqueue({
                         type: "displayMessages",
                         params: [
-                          `You paid the pirates $${bribeCost} to let you go your merry way.`,
+                          `Captain, we paid the pirates $${bribeCost} to let us pass freely.`,
                           `Lost 1 reputation point.`,
                         ],
                       });
@@ -339,9 +336,9 @@ export const gameMachine = setup({
                       const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
 
                       const messages = [
-                        "You couldn't afford to bribe the pirates!",
-                        "They attacked in anger!",
-                        `Your ship took ${shipDamage} damage.`,
+                        "Captain, we couldn't afford to bribe the pirates!",
+                        "They attacked us in anger!",
+                        `We took ${shipDamage} damage.`,
                         `Lost ${Math.min(5, context.reputation)} reputation points.`,
                       ];
 
@@ -456,7 +453,7 @@ export const gameMachine = setup({
                 actions: {
                   type: "displayMessages",
                   params: ({ context, event }) => [
-                    `Not enough money. Need $${calculatePrice({ ...context, ...event })} to purchase ${event.quantity} picul of ${event.good.toLowerCase()}`,
+                    `Captain, you don't have enough money. You need $${calculatePrice({ ...context, ...event })} to purchase ${event.quantity} picul of ${event.good.toLowerCase()}`,
                   ],
                 },
               },
@@ -468,7 +465,7 @@ export const gameMachine = setup({
                 actions: {
                   type: "displayMessages",
                   params: ({ context, event }) => [
-                    `Not enough storage space for ${event.quantity} picul of ${event.good.toLowerCase()} (needs ${getStorageUnitsForGood(event.good, event.quantity)} storage units)`,
+                    `Captain, you don't have enough storage space for ${event.quantity} picul of ${event.good.toLowerCase()} (needs ${getStorageUnitsForGood(event.good, event.quantity)} storage units)`,
                     `Available storage: ${getAvailableStorage(context.ship)} piculs (+${getAvailableBufferStorage(context.ship)} overloaded)`,
                   ],
                 },
@@ -492,7 +489,7 @@ export const gameMachine = setup({
                         ...context,
                         ...event,
                       })}.`,
-                      `You have ${getAvailableStorage(context.ship)} units of storage left.`,
+                      `We have ${getAvailableStorage(context.ship)} units of storage left, Captain.`,
                     ],
                   },
                 ],
@@ -506,7 +503,7 @@ export const gameMachine = setup({
                 guard: ({ context, event }) => (context.ship.hold.get(event.good) ?? 0) < event.quantity,
                 actions: {
                   type: "displayMessages",
-                  params: ({ event }) => [`You don't have enough ${event.good.toLowerCase()} in your hold.`],
+                  params: ({ event }) => [`Captain, we don't have enough ${event.good.toLowerCase()} in our hold.`],
                 },
               },
               {
@@ -528,7 +525,7 @@ export const gameMachine = setup({
                         ...context,
                         ...event,
                       })}.`,
-                      `You have ${getAvailableStorage(context.ship)} units of storage left.`,
+                      `Captain, we have ${getAvailableStorage(context.ship)} units of storage left.`,
                     ],
                   },
                 ],
@@ -539,8 +536,8 @@ export const gameMachine = setup({
                 {
                   type: "displayMessages",
                   params: ({ context }) => [
-                    `Selling all goods for $${calculateInventoryValue(context)}.`,
-                    `You have ${context.ship.capacity} units of storage left.`,
+                    `Captain, we're selling all our goods for $${calculateInventoryValue(context)}.`,
+                    `We have ${context.ship.capacity} units of storage left.`,
                   ],
                 },
                 assign(({ context }) => ({
@@ -563,7 +560,7 @@ export const gameMachine = setup({
                   description: "Check that player's ship is damaged",
                 },
                 guard: ({ context }) => context.ship.health === 100,
-                actions: { type: "displayMessages", params: ["Your ship is already in perfect condition"] },
+                actions: { type: "displayMessages", params: ["Captain, your ship is already in perfect condition"] },
               },
               {
                 meta: {
@@ -571,7 +568,10 @@ export const gameMachine = setup({
                 },
                 guard: ({ context, event }) =>
                   context.balance + (context.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0) < event.cash,
-                actions: { type: "displayMessages", params: ["You don't have enough cash"] },
+                actions: {
+                  type: "displayMessages",
+                  params: ["Captain, we don't have enough cash to pay for this repair"],
+                },
               },
               {
                 actions: [
@@ -582,7 +582,7 @@ export const gameMachine = setup({
                         /* ship's damage */ 100 - context.ship.health,
                         calculateRepairForCost(event.cash, context),
                       );
-                      return [`Repaired ${damageToRepair} damage`];
+                      return [`Captain, they repaired ${damageToRepair} damage to our ship.`];
                     },
                   },
                   assign(({ context, event }) => {
@@ -608,7 +608,9 @@ export const gameMachine = setup({
                   description: "Check the player has enough cash",
                 },
                 guard: ({ context, event }) => !canAffordUpgrade(event.upgradeType, context),
-                actions: [{ type: "displayMessages", params: ["Not enough money for this upgrade."] }],
+                actions: [
+                  { type: "displayMessages", params: ["Captain, we don't have enough cash for this upgrade."] },
+                ],
               },
               {
                 actions: [
@@ -617,7 +619,7 @@ export const gameMachine = setup({
 
                     if (!upgrade) return context;
 
-                    const messages = [`Upgrade ship's ${event.upgradeType} completed!`];
+                    const messages = [`Captain, they've upgraded our ship's ${event.upgradeType}!`];
 
                     if ("reputation" in upgrade) {
                       messages.push(`Your ship improvements have earned you ${upgrade.reputation} reputation points!`);
@@ -648,7 +650,7 @@ export const gameMachine = setup({
                 guard: ({ context }) => context.guardFleet.ships >= MAX_GUARD_SHIPS,
                 actions: {
                   type: "displayMessages",
-                  params: [`Your fleet is at maximum capacity (${MAX_GUARD_SHIPS} ships)`],
+                  params: [`Captain, our fleet is at maximum capacity (${MAX_GUARD_SHIPS} ships)`],
                 },
               },
               {
@@ -661,7 +663,7 @@ export const gameMachine = setup({
                 },
                 actions: {
                   type: "displayMessages",
-                  params: [`Cannot hire that many ships. Maximum fleet size is ${MAX_GUARD_SHIPS} ships`],
+                  params: [`Captain, we cannot hire that many ships. Maximum fleet size is ${MAX_GUARD_SHIPS} ships.`],
                 },
               },
               {
@@ -676,7 +678,7 @@ export const gameMachine = setup({
                   type: "displayMessages",
                   params: ({ context, event }) => {
                     const cost = calculateGuardShipCost(context, event.amount);
-                    return [`Not enough cash. Need $${cost} to hire ${event.amount} ships`];
+                    return [`Captain, we don't have enough cash. Need $${cost} to hire ${event.amount} ships.`];
                   },
                 },
               },
@@ -696,7 +698,7 @@ export const gameMachine = setup({
                   }),
                   {
                     type: "displayMessages",
-                    params: ({ event }) => [`Hired ${event.amount} permanent guard ships`],
+                    params: ({ event }) => [`Captain, we hired ${event.amount} permanent guard ships`],
                   },
                 ],
               },
@@ -709,7 +711,7 @@ export const gameMachine = setup({
                 guard: ({ context }) => context.guardFleet.ships === 0,
                 actions: {
                   type: "displayMessages",
-                  params: ["You don't have any guard ships to upgrade"],
+                  params: ["Captain, we don't have any guard ships to upgrade."],
                 },
               },
               {
@@ -719,7 +721,7 @@ export const gameMachine = setup({
                 guard: ({ context }) => context.guardFleet.quality >= MAX_GUARD_QUALITY,
                 actions: {
                   type: "displayMessages",
-                  params: ["Your fleet is already at maximum quality"],
+                  params: ["Captain, our fleet is already at maximum quality."],
                 },
               },
               {
@@ -734,7 +736,7 @@ export const gameMachine = setup({
                   type: "displayMessages",
                   params: ({ context }) => {
                     const cost = calculateFleetUpgradeCost(context);
-                    return [`Not enough cash. Need $${cost} to upgrade fleet`];
+                    return [`Captain, we don't have enough cash. We need $${cost} to upgrade our fleet.`];
                   },
                 },
                 target: "menu",
@@ -753,7 +755,9 @@ export const gameMachine = setup({
                   }),
                   {
                     type: "displayMessages",
-                    params: ({ context }) => [`Fleet upgraded to quality level ${context.guardFleet.quality}!`],
+                    params: ({ context }) => [
+                      `Captain, our fleet upgraded to quality level ${context.guardFleet.quality}!`,
+                    ],
                   },
                 ],
               },
@@ -766,7 +770,7 @@ export const gameMachine = setup({
                 guard: ({ context }) => context.guardFleet.ships === 0,
                 actions: {
                   type: "displayMessages",
-                  params: ["You don't have any guard ships to dismiss"],
+                  params: ["Captain, we don't have any guard ships to dismiss."],
                 },
               },
               {
@@ -780,7 +784,7 @@ export const gameMachine = setup({
                   })),
                   {
                     type: "displayMessages",
-                    params: ({ event }) => [`Dismissed ${event.amount} guard ships`],
+                    params: ({ event }) => [`We've dismissed ${event.amount} guard ships, Captain.`],
                   },
                 ],
               },
@@ -808,7 +812,7 @@ export const gameMachine = setup({
               description: "Make sure the player can retire",
             },
             guard: ({ context }) => !context.canRetire,
-            actions: { type: "displayMessages", params: ["You haven't finished your voyage yet"] },
+            actions: { type: "displayMessages", params: ["You haven't finished your voyage yet!"] },
             target: "#mainMenu",
           },
           { target: "scoringScreen" },
@@ -824,7 +828,7 @@ export const gameMachine = setup({
           actions: {
             type: "displayMessages",
             params: [
-              "Your ship is in wreckage condition and you don't have enough money to repair it.",
+              "Captain, our ship is in wreckage condition and we don't have enough money to repair it.",
               "You've lost the game.",
             ],
           },
@@ -835,15 +839,6 @@ export const gameMachine = setup({
           guard: ({ context }) =>
             context.guardFleet.ships > 0 && context.day > context.guardFleet.lastMaintenanceDay && !context.inOverdraft,
           actions: [
-            {
-              type: "displayMessages",
-              params: ({ context }) => {
-                const daysPassed = context.day - context.guardFleet.lastMaintenanceDay;
-                const dailyCost = calculateDailyMaintenanceCost(context);
-                const totalCost = daysPassed * dailyCost;
-                return [`Paid $${totalCost} for fleet maintenance`];
-              },
-            },
             assign(({ context }) => {
               const daysPassed = context.day - context.guardFleet.lastMaintenanceDay;
               const dailyCost = calculateDailyMaintenanceCost(context);
@@ -864,7 +859,7 @@ export const gameMachine = setup({
           guard: ({ context }) => context.balance < BANKRUPTCY_THRESHOLD,
           actions: {
             type: "displayMessages",
-            params: ["You have gone bankrupt! Your creditors have seized your assets."],
+            params: ["Captain, we have gone bankrupt! The creditors have seized our assets."],
           },
           target: "scoringScreen",
         },
@@ -914,12 +909,12 @@ export const gameMachine = setup({
               type: "displayMessages",
               params: ({ context }) =>
                 [
-                  "You're in overdraft.",
-                  "Interest will be charged at 3% per day.",
+                  "Captain, we're in debt with the moneylenders.",
+                  "They're charging 3% daily interest.",
                   context.guardFleet.ships > 0
-                    ? `Since you can't pay fleet maintenance fee, you fleet effectiveness is reduced.`
+                    ? `Since we can't pay fleet maintenance fee, our fleet effectiveness is reduced.`
                     : "",
-                  `Be carefull your debt won't exceed -$${Math.abs(BANKRUPTCY_THRESHOLD)}, otherwise you'll go bankrupt!`,
+                  `If our debt exceed -$${Math.abs(BANKRUPTCY_THRESHOLD)} - we'll go bankrupt!`,
                 ].filter(Boolean),
             },
           ],
@@ -929,7 +924,7 @@ export const gameMachine = setup({
           guard: ({ context }) => context.inOverdraft && context.balance >= 0,
           actions: [
             assign({ inOverdraft: false }),
-            { type: "displayMessages", params: ["You're no longer in overdraft!"] },
+            { type: "displayMessages", params: ["We're no longer in overdraft, Captain!"] },
           ],
         },
         // Ship is no longer overloaded
@@ -945,8 +940,8 @@ export const gameMachine = setup({
             {
               type: "displayMessages",
               params: [
-                "Your ship is overloaded!",
-                "This will reduce your ship's speed and increase its risk of damage.",
+                "Our ship is overloaded, Captain!",
+                "This will reduce our speed and increase risk of damage to our ship.",
               ],
             },
           ],
@@ -960,7 +955,7 @@ export const gameMachine = setup({
         {
           guard: ({ context }) => context.nextPriceUpdate <= 0,
           actions: [
-            { type: "displayMessages", params: ["Prices updated!"] },
+            { type: "displayMessages", params: ["Prices have updated!"] },
             assign(({ context }) => {
               const newPrices = generatePrices(context.trends, context.currentSeason);
               const newTrends = updateTrends(context.trends);
@@ -989,7 +984,7 @@ export const gameMachine = setup({
           actions: [
             {
               type: "displayMessages",
-              params: ({ context }) => [`Season changes to ${getNextSeason(context.currentSeason)}`],
+              params: ({ context }) => [`Season changes to ${getNextSeason(context.currentSeason)}.`],
             },
             assign(({ context }) => ({
               currentSeason: getNextSeason(context.currentSeason),

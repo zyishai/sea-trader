@@ -66,7 +66,7 @@ export function MainView() {
       {controls === "keyboard" ? (
         <>
           <ActionPromptKeyboard
-            message="What would you like to do, captain?"
+            message="What would you like to do, Captain?"
             actions={availableActions
               .filter((action) => !action.disabled)
               .map((action, index) => ({
@@ -81,7 +81,7 @@ export function MainView() {
         </>
       ) : (
         <ActionPromptArrows
-          message="What would you like to do, captain?"
+          message="What would you like to do, Captain?"
           actions={availableActions.filter((action) => !action.disabled)}
           onSelect={handleSelectAction}
           onCancel={() => send({ type: "EXIT_GAME" })}

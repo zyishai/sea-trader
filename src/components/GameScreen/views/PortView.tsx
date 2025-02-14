@@ -30,7 +30,7 @@ export function PortView() {
       <Text>{figlet.textSync("Port")}</Text>
 
       <Box flexDirection="column" borderStyle="single">
-        <Text bold>Available Destinations</Text>
+        <Text underline>Available Destinations</Text>
         <Box flexDirection="column" paddingLeft={3}>
           <Columns
             columns={3}
@@ -50,14 +50,14 @@ export function PortView() {
 
       {controls === "keyboard" ? (
         <ActionPromptKeyboard
-          message="Where should we sail to, captain?"
+          message="Where should we sail to, Captain?"
           actions={availableActions.map((action, index) => ({ ...action, key: String(index + 1) }))}
           onSelect={handleSelectPort}
           onCancel={() => actor.send({ type: "CANCEL" })}
         />
       ) : (
         <ActionPromptArrows
-          message="Where should we sail to, captain?"
+          message="Where should we sail to, Captain?"
           actions={availableActions}
           onSelect={handleSelectPort}
           onCancel={() => actor.send({ type: "CANCEL" })}

@@ -2,7 +2,7 @@ import React from "react";
 import { Box, Text } from "ink";
 import { Badge } from "@inkjs/ui";
 import { GameContext } from "../../GameContext.js";
-import { calculateGuardEffectiveness, getFleetQuality } from "../../../store/utils.js";
+import { calculateGuardEffectiveness } from "../../../store/utils.js";
 import { Columns } from "../Columns.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
 import { ActionPrompt as ActionPromptArrows } from "../../prompts/arrows/ActionPrompt.js";
@@ -38,10 +38,10 @@ export function PiratesView() {
     <Box flexDirection="column" gap={1}>
       <Badge color="red">PIRATES ENCOUNTERED!</Badge>
 
-      <Text>A pirate ship has been spotted approaching your vessel!</Text>
+      <Text>Captain! A pirate ship has been spotted approaching our vessel!</Text>
 
       <Box flexDirection="column" borderStyle="single">
-        <Text bold>Current Status</Text>
+        <Text underline>Current Status</Text>
         <Box flexDirection="column" paddingLeft={3}>
           <Columns
             columns={2}
@@ -56,12 +56,16 @@ export function PiratesView() {
 
       {controls === "keyboard" ? (
         <ActionPromptKeyboard
-          message="Make your choice:"
+          message="What is your order, Captain?"
           actions={availableActions.map((action, index) => ({ ...action, key: String(index + 1) }))}
           onSelect={onSelectAction}
         />
       ) : (
-        <ActionPromptArrows message="Make your choice:" actions={availableActions} onSelect={onSelectAction} />
+        <ActionPromptArrows
+          message="What is your order, Captain?"
+          actions={availableActions}
+          onSelect={onSelectAction}
+        />
       )}
     </Box>
   );

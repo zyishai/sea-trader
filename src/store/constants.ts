@@ -36,7 +36,7 @@ const weatherEvents: EventTemplate[] = [
     type: "weather",
     severity: "major",
     baseChance: (context) => (context.currentSeason === "Winter" ? 0.2 : 0.08),
-    message: "A freezing winter storm approaches! Your crew suggests finding shelter.",
+    message: "Captain, a freezing winter storm approaches! Our crew suggests finding shelter.",
     choices: [
       {
         label: "Push through",
@@ -51,10 +51,7 @@ const weatherEvents: EventTemplate[] = [
               reputation: Math.min(100, context.reputation + reputationGain),
               messages: [
                 ...context.messages,
-                [
-                  "Your crew's bravery in facing the storm has earned you respect!",
-                  `Gained ${reputationGain} reputation.`,
-                ],
+                ["Our crew's bravery has earned us respect!", `Gained ${reputationGain} reputation.`],
               ],
             };
           }
@@ -71,8 +68,8 @@ const weatherEvents: EventTemplate[] = [
             messages: [
               ...context.messages,
               [
-                `The harsh weather caused ${damage} damage to your ship.`,
-                "Some question your judgment in challenging such weather..",
+                `The storm caused ${damage} damage to our ship, Captain.`,
+                "The crew questions your judgment in challenging such weather..",
               ],
             ],
           };
@@ -95,7 +92,7 @@ const weatherEvents: EventTemplate[] = [
         key: "D",
         effect: (context) => ({
           day: context.day + 4,
-          messages: [...context.messages, ["You avoided the storm but lost significant time navigating around it."]],
+          messages: [...context.messages, ["We avoided the storm but lost significant time navigating around it."]],
         }),
       },
     ],
@@ -113,7 +110,7 @@ const weatherEvents: EventTemplate[] = [
     type: "weather",
     severity: "moderate",
     baseChance: (context) => Math.min(0.25, 0.15 + (context.ship.speed - BASE_SHIP_SPEED) * 0.015),
-    message: "A storm approaches your vessel. What's your course of action?",
+    message: "A storm approaches our vessel, Captain. What's your course of action?",
     choices: [
       {
         label: "Brave the storm",
@@ -129,7 +126,7 @@ const weatherEvents: EventTemplate[] = [
               health: Math.max(0, context.ship.health - damage),
             },
             day: context.day + 1,
-            messages: [...context.messages, ["You weathered the storm but took some damage."]],
+            messages: [...context.messages, ["We weathered the storm but took some damage."]],
           };
         },
       },
@@ -138,7 +135,7 @@ const weatherEvents: EventTemplate[] = [
         key: "D",
         effect: (context) => ({
           day: context.day + 3,
-          messages: [...context.messages, ["You avoided the storm but lost valuable time."]],
+          messages: [...context.messages, ["We avoided the storm but lost valuable time."]],
         }),
       },
     ],
@@ -147,15 +144,15 @@ const weatherEvents: EventTemplate[] = [
     type: "weather",
     severity: "major",
     baseChance: 0.18,
-    message: "A typhoon has been spotted ahead! Seeking shelter will cost 200 silver dollars in harbor fees.",
+    message: "A typhoon has been spotted ahead! Seeking shelter will cost us $200 in harbor fees.",
     choices: [
       {
-        label: "Pay harbor fees (200 silver dollars)",
+        label: "Pay harbor fees ($200)",
         key: "P",
         effect: (context) => ({
           day: context.day + 2,
           balance: context.balance - 200,
-          messages: [...context.messages, ["You paid harbor fees and weathered the storm safely."]],
+          messages: [...context.messages, ["We paid harbor fees and weathered the storm safely."]],
         }),
       },
       {
@@ -166,7 +163,7 @@ const weatherEvents: EventTemplate[] = [
           if (success) {
             return {
               reputation: Math.min(100, context.reputation + 10),
-              messages: [...context.messages, ["Your bold gamble paid off! Your reputation increases."]],
+              messages: [...context.messages, ["Captain, your bold gamble paid off! Our reputation increases."]],
             };
           }
           const damage = Math.floor(Math.random() * 20) + 10;
@@ -175,7 +172,7 @@ const weatherEvents: EventTemplate[] = [
               ...context.ship,
               health: Math.max(0, context.ship.health - damage),
             },
-            messages: [...context.messages, [`The typhoon severly damaged your ship (${damage} damage).`]],
+            messages: [...context.messages, [`The typhoon severly damaged our ship, Captain (${damage} damage).`]],
           };
         },
       },
@@ -202,7 +199,10 @@ const weatherEvents: EventTemplate[] = [
           ...context.ship,
           hold: newHold,
         },
-        messages: [...context.messages, [`Lost ${lostAmount} picul of ${randomGood} due to overloaded cargo.`]],
+        messages: [
+          ...context.messages,
+          [`Captain, we've lost ${lostAmount} picul of ${randomGood} due to overloaded cargo.`],
+        ],
       };
     },
   },
@@ -216,7 +216,7 @@ const cargoEvents: EventTemplate[] = [
       const capacityRatio = cargoLoad / context.ship.capacity;
       return Math.min(0.25, 0.15 + capacityRatio * 0.2);
     },
-    message: "Your crew reports cargo stability issues due to poor loading at port.",
+    message: "Captain, we have cargo stability issues due to poor loading at port.",
     choices: [
       {
         label: "Take time to redistribute the load",
@@ -230,8 +230,8 @@ const cargoEvents: EventTemplate[] = [
               messages: [
                 ...context.messages,
                 [
-                  "You spent a day rebalancing the cargo.",
-                  "The crew's efficiency impressed local merchants (+2 reputation).",
+                  "We spent a day rebalancing the cargo.",
+                  "Our efficiency impressed local merchants, Captain (+2 reputation).",
                 ],
               ],
             };
@@ -249,7 +249,10 @@ const cargoEvents: EventTemplate[] = [
           return {
             ship: { ...context.ship, hold: newHold },
             day: context.day + 1,
-            messages: [...context.messages, ["Despite your best efforts, some cargo was lost during redistribution."]],
+            messages: [
+              ...context.messages,
+              ["Captain, we lost some cargo during redistribution despite our best efforts."],
+            ],
           };
         },
       },
@@ -260,7 +263,7 @@ const cargoEvents: EventTemplate[] = [
           const success = Math.random() < 0.6; // 60% chance to make it safely
           if (success) {
             return {
-              messages: [...context.messages, ["Despite the stability issues, you managed to continue safely."]],
+              messages: [...context.messages, ["Despite the stability issues, we managed to continue safely."]],
             };
           }
 
@@ -299,7 +302,10 @@ const cargoEvents: EventTemplate[] = [
           ...context.ship,
           capacity: context.ship.capacity + extraSpace,
         },
-        messages: [...context.messages, [`Expert maintenance has yielded ${extraSpace} additional cargo space!`]],
+        messages: [
+          ...context.messages,
+          [`Expert maintenance has yielded ${extraSpace} additional cargo space, Captain!`],
+        ],
       };
     },
   },
@@ -343,7 +349,7 @@ const marketEvents: EventTemplate[] = [
     severity: "major",
     baseChance: (context) =>
       context.destination === "Hong Kong" || context.destination === "Shanghai" ? 0.12 : context.destination ? 0.08 : 0,
-    message: "A foreign trade delegation has arrived! Their presence could significantly impact the market.",
+    message: "Captain! A foreign trade delegation has arrived! Their presence could significantly impact the market.",
     choices: [
       {
         label: "Host a banquet ($500)",
@@ -367,7 +373,7 @@ const marketEvents: EventTemplate[] = [
               messages: [
                 ...context.messages,
                 [
-                  "The delegation was impressed by your hospitality!",
+                  "The delegation was impressed by our hospitality!",
                   "Demand for Porcelain and Tea has increased significantly.",
                 ],
               ],
@@ -377,7 +383,7 @@ const marketEvents: EventTemplate[] = [
           return {
             balance: context.balance - 500,
             reputation: Math.min(100, context.reputation + 2),
-            messages: [...context.messages, ["The delegation was unimpressed by your efforts."]],
+            messages: [...context.messages, ["The delegation was unimpressed by our efforts, Captain."]],
           };
         },
       },
@@ -398,7 +404,7 @@ const marketEvents: EventTemplate[] = [
               messages: [
                 ...context.messages,
                 [
-                  "You gathered some useful market intelligence by watching the delegation's activities.",
+                  "We've gathered some useful market intelligence by watching the delegation's activities.",
                   "Tea prices are rising by 20%.",
                 ],
               ],
@@ -406,7 +412,7 @@ const marketEvents: EventTemplate[] = [
           }
 
           return {
-            messages: [...context.messages, ["You missed an opportunity to influence the market."]],
+            messages: [...context.messages, ["We've missed an opportunity to influence the market."]],
           };
         },
       },
@@ -416,7 +422,7 @@ const marketEvents: EventTemplate[] = [
     type: "market",
     severity: "moderate",
     baseChance: (context) => (context.destination ? 0.15 : 0),
-    message: "Your network of informants reports unusual merchant activity in nearby ports.",
+    message: "Captain, our network of informants reports unusual merchant activity in nearby ports.",
     choices: [
       {
         label: "Investigate ($300)",
@@ -441,14 +447,14 @@ const marketEvents: EventTemplate[] = [
               },
               messages: [
                 ...context.messages,
-                [`Your contacts reveal high demand for Opium and Spices in ${targetPort}!`],
+                [`Our contacts reveal high demand for Opium and Spices in ${targetPort}!`],
               ],
             };
           }
 
           return {
             balance: context.balance - 300,
-            messages: [...context.messages, ["The information proved unreliable."]],
+            messages: [...context.messages, ["Our sources proved unreliable."]],
           };
         },
       },
@@ -467,16 +473,13 @@ const marketEvents: EventTemplate[] = [
                   Spices: Math.round(context.prices[context.destination!].Spices * 1.25),
                 },
               },
-              messages: [
-                ...context.messages,
-                ["Your market speculation created a minor surge to the price of spices!"],
-              ],
+              messages: [...context.messages, ["Our market moves caused a surge in spice prices, Captain!"]],
             };
           }
 
           return {
             reputation: Math.max(0, context.reputation - 2),
-            messages: [...context.messages, ["Your speculation backfired, slightly damaging your reputation."]],
+            messages: [...context.messages, ["Our speculation backfired and hurt our reputation."]],
           };
         },
       },
@@ -529,7 +532,7 @@ const discoveryEvents: EventTemplate[] = [
     type: "discovery",
     severity: "minor",
     baseChance: (context) => Math.min(0.15, 0.05 + (context.day / GOAL_DAYS) * 0.1),
-    message: "You spot an uncharted island! Investigate?",
+    message: "Captain, we've spotted an uncharted island! Shall we investigate?",
     choices: [
       {
         label: "Explore the island",
@@ -562,7 +565,7 @@ const discoveryEvents: EventTemplate[] = [
               messages: [
                 ...context.messages,
                 [
-                  "A successful expedition!",
+                  "A successful expedition, Captain!",
                   `Found $${baseReward} in a buried chest.`,
                   ...discoveries.map((d) => `Found ${d}`),
                 ],
@@ -579,7 +582,7 @@ const discoveryEvents: EventTemplate[] = [
                 health: Math.max(0, context.ship.health - damage),
               },
               day: context.day + 1,
-              messages: [...context.messages, [`Your ship struck a reef during exploration (${damage} damage).`]],
+              messages: [...context.messages, [`Our ship struck a reef during exploration (${damage} damage).`]],
             };
           }
 
@@ -589,7 +592,7 @@ const discoveryEvents: EventTemplate[] = [
             reputation: Math.max(0, context.reputation - 3),
             messages: [
               ...context.messages,
-              ["The island exploration yielded nothing but wasted time.", "The crew's morale has suffered slightly."],
+              ["The island exploration yielded nothing but wasted time.", "Our crew's morale has suffered slightly."],
             ],
           };
         },
@@ -628,8 +631,8 @@ const discoveryEvents: EventTemplate[] = [
               messages: [
                 ...context.messages,
                 [
-                  "You've discovered a lucrative trade route!",
-                  "Knowledge of this route has increased your reputation.",
+                  "We've discovered a lucrative trade route, Captain!",
+                  "Knowledge of this route has increased our reputation.",
                   "Local merchants are offering premium prices for Tea and Spices.",
                 ],
               ],
@@ -638,7 +641,7 @@ const discoveryEvents: EventTemplate[] = [
 
           return {
             day: context.day + 2,
-            messages: [...context.messages, ["The lead turned out to be a dead end."]],
+            messages: [...context.messages, ["The lead turned out to be a dead end, Captain."]],
           };
         },
       },
@@ -659,8 +662,8 @@ const discoveryEvents: EventTemplate[] = [
             messages: [
               ...context.messages,
               [
-                "The merchants appreciate your openness!",
-                "Your reputation has increased significantly.",
+                "The merchants appreciate our openness, Captain!",
+                "Our reputation has increased significantly.",
                 "The shared route has moderately increased local prices.",
               ],
             ],

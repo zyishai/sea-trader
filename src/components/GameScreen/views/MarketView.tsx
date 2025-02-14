@@ -24,7 +24,7 @@ export function MarketView() {
 
       <Box flexDirection="column" borderStyle="single">
         <Box justifyContent="space-between">
-          <Text bold>
+          <Text underline>
             Cargo Hold ({getStorageUsed(context.ship)}/{context.ship.capacity})
           </Text>
           <Text>Available: {getAvailableStorage(context.ship)}</Text>
@@ -35,7 +35,7 @@ export function MarketView() {
       </Box>
 
       <Box flexDirection="column" borderStyle="single">
-        <Text bold>Price List</Text>
+        <Text underline>Price List</Text>
         <Box flexDirection="column" paddingLeft={0}>
           <Columns
             data={[
@@ -157,14 +157,14 @@ function PickGood({ action }: { action: "buy" | "sell" }) {
 
   return controls === "keyboard" ? (
     <ActionPromptKeyboard
-      message={action === "buy" ? "Which good would you like to buy, captain?" : "What do you offer to sell, captain?"}
+      message={action === "buy" ? "Which good would you like to buy, Captain?" : "What do you offer to sell, Captain?"}
       actions={availableActions.map((action, index) => ({ ...action, key: String(index + 1) }))}
       onSelect={onSelectGood}
       onCancel={() => market.send({ type: "CANCEL" })}
     />
   ) : (
     <ActionPromptArrows
-      message={action === "buy" ? "Which good would you like to buy, captain?" : "What do you offer to sell, captain?"}
+      message={action === "buy" ? "Which good would you like to buy, Captain?" : "What do you offer to sell, Captain?"}
       actions={availableActions}
       onSelect={onSelectGood}
       onCancel={() => market.send({ type: "CANCEL" })}
@@ -221,8 +221,8 @@ function SelectQuantity({ action }: { action: "buy" | "sell" }) {
               type: "text",
               message:
                 action === "buy"
-                  ? `How many piculs of ${marketContext.good.toLocaleLowerCase()} would you like, captain?`
-                  : `How many piculs of ${marketContext.good.toLocaleLowerCase()} are you selling, captain?`,
+                  ? `How many piculs of ${marketContext.good.toLocaleLowerCase()} would you like, Captain?`
+                  : `How many piculs of ${marketContext.good.toLocaleLowerCase()} are you selling, Captain?`,
               validate: onValidateQuantity,
             },
           ]}
@@ -237,8 +237,8 @@ function SelectQuantity({ action }: { action: "buy" | "sell" }) {
               type: "text",
               message:
                 action === "buy"
-                  ? `How many piculs of ${marketContext.good.toLocaleLowerCase()} would you like, captain?`
-                  : `How many piculs of ${marketContext.good.toLocaleLowerCase()} are you selling, captain?`,
+                  ? `How many piculs of ${marketContext.good.toLocaleLowerCase()} would you like, Captain?`
+                  : `How many piculs of ${marketContext.good.toLocaleLowerCase()} are you selling, Captain?`,
               validate: onValidateQuantity,
             },
           ]}
@@ -259,67 +259,3 @@ function SellMarket() {
     <SelectQuantity action="sell" />
   ) : null;
 }
-
-// function CompareMarketPrices() {
-//   const market = MarketContext.useActorRef();
-//   const gameContext = GameContext.useSelector((snapshot) => snapshot.context);
-//   const controls = gameContext.settings.controls;
-
-//   const data = ports.map((port) => ({
-//     Port: port,
-//     ...gameContext.availableGoods.reduce(
-//       (acc, good) => ({
-//         ...acc,
-//         [good]: displayMonetaryValue(gameContext.prices[port][good]),
-//       }),
-//       {},
-//     ),
-//   }));
-//   const columns = [
-//     { key: "Port", align: "left" },
-//     ...gameContext.availableGoods.map((good) => ({
-//       key: good,
-//       align: "right",
-//     })),
-//   ];
-
-//   const availableActions = [
-//     { label: "Buy Goods", value: "buy_goods" },
-//     { label: "Sell Goods", value: "sell_goods" },
-//   ];
-//   const onSelectAction = (action: string) => {
-//     switch (action) {
-//       case "buy_goods": {
-//         market.send({ type: "SELECT_ACTION", action: "buy" });
-//         break;
-//       }
-//       case "sell_goods": {
-//         market.send({ type: "SELECT_ACTION", action: "sell" });
-//         break;
-//       }
-//     }
-//   };
-
-//   return (
-//     <Box flexDirection="column" gap={1}>
-//       {/* @ts-expect-error Type inference issue with column names */}
-//       <Table data={data} columns={columns} />
-
-//       {controls === "keyboard" ? (
-//         <ActionPromptKeyboard
-//           message="What would you like to do, captain?"
-//           actions={availableActions.map((action, index) => ({ ...action, key: String(index + 1) }))}
-//           onSelect={onSelectAction}
-//           onCancel={() => market.send({ type: "CANCEL" })}
-//         />
-//       ) : (
-//         <ActionPromptArrows
-//           message="What would you like to do, captain?"
-//           actions={availableActions}
-//           onSelect={onSelectAction}
-//           onCancel={() => market.send({ type: "CANCEL" })}
-//         />
-//       )}
-//     </Box>
-//   );
-// }

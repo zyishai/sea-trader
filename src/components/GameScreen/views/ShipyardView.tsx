@@ -35,10 +35,9 @@ export function ShipyardView() {
       <Text>{figlet.textSync("Shipyard")}</Text>
 
       <Box flexDirection="column" borderStyle="single">
-        <Text bold>Your Ship</Text>
+        <Text underline>Your Ship</Text>
         <Box flexDirection="column" paddingLeft={3}>
           <Columns
-            columns={2}
             data={[
               ["- Capacity", `${getStorageUsed(gameContext.ship)}/${gameContext.ship.capacity}`],
               ["- Speed", `${gameContext.ship.speed} knots`],
@@ -49,7 +48,7 @@ export function ShipyardView() {
       </Box>
 
       <Box flexDirection="column" borderStyle="single">
-        <Text bold>Guard Fleet</Text>
+        <Text underline>Guard Fleet</Text>
         <Box flexDirection="column" paddingLeft={3}>
           <Columns
             columns={2}
@@ -159,7 +158,7 @@ function RepairShip() {
   return (
     <Box flexDirection="column" gap={1}>
       <Text>
-        Captain, your ship has taken some damage. To fully repair your ship will cost you{" "}
+        Captain, our ship has taken some damage. To fully repair your ship will cost use{" "}
         {displayMonetaryValue(repairCost)}.
       </Text>
       {controls === "keyboard" ? (
@@ -168,7 +167,7 @@ function RepairShip() {
             {
               id: "amount",
               type: "text",
-              message: "How much would you like to spend on repairs, captain?",
+              message: "How much shall we spend on repairs, Captain?",
               validate: onValidateAmount,
             },
           ]}
@@ -181,7 +180,7 @@ function RepairShip() {
             {
               id: "amount",
               type: "text",
-              message: "How much would you like to spend on repairs, captain?",
+              message: "How much shall we spend on repairs, Captain?",
               validate: onValidateAmount,
             },
           ]}
@@ -239,7 +238,7 @@ function UpgradeShip() {
 
   return controls === "keyboard" ? (
     <ActionPromptKeyboard
-      message="What would you like to upgrade, captain?"
+      message="What shall we upgrade, captain?"
       actions={availableActions
         .filter((action) => !action.disabled)
         .map((action, index) => ({ ...action, key: String(index + 1) }))}
@@ -248,7 +247,7 @@ function UpgradeShip() {
     />
   ) : (
     <ActionPromptArrows
-      message="What would you like to upgrade, captain?"
+      message="What shall we upgrade, captain?"
       actions={availableActions}
       onSelect={onSelectAction}
       onCancel={() => shipyard.send({ type: "CANCEL" })}
@@ -344,7 +343,7 @@ function FleetHire() {
             {
               id: "quantity",
               type: "text",
-              message: "How many ships would you like to hire, captain?",
+              message: "How many ships shall we hire, Captain?",
               validate: onValidateQuantity,
             },
           ]}
@@ -357,7 +356,7 @@ function FleetHire() {
             {
               id: "quantity",
               type: "text",
-              message: "How many ships would you like to hire, captain?",
+              message: "How many ships shall we hire, Captain?",
               validate: onValidateQuantity,
             },
           ]}
@@ -385,13 +384,13 @@ function FleetUpgrade() {
       <Text>Captain, upgrading your ship costs {displayMonetaryValue(calculateFleetUpgradeCost(context))}.</Text>
       {controls === "keyboard" ? (
         <ConfirmPromptKeyboard
-          message="You sure you want to upgrade your fleet, captain?"
+          message="You sure you want to upgrade your fleet, Captain?"
           onConfirm={onUpgradeFleet}
           onCancel={() => shipyard.send({ type: "CANCEL" })}
         />
       ) : (
         <ConfirmPromptArrows
-          message="You sure you want to upgrade your fleet, captain?"
+          message="You sure you want to upgrade your fleet, Captain?"
           onConfirm={onUpgradeFleet}
           onCancel={() => shipyard.send({ type: "CANCEL" })}
         />
@@ -426,7 +425,7 @@ function FleetDismiss() {
         {
           id: "ships",
           type: "text",
-          message: "How many ships should we dismiss, captain?",
+          message: "How many ships shall we dismiss, Captain?",
           validate: onValidate,
         },
       ]}
@@ -439,7 +438,7 @@ function FleetDismiss() {
         {
           id: "ships",
           type: "text",
-          message: "How many ships should we dismiss, captain?",
+          message: "How many ships shall we dismiss, Captain?",
           validate: onValidate,
         },
       ]}
