@@ -1,5 +1,11 @@
 # ctrader
 
+## 3.0.1
+
+### Patch Changes
+
+- 8cfc1d7: Fix Price Comparison Table
+
 ## 3.0.0
 
 ### Major Changes
