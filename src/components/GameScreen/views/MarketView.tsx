@@ -38,6 +38,7 @@ export function MarketView() {
         <Text underline>Price List</Text>
         <Box flexDirection="column" paddingLeft={0}>
           <Columns
+            columns={1 + availableGoods.length}
             data={[
               [
                 " ",
