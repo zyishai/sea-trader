@@ -44,7 +44,7 @@
   "homepage": "https://github.com/zyishai/sea-trader#readme",
   "bin": "dist/cli.js",
   "engines": {
-    "node": ">=10"
+    "node": ">=18"
   },
   "files": [
     "dist",

@@ -24,7 +24,13 @@ Run the game directly with:
 ```bash
 $ npx ctrader
 ```
-> Runs smoothly on iTerm (3.5.10+) and Warp (2024.11.21+)
+
+## Requirements
+- **Node.js** 18 or newer.
+- **Terminal**: any modern terminal with Unicode and color support, on macOS, Linux, or Windows. On Windows, use Windows Terminal.
+- **Window size**: at least 60×20 characters. At 80×32 or larger, every game screen fits without scrolling.
+
+If a screen doesn't fit, scroll with the mouse wheel or PgUp/PgDn (Fn+↑/↓ on Mac laptops). While a screen can scroll, hold Shift (Option on macOS) to select text with the mouse. If the window is below the minimum size, enlarge it or zoom out.
 
 # 🎮 Core Features
 - Trade between 5 major ports: Hong Kong, Shanghai, Nagasaki, Singapore, and Manila
