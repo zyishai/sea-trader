@@ -1,6 +1,6 @@
 import { config } from "dotenv";
 import { Octokit } from "@octokit/rest";
-import { readFileSync, readdirSync } from "fs";
+import { readFileSync } from "fs";
 
 // Load environment variables
 config();
@@ -20,25 +20,22 @@ function stripAnsi(string) {
   return string.replace(/\x1B\[\d+m/g, "");
 }
 
+// Changesets consume their files when versioning, so the notes come from this version's CHANGELOG section
+function getChangelogSection() {
+  const changelog = readFileSync("CHANGELOG.md", "utf-8");
+  const [, section = ""] = changelog.split(`\n## ${pkg.version}\n`);
+
+  return section
+    .split("\n## ")[0]
+    .split("\n")
+    .filter((line) => line.trim() && !line.startsWith("### "))
+    .map((line) => line.replace(/^- [0-9a-f]{7,}: /, "").replace(/^ {2}/, ""))
+    .join("\n");
+}
+
 // Custom release notes format
 function generateReleaseNotes() {
-  const changesetDir = ".changeset";
-  const files = readdirSync(changesetDir).filter((file) => file.endsWith(".md") && file !== "README.md");
-
-  let changes = "";
-
-  for (const file of files) {
-    const content = readFileSync(`${changesetDir}/${file}`, "utf-8");
-    // Changeset files have a frontmatter section and then the description
-    // The description is everything after the second '---'
-    const [, , ...descriptionParts] = content.split("---");
-    const description = descriptionParts.join("---").trim();
-    changes += `${description}\n\n`;
-  }
-  const cleanChanges = stripAnsi(changes)
-    .split("\n")
-    .filter((line) => line.trim() && !line.includes("---") && !line.includes("NO packages"))
-    .join("\n");
+  const cleanChanges = stripAnsi(getChangelogSection());
 
   const template = `
 # Sea Trader ${version}

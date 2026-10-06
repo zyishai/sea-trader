@@ -1,7 +1,6 @@
 name: Release
 
 on:
-  pull_request:
   push:
     branches:
       - main
@@ -11,6 +10,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write # npm trusted publishing (OIDC)
+
 jobs:
   release:
     name: Release
@@ -18,25 +22,23 @@ jobs:
     steps:
       # 1. Setup Phase
       - name: Checkout Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Full git history for changesets
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "22"
+
+      # Trusted publishing requires npm 11.5.1 or newer
+      - name: Update npm
+        run: npm install -g npm@latest
 
       - name: Install Dependencies
         run: npm ci
 
       # 2. Changeset Phase
-      - name: Store Changeset Info
-        run: |
-          mkdir -p ./temp
-          cp -r .changeset ./temp/
-
       - name: Create Release Pull Request or Publish
         id: changesets
         uses: changesets/action@v1
@@ -47,15 +49,10 @@ jobs:
           createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       # 3. GitHub Release Phase
       - name: Create GitHub Release
         if: steps.changesets.outputs.published == 'true'
-        run: |
-          cp -r ./temp/.changeset .
-          npm run create-github-release
-          rm -rf ./temp
+        run: npm run create-github-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
