@@ -957,8 +957,8 @@ export const gameMachine = setup({
           actions: [
             { type: "displayMessages", params: ["Prices have updated!"] },
             assign(({ context }) => {
-              const newPrices = generatePrices(context.trends, context.currentSeason);
               const newTrends = updateTrends(context.trends);
+              const newPrices = generatePrices(newTrends, context.currentSeason);
               const shouldIncreaseTrendChanges = Object.values(context.trends).some((rec) =>
                 Object.values(rec).some((trend) => trend.duration <= 1),
               );
