@@ -4,11 +4,13 @@ import { GameContext } from "./GameContext.js";
 import BigText from "ink-big-text";
 import { OrderedList, UnorderedList } from "@inkjs/ui";
 import { GOAL_DAYS } from "../store/constants.js";
+import { useAnchorToTop } from "./Viewport.js";
 
 export function HelpScreen() {
   const actor = GameContext.useActorRef();
   const [ref, setRef] = useState<DOMElement | null>(null);
   const [width, setWidth] = useState(0);
+  useAnchorToTop();
 
   useEffect(() => {
     if (ref) {
@@ -26,7 +28,7 @@ export function HelpScreen() {
   });
 
   return (
-    <Box width="100%" height="100%" flexDirection="column" alignItems="center">
+    <Box width="100%" flexGrow={1} flexDirection="column" alignItems="center">
       <Box flexDirection="column" marginBottom={1} ref={setRef}>
         <BigText text="How to play" font="simple" />
         <Text>{"-".repeat(width)}</Text>

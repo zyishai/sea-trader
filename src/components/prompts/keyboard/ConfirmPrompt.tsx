@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
+import { isScrollKey } from "../../Viewport.js";
 
 interface ConfirmPromptProps {
   message: string;
@@ -11,7 +12,9 @@ interface ConfirmPromptProps {
 export function ConfirmPrompt({ message, detail, onConfirm, onCancel }: ConfirmPromptProps) {
   const [error, setError] = useState<string>();
 
-  useInput((input) => {
+  useInput((input, inputKey) => {
+    if (isScrollKey(inputKey)) return;
+
     const key = input.toLowerCase();
     if (key === "y") {
       onConfirm();

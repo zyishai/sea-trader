@@ -36,19 +36,19 @@ export function StartScreen() {
   });
 
   return (
-    <Box width="100%" height="100%" flexDirection="column" alignItems="center">
-      <Box flexDirection="column" marginTop={6} ref={setRef}>
+    <Box width="100%" flexGrow={1} flexDirection="column" alignItems="center">
+      <Box flexDirection="column" marginTop={2} ref={setRef}>
         <BigText text="Sea Trader" font="simple" />
         <Text>{"-".repeat(width)}</Text>
       </Box>
 
       {width > 0 ? (
-        <Box flexDirection="column" width={width} marginY={2}>
+        <Box flexDirection="column" width={width} marginY={1}>
           <Text>
             The year is 1850. As a daring merchant in the Far East, your wits and courage will be tested on the high
             seas. Trade wisely, sail bravely, and forge your path to glory!
           </Text>
-          <Box flexDirection="column" gap={1} marginTop={2}>
+          <Box flexDirection="column" gap={1} marginTop={1}>
             <Text>Options:</Text>
             <Text>[H] Show &quot;How to play&quot; screen</Text>
             <Text>
@@ -68,7 +68,7 @@ export function StartScreen() {
       ) : null}
 
       <Spacer />
-      <Box marginBottom={5}>
+      <Box marginTop={1} marginBottom={2}>
         <Text color="greenBright" bold>
           Press ENTER to start your journey
         </Text>

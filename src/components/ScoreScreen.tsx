@@ -21,7 +21,7 @@ export function ScoreScreen() {
   });
 
   return bankrupcy ? (
-    <Box width="100%" height="100%" flexDirection="column" alignItems="center">
+    <Box width="100%" flexGrow={1} flexDirection="column" alignItems="center">
       <Box flexDirection="column" borderStyle="round" padding={1} gap={1} minWidth={60}>
         <Badge color="gray">
           <Text color="whiteBright">YOU WENT BANKRUPT!</Text>
@@ -34,7 +34,7 @@ export function ScoreScreen() {
       </Box>
     </Box>
   ) : shipSank ? (
-    <Box width="100%" height="100%" flexDirection="column" alignItems="center">
+    <Box width="100%" flexGrow={1} flexDirection="column" alignItems="center">
       <Box flexDirection="column" borderStyle="round" padding={1} gap={1} minWidth={60}>
         <Badge color="red">
           <Text color="whiteBright">SHIP SANK!</Text>
@@ -47,7 +47,7 @@ export function ScoreScreen() {
       </Box>
     </Box>
   ) : (
-    <Box width="100%" height="100%" flexDirection="column" alignItems="center">
+    <Box width="100%" flexGrow={1} flexDirection="column" alignItems="center">
       <Box flexDirection="column" borderStyle="round" padding={1} gap={1} minWidth={60}>
         <Badge color={context.extendedGame ? "blueBright" : "cyanBright"}>
           {context.extendedGame ? "Extended Game" : "Regular Game"}

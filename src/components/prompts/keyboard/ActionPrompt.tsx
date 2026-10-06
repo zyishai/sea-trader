@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
+import { isScrollKey } from "../../Viewport.js";
 
 export interface Action {
   label: string;
@@ -20,6 +21,8 @@ export function ActionPrompt({ message, actions, onSelect, onCancel, backMessage
   const [error, setError] = useState<string>();
 
   useInput((input, key) => {
+    if (isScrollKey(key)) return;
+
     if (key.escape) {
       onCancel?.();
       return;
