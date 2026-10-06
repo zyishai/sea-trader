@@ -521,8 +521,8 @@ export const generateAllTips = (context: Context): MerchantTip[] => {
         priority: Math.round(trendInfo.reliability / 2) + 30 + Math.round(20 / trendInfo.duration),
         message:
           trendInfo.direction === "increasing"
-            ? `${good} price is rising strongly here - good time to buy`
-            : `${good} price is falling strongly here - might want to sell`,
+            ? `${good} price is booming here - good time to sell`
+            : `${good} price is in a deep slump here - good time to buy`,
       });
     }
   });
