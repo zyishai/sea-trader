@@ -3,42 +3,47 @@ import { Box, Text } from "ink";
 import { GameContext } from "../GameContext.js";
 import { displayMonetaryValue } from "../../store/utils.js";
 
-// const seasonEmoji: Record<Season, string> = {
-//   Spring: "🌸 ",
-//   Summer: "☀️ ",
-//   Autumn: "🍂 ",
-//   Winter: "❄️ ",
-// };
-
-export function StatusBar() {
+export function StatusBar({ orientation }: { orientation: "vertical" | "horizontal" }) {
   const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const items = [
+    { label: "Day", value: context.day },
+    { label: "Location", value: context.currentPort, highlight: true },
+    { label: "Ship Health", value: `${context.ship.health}%` },
+    { label: "Cash", value: displayMonetaryValue(context.balance), highlight: true },
+    { label: "Reputation", value: context.reputation },
+  ];
 
-  return (
+  return orientation === "vertical" ? (
     <Box flexDirection="column" alignItems="stretch" gap={1} flexShrink={0} paddingX={1} paddingY={1}>
-      <Box flexDirection="column" alignItems="center" flexWrap="nowrap">
-        <Text>Day</Text>
-        <Text dimColor>{context.day}</Text>
-      </Box>
-      <Box flexDirection="column" alignItems="center" flexWrap="nowrap">
-        <Text>Location</Text>
-        <Text inverse dimColor>
-          {context.currentPort}
+      {items.map(({ label, value, highlight }) => (
+        <Box key={label} flexDirection="column" alignItems="center" flexWrap="nowrap">
+          <Text>{label}</Text>
+          <Text inverse={highlight} dimColor>
+            {value}
+          </Text>
+        </Box>
+      ))}
+    </Box>
+  ) : (
+    <Box
+      justifyContent="space-between"
+      flexWrap="wrap"
+      columnGap={2}
+      flexShrink={0}
+      borderStyle="single"
+      borderTop={false}
+      borderLeft={false}
+      borderRight={false}
+      borderDimColor
+    >
+      {items.map(({ label, value, highlight }) => (
+        <Text key={label} wrap="truncate">
+          {label}:{" "}
+          <Text inverse={highlight} dimColor>
+            {value}
+          </Text>
         </Text>
-      </Box>
-      <Box flexDirection="column" alignItems="center" flexWrap="nowrap">
-        <Text>Ship Health</Text>
-        <Text dimColor>{context.ship.health}%</Text>
-      </Box>
-      <Box flexDirection="column" alignItems="center" flexWrap="nowrap">
-        <Text>Cash</Text>
-        <Text inverse dimColor>
-          {displayMonetaryValue(context.balance)}
-        </Text>
-      </Box>
-      <Box flexDirection="column" alignItems="center" flexWrap="nowrap">
-        <Text>Reputation</Text>
-        <Text dimColor>{context.reputation}</Text>
-      </Box>
+      ))}
     </Box>
   );
 }

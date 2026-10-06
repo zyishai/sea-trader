@@ -3,7 +3,7 @@ import { Box, Text } from "ink";
 import { GameContext } from "../../GameContext.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
 import { ActionPrompt as ActionPromptArrows } from "../../prompts/arrows/ActionPrompt.js";
-import figlet from "figlet";
+import { ViewTitle } from "../ViewTitle.js";
 import { useMachine } from "@xstate/react";
 import { menuMachine } from "../../../store/ui/menu.js";
 import { ConfirmPrompt as ConfirmPromptKeyboard } from "../../prompts/keyboard/ConfirmPrompt.js";
@@ -61,7 +61,7 @@ export function MainView() {
 
   return (
     <Box flexDirection="column" gap={1}>
-      <Text>{figlet.textSync("Sea Trader")}</Text>
+      <ViewTitle text="Sea Trader" />
 
       {controls === "keyboard" ? (
         <>

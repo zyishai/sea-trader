@@ -6,9 +6,9 @@ import { ports } from "../../../store/constants.js";
 import { calculateTravelTime, calculateDailyMaintenanceCost, displayMonetaryValue } from "../../../store/utils.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
 import { ActionPrompt as ActionPromptArrows } from "../../prompts/arrows/ActionPrompt.js";
-import { Columns } from "../Columns.js";
+import { Table } from "../Table.js";
+import { ViewTitle } from "../ViewTitle.js";
 import assert from "node:assert";
-import figlet from "figlet";
 
 export function PortView() {
   const actor = GameContext.useActorRef();
@@ -27,14 +27,14 @@ export function PortView() {
 
   return (
     <Box flexDirection="column" gap={1} width="100%">
-      <Text>{figlet.textSync("Port")}</Text>
+      <ViewTitle text="Port" />
 
       <Box flexDirection="column" borderStyle="single">
         <Text underline>Available Destinations</Text>
         <Box flexDirection="column" paddingLeft={3}>
-          <Columns
-            columns={3}
-            data={context.availablePorts.map((port) => {
+          <Table
+            gap={2}
+            rows={context.availablePorts.map((port) => {
               const travelTime = calculateTravelTime(port, context);
               const dailyCost = calculateDailyMaintenanceCost(context);
               const maintenanceCost = dailyCost * travelTime;

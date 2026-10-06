@@ -9,9 +9,9 @@ import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/Act
 import { ActionPrompt as ActionPromptArrows } from "../../prompts/arrows/ActionPrompt.js";
 import { InputPrompt as InputPromptKeyboard } from "../../prompts/keyboard/InputPrompt.js";
 import { InputPrompt as InputPromptArrows } from "../../prompts/arrows/InputPrompt.js";
-import { Columns } from "../Columns.js";
+import { Table } from "../Table.js";
+import { ViewTitle } from "../ViewTitle.js";
 import { assert } from "node:console";
-import figlet from "figlet";
 
 export function MarketView() {
   const context = GameContext.useSelector((snapshot) => snapshot.context);
@@ -20,45 +20,26 @@ export function MarketView() {
 
   return (
     <Box flexDirection="column" gap={1} width="100%">
-      <Text>{figlet.textSync("Market")}</Text>
+      <ViewTitle text="Market" />
 
       <Box flexDirection="column" borderStyle="single">
-        <Box justifyContent="space-between">
-          <Text underline>
-            Cargo Hold ({getStorageUsed(context.ship)}/{context.ship.capacity})
+        <Box justifyContent="space-between" columnGap={2} flexWrap="wrap">
+          <Text underline>Price List</Text>
+          <Text>
+            Cargo Hold: {getStorageUsed(context.ship)}/{context.ship.capacity} (Available:{" "}
+            {getAvailableStorage(context.ship)})
           </Text>
-          <Text>Available: {getAvailableStorage(context.ship)}</Text>
         </Box>
-        <Box flexDirection="column" paddingLeft={3}>
-          <Columns data={[...context.ship.hold.entries()].map(([good, quantity]) => [`- ${good}`, quantity])} />
-        </Box>
-      </Box>
-
-      <Box flexDirection="column" borderStyle="single">
-        <Text underline>Price List</Text>
-        <Box flexDirection="column" paddingLeft={0}>
-          <Columns
-            columns={1 + availableGoods.length}
-            data={[
-              [
-                " ",
-                ...availableGoods.map((good, index) => (
-                  <Text key={"header" + index} bold>
-                    {good}
-                  </Text>
-                )),
-              ],
-              ...ports.map((port) => [
-                port,
-                ...availableGoods.map((good, index) => (
-                  <Box key={port + index} justifyContent="flex-end">
-                    <Text>{displayMonetaryValue(context.prices[port][good])}</Text>
-                  </Box>
-                )),
-              ]),
-            ]}
-          />
-        </Box>
+        <Table
+          gap={2}
+          align={["left", ...availableGoods.map(() => "right" as const)]}
+          header={["", ...availableGoods]}
+          rows={ports.map((port) => [
+            port,
+            ...availableGoods.map((good) => displayMonetaryValue(context.prices[port][good])),
+          ])}
+          footer={["In Hold", ...availableGoods.map((good) => context.ship.hold.get(good) ?? 0)]}
+        />
       </Box>
 
       {snapshot.matches("menu") ? (
@@ -117,7 +98,7 @@ function MarketOverview() {
           actions={availableActions.map((action, index) => ({ ...action, key: String(index + 1) }))}
           onSelect={onSelectAction}
           onCancel={() => actor.send({ type: "CANCEL" })}
-          backMessage="Press [Esc] to leave marke"
+          backMessage="Press [Esc] to leave market"
         />
       ) : (
         <ActionPromptArrows
@@ -125,7 +106,7 @@ function MarketOverview() {
           actions={availableActions}
           onSelect={onSelectAction}
           onCancel={() => actor.send({ type: "CANCEL" })}
-          backMessage="Press [Esc] to leave marke"
+          backMessage="Press [Esc] to leave market"
         />
       )}
     </Box>

@@ -22,8 +22,8 @@ import { InputPrompt as InputPromptArrows } from "../../prompts/arrows/InputProm
 import { ConfirmPrompt as ConfirmPromptKeyboard } from "../../prompts/keyboard/ConfirmPrompt.js";
 import { ConfirmPrompt as ConfirmPromptArrows } from "../../prompts/arrows/ConfirmPrompt.js";
 import { MAX_GUARD_QUALITY, MAX_GUARD_SHIPS } from "../../../store/constants.js";
-import { Columns } from "../Columns.js";
-import figlet from "figlet";
+import { Table } from "../Table.js";
+import { ViewTitle } from "../ViewTitle.js";
 
 export function ShipyardView() {
   const gameContext = GameContext.useSelector((snapshot) => snapshot.context);
@@ -32,13 +32,13 @@ export function ShipyardView() {
 
   return (
     <Box flexDirection="column" gap={1} width="100%">
-      <Text>{figlet.textSync("Shipyard")}</Text>
+      <ViewTitle text="Shipyard" />
 
       <Box flexDirection="column" borderStyle="single">
         <Text underline>Your Ship</Text>
         <Box flexDirection="column" paddingLeft={3}>
-          <Columns
-            data={[
+          <Table
+            rows={[
               ["- Capacity", `${getStorageUsed(gameContext.ship)}/${gameContext.ship.capacity}`],
               ["- Speed", `${gameContext.ship.speed} knots`],
               ["- Condition", `${getShipStatus(gameContext.ship.health)} (${gameContext.ship.health}%)`],
@@ -50,9 +50,8 @@ export function ShipyardView() {
       <Box flexDirection="column" borderStyle="single">
         <Text underline>Guard Fleet</Text>
         <Box flexDirection="column" paddingLeft={3}>
-          <Columns
-            columns={2}
-            data={[
+          <Table
+            rows={[
               ["- Fleet Size", `${gameContext.guardFleet.ships} ship${gameContext.guardFleet.ships !== 1 ? "s" : ""}`],
               [
                 "- Fleet Quality",

@@ -9,15 +9,28 @@ import { StatusBar } from "./StatusBar.js";
 import { Badge } from "@inkjs/ui";
 import { MarketContext } from "./MarketContext.js";
 import { ShipyardContext } from "./ShipyardContext.js";
+import { useScreenSize } from "../../hooks/use-screen-size.js";
+import { MAX_PANEL_WIDTH, SIDEBAR_LAYOUT_MIN_WIDTH } from "../layout.js";
 
 export function Layout({ children }: React.PropsWithChildren) {
+  const { width } = useScreenSize();
+  const hasSidebar = width >= SIDEBAR_LAYOUT_MIN_WIDTH;
+
   return (
     <Box width="100%" flexDirection="column" alignItems="center">
-      <Box alignItems="stretch" borderStyle="round" padding={1} width={75} gap={3}>
-        <Box flexGrow={1} flexWrap="nowrap">
+      <Box
+        flexDirection={hasSidebar ? "row" : "column"}
+        alignItems="stretch"
+        borderStyle="round"
+        padding={1}
+        width={Math.min(width, MAX_PANEL_WIDTH)}
+        gap={hasSidebar ? 3 : 1}
+      >
+        {hasSidebar ? null : <StatusBar orientation="horizontal" />}
+        <Box flexGrow={1} flexShrink={1} flexWrap="nowrap">
           {children}
         </Box>
-        <StatusBar />
+        {hasSidebar ? <StatusBar orientation="vertical" /> : null}
       </Box>
     </Box>
   );
