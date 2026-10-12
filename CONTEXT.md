@@ -24,6 +24,18 @@ _Avoid_: Market refresh, tick
 Days an event adds to the passage, such as sheltering from a storm. A favourable wind gives a negative Delay, though a passage always takes at least one day.
 _Avoid_: Lost time, wait
 
+**Event**:
+A random happening during a passage, such as a storm, a market rumour or an uncharted island. Some Events ask the Captain to choose.
+_Avoid_: Incident, encounter, random event
+
+**Pirate Encounter**:
+Pirates intercepting the Ship during a passage; the Captain orders an attack, an escape or a bribe.
+_Avoid_: Pirate event, battle
+
+**Outcome**:
+A single change an Event or Pirate Encounter makes to the Ship, the Balance, the Hold, reputation or the calendar, such as damage to the Ship or a Delay.
+_Avoid_: Effect, consequence, result
+
 **Ship**:
 The Captain's single merchant vessel. It has a class, condition, speed, defense and one Hold. The Captain owns one Ship at a time and may change its class.
 _Avoid_: Vessel, boat
