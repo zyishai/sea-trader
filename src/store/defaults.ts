@@ -12,6 +12,7 @@ import {
 import { Context, GameSettings, Good, Port, PriceHistory, Range } from "./types.js";
 import { generatePrices, generateTrends } from "./utils.js";
 import { Rng } from "./rng.js";
+import { emptyHold } from "./hold.js";
 
 export const initialContext = (rng: Rng, settings?: GameSettings) => {
   const { extendedGame = false, disableAnimations = false, controls = "keyboard" } = settings || {};
@@ -57,9 +58,7 @@ export const initialContext = (rng: Rng, settings?: GameSettings) => {
       health: 100,
       defense: BASE_SHIP_DEFENSE,
       speed: BASE_SHIP_SPEED, // 8 - 20 knots
-      capacity: BASE_SHIP_CAPACITY,
-      hold: goods.reduce((map, good) => map.set(good, 0), new Map()),
-      isOverloaded: false,
+      hold: emptyHold(BASE_SHIP_CAPACITY),
     },
     trends,
     prices: initialPrices,

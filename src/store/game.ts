@@ -4,6 +4,18 @@ import { Context, Good } from "./types.js";
 import { GameEvents } from "./events.js";
 import { Rng } from "./rng.js";
 import {
+  amountOf,
+  fitsAboard,
+  freeSpace,
+  goodsAboard,
+  load,
+  marginLeft,
+  overloadLevel,
+  unload,
+  value,
+  withCapacity,
+} from "./hold.js";
+import {
   calculateCostForRepair,
   calculateDailyMaintenanceCost,
   calculateGuardEffectiveness,
@@ -15,18 +27,11 @@ import {
   calculateFleetUpgradeCost,
   checkForEvent,
   generatePrices,
-  getAvailableStorage,
   getNetCash,
   getShipStatus,
   distributeFleetDamage,
-  calculateInventoryValue,
   canAffordUpgrade,
   getNextUpgrade,
-  getStorageUsed,
-  getBufferStorage,
-  canStoreCargo,
-  getStorageUnitsForGood,
-  getAvailableBufferStorage,
   updateTrends,
   getNextSeason,
   updatePriceHistory,
@@ -139,14 +144,11 @@ export const gameMachine = setup({
                     if (success) {
                       // Even when winning, ship might take some damage
                       const takeDamage = context.rng.chance(0.7); // 70% chance to take damage
-                      const damage = takeDamage ? context.rng.int(5, 14) : 0; // 5 - 15 damage
+                      const damage = takeDamage ? context.rng.int(5, 14) : 0;
                       const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
 
                       // Loot from pirates
-                      const cargoValue = [...context.ship.hold.entries()].reduce(
-                        (sum, [good, quantity]) => sum + context.prices[context.currentPort][good] * quantity,
-                        0,
-                      );
+                      const cargoValue = value(context.ship.hold, context.prices[context.currentPort]);
                       const baseLoot = context.rng.int(801, 1300);
                       const factor = Math.floor(100_000 / Math.max(1, context.balance + cargoValue));
                       const potentialLoot = Math.max(500, Math.floor(baseLoot * factor));
@@ -187,24 +189,17 @@ export const gameMachine = setup({
                       const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
 
                       const stolenGoods = context.rng.int(5, 14);
-                      const randomGood = [...context.ship.hold.entries()]
-                        .filter(([_, amount]) => amount > 0)
-                        .map(([good]) => good)[Math.floor(context.rng.float() * context.ship.hold.size)];
-
-                      const newHold = new Map(context.ship.hold);
-                      if (randomGood) {
-                        const currentAmount = newHold.get(randomGood) || 0;
-                        newHold.set(randomGood, Math.max(0, currentAmount - stolenGoods));
-                      }
+                      const [randomGood] = context.rng.pick(goodsAboard(context.ship.hold)) ?? [];
+                      const { hold: newHold, unloaded: stolen } = randomGood
+                        ? unload(context.ship.hold, randomGood, stolenGoods)
+                        : { hold: context.ship.hold, unloaded: 0 };
 
                       enqueue({
                         type: "displayMessages",
                         params: [
                           "Despite our guard fleet's efforts, the pirates prevailed!",
                           `We took ${Math.min(shipDamage, context.ship.health)} damage in the battle.`,
-                          randomGood
-                            ? `The pirates stole ${Math.min(stolenGoods, context.ship.hold.get(randomGood)!)} ${randomGood} from our hold.`
-                            : "",
+                          randomGood ? `The pirates stole ${stolen} ${randomGood} from our hold.` : "",
                           shipsLost > 0
                             ? `We lost ${Math.min(shipsLost, context.guardFleet.ships)} guard ship${
                                 Math.min(shipsLost, context.guardFleet.ships) > 1 ? "s" : ""
@@ -234,11 +229,7 @@ export const gameMachine = setup({
                   actions: enqueueActions(({ enqueue, context }) => {
                     const baseFleeChance = 0.6 + calculateGuardEffectiveness(context) * 0.2;
 
-                    const totalBuffer = getBufferStorage(context.ship);
-                    const availableBuffer = getAvailableBufferStorage(context.ship);
-                    const overloadPenalty = context.ship.isOverloaded
-                      ? ((totalBuffer - availableBuffer) / totalBuffer) * 0.4
-                      : 0;
+                    const overloadPenalty = overloadLevel(context.ship.hold) * 0.4;
 
                     const fleeChance = Math.max(0.1, baseFleeChance - overloadPenalty);
                     const success = context.rng.chance(fleeChance);
@@ -466,38 +457,39 @@ export const gameMachine = setup({
                 meta: {
                   description: "Check that player has enough cargo space",
                 },
-                guard: ({ context, event }) => !canStoreCargo(context, event.good, event.quantity),
+                guard: ({ context, event }) =>
+                  fitsAboard(context.ship.hold, event.good, { overload: true }) < event.quantity,
                 actions: {
                   type: "displayMessages",
                   params: ({ context, event }) => [
-                    `Captain, you don't have enough storage space for ${event.quantity} picul of ${event.good.toLowerCase()} (needs ${getStorageUnitsForGood(event.good, event.quantity)} storage units)`,
-                    `Available storage: ${getAvailableStorage(context.ship)} piculs (+${getAvailableBufferStorage(context.ship)} overloaded)`,
+                    `Captain, you don't have enough storage space for ${event.quantity} picul of ${event.good.toLowerCase()}`,
+                    `Available storage: ${freeSpace(context.ship.hold)} piculs (+${marginLeft(context.ship.hold) - freeSpace(context.ship.hold)} overloaded)`,
                   ],
                 },
               },
               {
-                actions: [
-                  assign(({ context, event }) => ({
-                    ship: {
-                      ...context.ship,
-                      hold: context.ship.hold.set(
-                        event.good,
-                        (context.ship.hold.get(event.good) ?? 0) + event.quantity,
-                      ),
-                    },
-                    balance: context.balance - calculatePrice({ ...context, ...event }),
-                  })),
-                  {
+                actions: enqueueActions(({ enqueue, context, event }) => {
+                  const cost = calculatePrice({ ...context, ...event });
+                  const { hold, becameOverloaded } = load(context.ship.hold, event.good, event.quantity);
+
+                  enqueue.assign({ ship: { ...context.ship, hold }, balance: context.balance - cost });
+                  enqueue({
                     type: "displayMessages",
-                    params: ({ context, event }) => [
-                      `Purchased ${event.quantity} piculs of ${event.good} for $${calculatePrice({
-                        ...context,
-                        ...event,
-                      })}.`,
-                      `We have ${getAvailableStorage(context.ship)} units of storage left, Captain.`,
+                    params: [
+                      `Purchased ${event.quantity} piculs of ${event.good} for $${cost}.`,
+                      `We have ${freeSpace(hold)} units of storage left, Captain.`,
                     ],
-                  },
-                ],
+                  });
+                  if (becameOverloaded) {
+                    enqueue({
+                      type: "displayMessages",
+                      params: [
+                        "Our ship is overloaded, Captain!",
+                        "This will reduce our speed and increase risk of damage to our ship.",
+                      ],
+                    });
+                  }
+                }),
               },
             ],
             SELL: [
@@ -505,7 +497,7 @@ export const gameMachine = setup({
                 meta: {
                   description: "Check that player has enough to sell",
                 },
-                guard: ({ context, event }) => (context.ship.hold.get(event.good) ?? 0) < event.quantity,
+                guard: ({ context, event }) => amountOf(context.ship.hold, event.good) < event.quantity,
                 actions: {
                   type: "displayMessages",
                   params: ({ event }) => [`Captain, we don't have enough ${event.good.toLowerCase()} in our hold.`],
@@ -514,13 +506,7 @@ export const gameMachine = setup({
               {
                 actions: [
                   assign(({ context, event }) => ({
-                    ship: {
-                      ...context.ship,
-                      hold: context.ship.hold.set(
-                        event.good,
-                        (context.ship.hold.get(event.good) ?? 0) - event.quantity,
-                      ),
-                    },
+                    ship: { ...context.ship, hold: unload(context.ship.hold, event.good, event.quantity).hold },
                     balance: context.balance + calculatePrice({ ...context, ...event }),
                   })),
                   {
@@ -530,30 +516,12 @@ export const gameMachine = setup({
                         ...context,
                         ...event,
                       })}.`,
-                      `Captain, we have ${getAvailableStorage(context.ship)} units of storage left.`,
+                      `Captain, we have ${freeSpace(context.ship.hold)} units of storage left.`,
                     ],
                   },
                 ],
               },
             ],
-            SELL_ALL: {
-              actions: [
-                {
-                  type: "displayMessages",
-                  params: ({ context }) => [
-                    `Captain, we're selling all our goods for $${calculateInventoryValue(context)}.`,
-                    `We have ${context.ship.capacity} units of storage left.`,
-                  ],
-                },
-                assign(({ context }) => ({
-                  balance: context.balance + calculateInventoryValue(context),
-                  ship: {
-                    ...context.ship,
-                    hold: goods.reduce((map, good) => map.set(good, 0), new Map()),
-                  },
-                })),
-              ],
-            },
             CANCEL: { target: "#mainMenu" },
           },
         },
@@ -631,11 +599,12 @@ export const gameMachine = setup({
                     }
 
                     return {
-                      ship: {
-                        ...context.ship,
-                        // @ts-expect-error ts can't infer exact type
-                        [event.upgradeType]: upgrade[event.upgradeType],
-                      },
+                      ship:
+                        "capacity" in upgrade
+                          ? { ...context.ship, hold: withCapacity(context.ship.hold, upgrade.capacity) }
+                          : "speed" in upgrade
+                            ? { ...context.ship, speed: upgrade.speed }
+                            : { ...context.ship, defense: upgrade.defense },
                       balance: context.balance - upgrade.cost,
                       messages: [...context.messages, messages],
                       reputation: Math.min(
@@ -930,25 +899,6 @@ export const gameMachine = setup({
           actions: [
             assign({ inOverdraft: false }),
             { type: "displayMessages", params: ["We're no longer in overdraft, Captain!"] },
-          ],
-        },
-        // Ship is no longer overloaded
-        {
-          guard: ({ context }) => context.ship.isOverloaded && getStorageUsed(context.ship) <= context.ship.capacity,
-          actions: assign(({ context }) => ({ ship: { ...context.ship, isOverloaded: false } })),
-        },
-        // Ship's hold is overloaded
-        {
-          guard: ({ context }) => !context.ship.isOverloaded && getStorageUsed(context.ship) > context.ship.capacity,
-          actions: [
-            assign(({ context }) => ({ ship: { ...context.ship, isOverloaded: true } })),
-            {
-              type: "displayMessages",
-              params: [
-                "Our ship is overloaded, Captain!",
-                "This will reduce our speed and increase risk of damage to our ship.",
-              ],
-            },
           ],
         },
         // Set canRetire to true if the player has finished the game

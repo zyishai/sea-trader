@@ -1,7 +1,8 @@
 import React from "react";
 import { Box, Text } from "ink";
 import { GameContext } from "../../GameContext.js";
-import { displayMonetaryValue, getAvailableStorage, getMerchantTip, getStorageUsed } from "../../../store/utils.js";
+import { displayMonetaryValue, getMerchantTip } from "../../../store/utils.js";
+import { amountOf, freeSpace, spaceUsed } from "../../../store/hold.js";
 import { OVERDRAFT_TRADING_LIMIT, ports } from "../../../store/constants.js";
 import { Good } from "../../../store/types.js";
 import { MarketContext } from "../MarketContext.js";
@@ -26,8 +27,8 @@ export function MarketView() {
         <Box justifyContent="space-between" columnGap={2} flexWrap="wrap">
           <Text underline>Price List</Text>
           <Text>
-            Cargo Hold: {getStorageUsed(context.ship)}/{context.ship.capacity} (Available:{" "}
-            {getAvailableStorage(context.ship)})
+            Cargo Hold: {spaceUsed(context.ship.hold)}/{context.ship.hold.capacity} (Available:{" "}
+            {freeSpace(context.ship.hold)})
           </Text>
         </Box>
         <Table
@@ -38,7 +39,7 @@ export function MarketView() {
             port,
             ...availableGoods.map((good) => displayMonetaryValue(context.prices[port][good])),
           ])}
-          footer={["In Hold", ...availableGoods.map((good) => context.ship.hold.get(good) ?? 0)]}
+          footer={["In Hold", ...availableGoods.map((good) => amountOf(context.ship.hold, good))]}
         />
       </Box>
 

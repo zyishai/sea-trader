@@ -14,7 +14,6 @@ import {
   MAINTENANCE_COST_PER_SHIP,
   MARKET_SIZE_FACTORS,
   MAX_SHIP_DEFENSE,
-  OVERLOAD_BUFFER,
   OVERLOAD_SPEED_PENALTY,
   PORT_SPECIALIZATIONS,
   ports,
@@ -46,6 +45,7 @@ import {
   UpgradeType,
 } from "./types.js";
 import { Rng } from "./rng.js";
+import { goodsAboard, overloadLevel, value } from "./hold.js";
 
 // ~~ PORT ~~
 export const calculatePirateEncounterChance = (context: Context) => {
@@ -115,11 +115,7 @@ export const calculateTravelTime = (to: Port, context: Context) => {
   const shipCondition = getShipStatus(context.ship.health);
   const healthPenalty = shipCondition === "Wreckage" ? 2 : shipCondition === "Major damages" ? 1.5 : 1;
 
-  const totalBuffer = getBufferStorage(context.ship);
-  const availableBuffer = getAvailableBufferStorage(context.ship);
-  const overloadPenalty = context.ship.isOverloaded
-    ? 1 + ((totalBuffer - availableBuffer) / totalBuffer) * OVERLOAD_SPEED_PENALTY
-    : 1;
+  const overloadPenalty = 1 + overloadLevel(context.ship.hold) * OVERLOAD_SPEED_PENALTY;
 
   return Math.max(1, Math.ceil(daysAtSea * healthPenalty * overloadPenalty));
 };
@@ -185,36 +181,6 @@ export const getFleetQuality = (quality: number): FleetQuality => {
 };
 
 // -* INVENTORY *-
-export const calculateInventoryValue = (context: Context) =>
-  [...context.ship.hold.entries()].reduce((acc, [good, quantity]) => {
-    return acc + calculatePrice({ ...context, good, quantity });
-  }, 0);
-export const getStorageUsed = (ship: Context["ship"]) =>
-  [...ship.hold.entries()].reduce((sum, [good, quantity]) => sum + getStorageUnitsForGood(good, quantity), 0);
-export const getAvailableStorage = (ship: Context["ship"], options?: { withBuffer?: boolean }) => {
-  const usedStorage = getStorageUsed(ship);
-
-  if (options?.withBuffer) {
-    return getMaxStorageWithBuffer(ship) - usedStorage;
-  }
-
-  return Math.max(0, ship.capacity - usedStorage);
-};
-export const getAvailableBufferStorage = (ship: Context["ship"]) =>
-  Math.min(getMaxStorageWithBuffer(ship) - getStorageUsed(ship), getBufferStorage(ship));
-export const getMaxStorageWithBuffer = (ship: Context["ship"]) => Math.floor(ship.capacity * (1 + OVERLOAD_BUFFER));
-export const getBufferStorage = (ship: Context["ship"]) => Math.floor(ship.capacity * OVERLOAD_BUFFER);
-export const getStorageUnitsForGood = (good: Good, quantity: number) => {
-  const goodInfo = goodsInfo.find((item) => item.name === good);
-  if (!goodInfo) {
-    return 0;
-  }
-  return Math.ceil(quantity * goodInfo.bulkiness);
-};
-export const canStoreCargo = (context: Context, good: Good, quantity: number) => {
-  const storageNeeded = getStorageUnitsForGood(good, quantity);
-  return getAvailableStorage(context.ship, { withBuffer: true }) >= storageNeeded;
-};
 export const getBulkinessCategory = (bulkiness: number): BulkinessCategory => {
   if (bulkiness <= 0.8) return "Compact";
   if (bulkiness >= 1.2) return "Bulky";
@@ -442,9 +408,7 @@ export const findBestTrades = (
 };
 export const findProfitablePorts = (context: Context) => {
   return ports.map((port) => {
-    const profitForHold = [...context.ship.hold.entries()]
-      .filter(([, quantity]) => quantity > 0)
-      .reduce((profit, [good, quantity]) => profit + context.prices[port][good] * quantity, 0);
+    const profitForHold = value(context.ship.hold, context.prices[port]);
     const profitableGoods = goods
       .map((good) => ({
         good,
@@ -553,7 +517,7 @@ export const generateAllTips = (context: Context): MerchantTip[] => {
     }
 
     // Check for the port with the best worth for player's hold
-    if ([...context.ship.hold.values()].some((quantity) => quantity > 0)) {
+    if (goodsAboard(context.ship.hold).length > 0) {
       const bestForHold = profitablePorts.reduce((a, b) => (b.profitForHold > a.profitForHold ? b : a));
       const sumProfits = profitablePorts.reduce((sum, portInfo) => sum + portInfo.profitForHold, 0);
       tips.push({
@@ -581,11 +545,11 @@ export const getMerchantTip = (context: Context): MerchantTip => {
 export const getShipStatus = (health: number): ShipStatus =>
   health >= 90 ? "Perfect" : health >= 70 ? "Minor damages" : health >= 40 ? "Major damages" : "Wreckage";
 export const calculateCostForRepair = (damageToRepair: number, context: Context) => {
-  const capacityFactor = Math.max(1, Math.sqrt(context.ship.capacity / BASE_SHIP_CAPACITY));
+  const capacityFactor = Math.max(1, Math.sqrt(context.ship.hold.capacity / BASE_SHIP_CAPACITY));
   return Math.floor(damageToRepair * DAMAGE_REPAIR_COST_PER_UNIT * capacityFactor); // How much it'll cost to repair `damageToRepair` damage.
 };
 export const calculateRepairForCost = (price: number, context: Context) => {
-  const capacityFactor = Math.max(1, Math.sqrt(context.ship.capacity / BASE_SHIP_CAPACITY));
+  const capacityFactor = Math.max(1, Math.sqrt(context.ship.hold.capacity / BASE_SHIP_CAPACITY));
   return Math.floor(price / (DAMAGE_REPAIR_COST_PER_UNIT * capacityFactor)); // How much damage can be repaired with `price`.
 };
 
@@ -599,7 +563,7 @@ export const getNextCapacityUpgrade = (currentCapacity: number) =>
 export const getNextUpgrade = (type: UpgradeType, context: Context) => {
   switch (type) {
     case "capacity": {
-      return getNextCapacityUpgrade(context.ship.capacity);
+      return getNextCapacityUpgrade(context.ship.hold.capacity);
     }
     case "speed": {
       return getNextSpeedUpgrade(context.ship.speed);
@@ -620,17 +584,13 @@ export const canAffordUpgrade = (type: UpgradeType, context: Context) => {
 
 // !! SCORE !!
 export const getNetCash = (context: Context) =>
-  context.balance +
-  [...context.ship.hold.entries()].reduce(
-    (sum, [good, quan]) => sum + context.prices[context.currentPort][good] * quan,
-    0,
-  );
+  context.balance + value(context.ship.hold, context.prices[context.currentPort]);
 export const calculateScore = (context: Context) => {
   let score = Math.round(getNetCash(context) / 50);
 
   // Add a logarithmic bonus for ship capacity
   // This provides diminishing returns for larger capacities
-  const capacityBonus = Math.floor(1000 * Math.log10(context.ship.capacity + 1));
+  const capacityBonus = Math.floor(1000 * Math.log10(context.ship.hold.capacity + 1));
   score += capacityBonus;
 
   // Add a logarithmic bonus for ship speed
@@ -640,7 +600,7 @@ export const calculateScore = (context: Context) => {
 
   // Calculate damage penalty
   // The penalty increases with ship size and is more severe for lower health
-  const maxDamage = context.ship.capacity * 20;
+  const maxDamage = context.ship.hold.capacity * 20;
   const actualDamage = maxDamage * (1 - context.ship.health / 100);
   const damagePenalty = Math.floor(actualDamage);
   score -= damagePenalty;

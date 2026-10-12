@@ -8,6 +8,7 @@ import {
   Season,
   TrendStrength,
 } from "./types.js";
+import { goodsAboard, isOverloaded, load, spaceUsed, unload, unloadWhere, withCapacity } from "./hold.js";
 
 export const goods = ["Wheat", "Tea", "Spices", "Opium", "Porcelain"] as const;
 export const ports = ["Hong Kong", "Shanghai", "Nagasaki", "Singapore", "Manila"] as const;
@@ -117,7 +118,7 @@ const weatherEvents: EventTemplate[] = [
         key: "B",
         effect: (context) => {
           const baseDamage = 20;
-          const overloadMultiplier = context.ship.isOverloaded ? 1.5 : 1;
+          const overloadMultiplier = isOverloaded(context.ship.hold) ? 1.5 : 1;
           const damage = Math.round(baseDamage * overloadMultiplier);
 
           return {
@@ -181,18 +182,16 @@ const weatherEvents: EventTemplate[] = [
   {
     type: "weather",
     severity: "minor",
-    baseChance: (context) => (context.ship.isOverloaded ? 0.35 : 0),
+    baseChance: (context) => (isOverloaded(context.ship.hold) ? 0.35 : 0),
     message: "Heavy seas have damaged some cargo",
     effect: (context) => {
-      const goodsInHold = [...context.ship.hold.entries()].filter(([_, quantity]) => quantity > 0);
-      const pick = context.rng.pick(goodsInHold);
-      if (!pick) return {};
-      const [randomGood] = pick;
-      const currentQuantity = context.ship.hold.get(randomGood) || 0;
-      const lostAmount = Math.ceil(currentQuantity * 0.2); // Lose 20% of the goods
-
-      const newHold = new Map(context.ship.hold);
-      newHold.set(randomGood, currentQuantity - lostAmount);
+      const [randomGood, currentQuantity] = context.rng.pick(goodsAboard(context.ship.hold)) ?? [];
+      if (!randomGood || !currentQuantity) return {};
+      const { hold: newHold, unloaded: lostAmount } = unload(
+        context.ship.hold,
+        randomGood,
+        Math.ceil(currentQuantity * 0.2),
+      );
 
       return {
         ship: {
@@ -212,8 +211,7 @@ const cargoEvents: EventTemplate[] = [
     type: "cargo",
     severity: "minor",
     baseChance: (context) => {
-      const cargoLoad = [...context.ship.hold.values()].reduce((sum, qty) => sum + qty, 0);
-      const capacityRatio = cargoLoad / context.ship.capacity;
+      const capacityRatio = spaceUsed(context.ship.hold) / context.ship.hold.capacity;
       return Math.min(0.25, 0.15 + capacityRatio * 0.2);
     },
     message: "Captain, we have cargo stability issues due to poor loading at port.",
@@ -238,13 +236,7 @@ const cargoEvents: EventTemplate[] = [
           }
 
           const lossRatio = 0.1 + context.rng.float() * 0.15; // 0.1-0.25
-          const goodsInHold = [...context.ship.hold.entries()].filter(([_, qty]) => qty > 0);
-          const newHold = new Map(context.ship.hold);
-
-          goodsInHold.forEach(([good, quantity]) => {
-            const loss = Math.ceil(quantity * lossRatio);
-            newHold.set(good, quantity - loss);
-          });
+          const { hold: newHold } = unloadWhere(context.ship.hold, (_, quantity) => Math.ceil(quantity * lossRatio));
 
           return {
             ship: { ...context.ship, hold: newHold },
@@ -267,14 +259,14 @@ const cargoEvents: EventTemplate[] = [
             };
           }
 
-          const goodsInHold = [...context.ship.hold.entries()].filter(([_, quantity]) => quantity > 0);
-          const [randomGood] = context.rng.pick(goodsInHold) || [];
-          if (!randomGood) return {}; // Shouldn't happen, see baseChance for this event
+          const [randomGood, currentQuantity] = context.rng.pick(goodsAboard(context.ship.hold)) ?? [];
+          if (!randomGood || !currentQuantity) return {};
 
-          const currentQuantity = context.ship.hold.get(randomGood) || 0;
-          const lostAmount = Math.ceil(currentQuantity * 0.25);
-          const newHold = new Map(context.ship.hold);
-          newHold.set(randomGood, currentQuantity - lostAmount);
+          const { hold: newHold, unloaded: lostAmount } = unload(
+            context.ship.hold,
+            randomGood,
+            Math.ceil(currentQuantity * 0.25),
+          );
 
           return {
             ship: {
@@ -296,11 +288,11 @@ const cargoEvents: EventTemplate[] = [
     baseChance: (context) => (context.ship.health > 80 ? 0.2 : 0),
     message: "Your well-maintained ship allows for efficient cargo storage!",
     effect: (context) => {
-      const extraSpace = Math.floor(context.ship.capacity * 0.1);
+      const extraSpace = Math.floor(context.ship.hold.capacity * 0.1);
       return {
         ship: {
           ...context.ship,
-          capacity: context.ship.capacity + extraSpace,
+          hold: withCapacity(context.ship.hold, context.ship.hold.capacity + extraSpace),
         },
         messages: [
           ...context.messages,
@@ -544,14 +536,14 @@ const discoveryEvents: EventTemplate[] = [
           // 50% chance of finding goods
           if (outcome < 0.5) {
             const goodsFound = context.rng.int(2, 4);
-            const newHold = new Map(context.ship.hold);
+            let newHold = context.ship.hold;
             const discoveries = [];
 
             for (let i = 0; i < goodsFound; i++) {
               const good = context.rng.pick(goods) as Good;
-              const amount = Math.round(10 * (1 + context.day / GOAL_DAYS));
-              newHold.set(good, (newHold.get(good) || 0) + amount);
-              discoveries.push(`${amount} picul of ${good}.`);
+              const { hold, loaded } = load(newHold, good, Math.round(10 * (1 + context.day / GOAL_DAYS)));
+              newHold = hold;
+              discoveries.push(`${loaded} picul of ${good}.`);
             }
 
             return {

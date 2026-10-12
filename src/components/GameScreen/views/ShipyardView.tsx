@@ -11,8 +11,8 @@ import {
   getNextDefenseUpgrade,
   getNextSpeedUpgrade,
   getShipStatus,
-  getStorageUsed,
 } from "../../../store/utils.js";
+import { spaceUsed } from "../../../store/hold.js";
 import { calculateCostForRepair } from "../../../store/utils.js";
 import { ShipyardContext } from "../ShipyardContext.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
@@ -39,7 +39,7 @@ export function ShipyardView() {
         <Box flexDirection="column" paddingLeft={3}>
           <Table
             rows={[
-              ["- Capacity", `${getStorageUsed(gameContext.ship)}/${gameContext.ship.capacity}`],
+              ["- Capacity", `${spaceUsed(gameContext.ship.hold)}/${gameContext.ship.hold.capacity}`],
               ["- Speed", `${gameContext.ship.speed} knots`],
               ["- Condition", `${getShipStatus(gameContext.ship.health)} (${gameContext.ship.health}%)`],
             ]}
@@ -199,7 +199,7 @@ function UpgradeShip() {
 
   const nextSpeedUpgrade = getNextSpeedUpgrade(context.ship.speed);
   const nextDefenseUpgrade = getNextDefenseUpgrade(context.ship.defense);
-  const nextCapacityUpgrade = getNextCapacityUpgrade(context.ship.capacity);
+  const nextCapacityUpgrade = getNextCapacityUpgrade(context.ship.hold.capacity);
 
   const availableActions = [
     {

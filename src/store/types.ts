@@ -1,5 +1,6 @@
 import { goods, goodsInfo, ports, seasons, TREND_DIRECTION, TREND_STRENGTH } from "./constants.js";
 import { Rng } from "./rng.js";
+import { Hold } from "./hold.js";
 
 export type GameSettings = {
   extendedGame?: boolean;
@@ -112,9 +113,7 @@ export type Context = {
     health: number;
     defense: number;
     speed: number;
-    capacity: number; // In tons burden
-    hold: Map<Good, number>; // Quantity in picul
-    isOverloaded: boolean;
+    hold: Hold;
   };
 
   // Misc

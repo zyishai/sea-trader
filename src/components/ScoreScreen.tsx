@@ -60,7 +60,7 @@ export function ScoreScreen() {
           <Text dimColor>Net Value:</Text> ${getNetCash(context)}
         </Text>
         <Text>
-          <Text dimColor>Ship Capacity:</Text> {context.ship.capacity} picul
+          <Text dimColor>Ship Capacity:</Text> {context.ship.hold.capacity} picul
         </Text>
         <Text>
           <Text dimColor>Ship Speed:</Text> {context.ship.speed} knots

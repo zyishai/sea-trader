@@ -5,7 +5,7 @@ export type Rng = {
   pick<T>(list: readonly T[]): T | undefined;
 };
 
-const createRng = (next: () => number): Rng => ({
+export const createRng = (next: () => number): Rng => ({
   float: next,
   int: (min, max) => Math.floor(next() * (max - min + 1)) + min,
   chance: (probability) => next() < probability,
