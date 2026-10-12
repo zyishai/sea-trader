@@ -7,7 +7,11 @@ import { statusView } from "../../store/views/status.js";
 export function StatusBar({ orientation }: { orientation: "vertical" | "horizontal" }) {
   const status = GameContext.useSelector((snapshot) => statusView(snapshot.context));
   const items = [
-    { label: "Day", value: status.day },
+    {
+      label: "Day",
+      value: status.voyageLength ? `${status.day} of ${status.voyageLength}` : `${status.day} (extended)`,
+    },
+    { label: "Season", value: status.season },
     { label: "Location", value: status.port, highlight: true },
     { label: "Ship Health", value: `${status.shipHealth}%` },
     {
