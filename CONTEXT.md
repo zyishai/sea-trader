@@ -24,6 +24,18 @@ _Avoid_: Market refresh, tick
 Days an event adds to the passage, such as sheltering from a storm. A favourable wind gives a negative Delay, though a passage always takes at least one day.
 _Avoid_: Lost time, wait
 
+**In Port**:
+The Captain is docked at a Port and can trade, repair, upgrade and manage the Guard Fleet, or set sail.
+_Avoid_: Docked, at market, at shipyard
+
+**At Sea**:
+The Captain is on a passage between Ports, where Pirate Encounters, Events and Cargo Offers can interrupt.
+_Avoid_: Traveling, sailing, en route
+
+**Notice**:
+Something the crew reports to the Captain, such as a purchase, an arrival or an Event's story and Outcomes.
+_Avoid_: Message, alert, notification
+
 **Event**:
 A random happening during a passage, such as a storm, a market rumour or an uncharted island. Some Events ask the Captain to choose.
 _Avoid_: Incident, encounter, random event
