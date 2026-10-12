@@ -7,6 +7,7 @@ import eslintPluginPrettier from "eslint-plugin-prettier/recommended";
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
+  { ignores: ["dist/"] },
   { files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"] },
   {
     settings: {

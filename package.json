@@ -10,7 +10,10 @@
   "scripts": {
     "dev": "npm run build && DEV=true dist/cli.js",
     "build": "tsc",
-    "ci": "npm run build && npm test",
+    "ci": "npm run format:check && npm run lint && npm run build && npm test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
     "prepare": "husky install",
     "pre-commit": "lint-staged",
@@ -92,9 +95,10 @@
     "vitest": "^2.1.4"
   },
   "lint-staged": {
-    "*.{ts,tsx}": [
+    "*.{js,ts,tsx}": [
       "prettier --write",
       "eslint --fix --max-warnings=0"
-    ]
+    ],
+    "*.{json,md,yml,yaml}": "prettier --write"
   }
 }
