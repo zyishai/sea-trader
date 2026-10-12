@@ -32,7 +32,7 @@ describe("game start", () => {
     const second = startGame(seededRng(42)).getSnapshot().context;
 
     expect(second.prices).toEqual(first.prices);
-    expect(second.currentSeason).toBe(first.currentSeason);
+    expect(second.startingSeason).toBe(first.startingSeason);
   });
 
   it("opens with different prices for a different seed", () => {

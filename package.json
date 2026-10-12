@@ -9,8 +9,9 @@
   },
   "scripts": {
     "dev": "npm run build && DEV=true dist/cli.js",
-    "build": "tsc",
-    "ci": "npm run format:check && npm run lint && npm run build && npm test",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "ci": "npm run format:check && npm run lint && npm run typecheck && npm run build && npm test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings=0",
