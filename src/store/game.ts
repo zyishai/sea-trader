@@ -3,16 +3,8 @@ import { initialContext } from "./defaults.js";
 import { Context, Good } from "./types.js";
 import { GameEvents } from "./events.js";
 import { Rng } from "./rng.js";
-import {
-  accrueInterest,
-  canAfford,
-  cashOnHand,
-  fleetSaleValue,
-  isBankrupt,
-  isInOverdraft,
-  netWorth,
-  upkeepDue,
-} from "./treasury.js";
+import { advanceDays, canRetire } from "./clock.js";
+import { canAfford, cashOnHand, fleetSaleValue, isBankrupt, isInOverdraft, netWorth } from "./treasury.js";
 import { needsCaptainsChoice, takeCargoOffer } from "./cargo-offer.js";
 import {
   amountOf,
@@ -37,14 +29,10 @@ import {
   calculateTravelTime,
   calculateFleetUpgradeCost,
   checkForEvent,
-  generatePrices,
   getShipStatus,
   distributeFleetDamage,
   canAffordUpgrade,
   getNextUpgrade,
-  updateTrends,
-  getNextSeason,
-  updatePriceHistory,
   joinWords,
   displayMonetaryValue,
 } from "./utils.js";
@@ -57,8 +45,6 @@ import {
   MAX_GUARD_SHIPS,
   OVERDRAFT_TRADING_LIMIT,
   ports,
-  PRICE_UPDATE_INTERVAL,
-  SEASON_LENGTH,
 } from "./constants.js";
 import { type Guard } from "xstate/guards";
 
@@ -480,24 +466,18 @@ export const gameMachine = setup({
             },
             traveling: {
               id: "traveling",
-              entry: [
-                // Adjust travel attributes
-                assign(({ context }) => {
-                  const travelTime = context.destination ? calculateTravelTime(context.destination, context) : 1;
-                  return {
-                    day: Math.min(context.extendedGame ? Infinity : GOAL_DAYS, context.day + travelTime),
-                    currentPort: context.destination,
-                    nextPriceUpdate: Math.max(0, context.nextPriceUpdate - travelTime),
-                    nextSeasonDay: Math.max(0, context.nextSeasonDay - travelTime),
-                  };
-                }),
-                // Reset temporary context attributes
-                assign({ destination: undefined, currentEvent: undefined }),
-                {
-                  type: "displayMessages",
-                  params: ({ context }) => [`Arrived to ${context.currentPort}`],
-                },
-              ],
+              entry: assign(({ context }) => {
+                const destination = context.destination ?? context.currentPort;
+                const travelTime = context.destination ? calculateTravelTime(context.destination, context) : 1;
+                const { context: arrived, notices } = advanceDays(context, travelTime);
+                return {
+                  ...arrived,
+                  currentPort: destination,
+                  destination: undefined,
+                  currentEvent: undefined,
+                  messages: [...arrived.messages, [`Arrived at ${destination}`, ...notices]],
+                };
+              }),
               always: [{ target: "#mainMenu" }],
             },
           },
@@ -726,7 +706,6 @@ export const gameMachine = setup({
                       guardFleet: {
                         ...context.guardFleet,
                         ships: context.guardFleet.ships + event.amount,
-                        lastMaintenanceDay: context.day,
                       },
                       balance: context.balance - cost,
                       reputation: Math.min(100, context.reputation + event.amount),
@@ -849,7 +828,7 @@ export const gameMachine = setup({
             meta: {
               description: "Make sure the player can retire",
             },
-            guard: ({ context }) => !context.canRetire,
+            guard: ({ context }) => !canRetire(context),
             actions: { type: "displayMessages", params: ["You haven't finished your voyage yet!"] },
             target: "#mainMenu",
           },
@@ -874,14 +853,6 @@ export const gameMachine = setup({
             },
           ],
           target: "scoringScreen",
-        },
-        // Pay the Guard Fleet's Upkeep, which is forgiven while in Overdraft
-        {
-          guard: ({ context }) => context.guardFleet.ships > 0 && context.day > context.guardFleet.lastMaintenanceDay,
-          actions: assign(({ context }) => ({
-            balance: context.balance - upkeepDue(context),
-            guardFleet: { ...context.guardFleet, lastMaintenanceDay: context.day },
-          })),
         },
         // Check if the player is bankrupt
         {
@@ -916,14 +887,6 @@ export const gameMachine = setup({
             },
           ],
         },
-        // Charge Overdraft interest for the days that passed
-        {
-          guard: ({ context }) => context.day > context.lastInterestDay,
-          actions: assign(({ context }) => ({
-            balance: accrueInterest(context.balance, context.day - context.lastInterestDay),
-            lastInterestDay: context.day,
-          })),
-        },
         // Notify the player if they're in overdraft
         {
           guard: ({ context }) => isInOverdraft(context) && !context.announcedOverdraft,
@@ -949,56 +912,6 @@ export const gameMachine = setup({
           actions: [
             assign({ announcedOverdraft: false }),
             { type: "displayMessages", params: ["We're no longer in overdraft, Captain!"] },
-          ],
-        },
-        // Set canRetire to true if the player has finished the game
-        {
-          guard: ({ context }) => !context.canRetire && context.day >= GOAL_DAYS,
-          actions: assign({ canRetire: true }),
-        },
-        // Update prices (and due trends) if the next price update is due
-        {
-          guard: ({ context }) => context.nextPriceUpdate <= 0,
-          actions: [
-            { type: "displayMessages", params: ["Prices have updated!"] },
-            assign(({ context }) => {
-              const newTrends = updateTrends(context.trends, context.rng);
-              const newPrices = generatePrices(newTrends, context.currentSeason, context.rng);
-              const shouldIncreaseTrendChanges = Object.values(context.trends).some((rec) =>
-                Object.values(rec).some((trend) => trend.duration <= 1),
-              );
-              const newIntelligence = {
-                ...context.marketIntelligence,
-                priceUpdates: context.marketIntelligence.priceUpdates + 1,
-                trendChanges: context.marketIntelligence.trendChanges + Number(shouldIncreaseTrendChanges),
-                analysis: updatePriceHistory({ ...context, prices: newPrices }),
-              };
-
-              return {
-                prices: newPrices,
-                trends: newTrends,
-                nextPriceUpdate: PRICE_UPDATE_INTERVAL,
-                marketIntelligence: newIntelligence,
-              };
-            }),
-          ],
-        },
-        // Update season if the next season day is due
-        {
-          guard: ({ context }) => context.nextSeasonDay <= 0,
-          actions: [
-            {
-              type: "displayMessages",
-              params: ({ context }) => [`Season changes to ${getNextSeason(context.currentSeason)}.`],
-            },
-            assign(({ context }) => ({
-              currentSeason: getNextSeason(context.currentSeason),
-              nextSeasonDay: SEASON_LENGTH,
-              marketIntelligence: {
-                ...context.marketIntelligence,
-                seasonChanges: context.marketIntelligence.seasonChanges + 1,
-              },
-            })),
           ],
         },
       ],

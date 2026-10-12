@@ -193,31 +193,30 @@ describe("money", () => {
     return game;
   };
 
-  it("forgives Guard Fleet Upkeep while in Overdraft", () => {
-    const game = atMenu((context) => ({
-      balance: -100,
-      announcedOverdraft: true,
-      day: 10,
-      lastInterestDay: 10,
-      guardFleet: { ...context.guardFleet, ships: 2, lastMaintenanceDay: 1 },
-    }));
+  it("charges Upkeep for every day at sea", () => {
+    const calmSeas = createRng(() => 0.99);
+    const game = gameAt(
+      { gameScreen: { at_port: "menu" } },
+      (context) => ({ balance: 1000, guardFleet: { ...context.guardFleet, ships: 2, quality: 1 } }),
+      calmSeas,
+    );
+    const before = game.getSnapshot().context;
 
-    expect(game.getSnapshot().context.balance).toBe(-100);
-    expect(game.getSnapshot().context.guardFleet.lastMaintenanceDay).toBe(10);
-  });
+    game.send({ type: "TRAVEL_TO", destination: "Shanghai" });
 
-  it("charges Overdraft interest for every day that passed", () => {
-    const game = atMenu(() => ({ balance: -1000, announcedOverdraft: true, day: 13, lastInterestDay: 10 }));
-
-    expect(game.getSnapshot().context.balance).toBe(-1093);
+    const after = game.getSnapshot().context;
+    const daysAtSea = after.day - before.day;
+    expect(daysAtSea).toBeGreaterThan(0);
+    expect(after.balance).toBe(1000 - 50 * daysAtSea);
+    expect(after.currentPort).toBe("Shanghai");
+    expect(messagesOf(game)).toContain("Arrived at Shanghai");
   });
 
   it("sells the Guard Fleet at a loss when the Overdraft grows too deep", () => {
     const game = atMenu((context) => ({
       balance: -2500,
       announcedOverdraft: true,
-      lastInterestDay: context.day,
-      guardFleet: { ...context.guardFleet, ships: 2, quality: 1, lastMaintenanceDay: context.day },
+      guardFleet: { ...context.guardFleet, ships: 2, quality: 1 },
     }));
 
     expect(game.getSnapshot().context.guardFleet.ships).toBe(0);
@@ -227,13 +226,13 @@ describe("money", () => {
 
 describe("overdraft notices", () => {
   const atMenu = (patch: (context: Context) => Partial<Context>) => {
-    const game = gameAt({ gameScreen: "menu" }, (context) => ({ lastInterestDay: context.day, ...patch(context) }));
+    const game = gameAt({ gameScreen: "menu" }, patch);
     game.send({ type: "MSG_ACK" });
     return game;
   };
 
   it("announces falling into Overdraft once", () => {
-    const game = gameAt({ gameScreen: "menu" }, (context) => ({ balance: -50, lastInterestDay: context.day }));
+    const game = gameAt({ gameScreen: "menu" }, (context) => ({ balance: -50 }));
     game.send({ type: "GO_TO_MARKET" });
     game.send({ type: "CANCEL" });
 
@@ -246,12 +245,6 @@ describe("overdraft notices", () => {
     const game = atMenu(() => ({ balance: 10, announcedOverdraft: true }));
 
     expect(messagesOf(game)).toContain("We're no longer in overdraft, Captain!");
-  });
-
-  it("doesn't charge interest for days spent out of Overdraft", () => {
-    const game = atMenu(() => ({ balance: 500, day: 50, lastInterestDay: 1 }));
-
-    expect(game.getSnapshot().context.lastInterestDay).toBe(50);
   });
 });
 
@@ -270,11 +263,10 @@ describe("bribing pirates", () => {
 });
 
 describe("voyage end", () => {
-  const atMenu = (patch: (context: Context) => Partial<Context>) =>
-    gameAt({ gameScreen: "menu" }, (context) => ({ lastInterestDay: context.day, ...patch(context) }));
+  const atMenu = (patch: (context: Context) => Partial<Context>) => gameAt({ gameScreen: "menu" }, patch);
 
   it("retires with a score even when slightly in Overdraft", () => {
-    const game = atMenu(() => ({ balance: -100, announcedOverdraft: true, canRetire: true }));
+    const game = atMenu(() => ({ balance: -100, announcedOverdraft: true, day: 200 }));
 
     game.send({ type: "RETIRE" });
 

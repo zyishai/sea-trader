@@ -18,10 +18,8 @@ export const accrueInterest = (balance: number, days: number): number =>
     ? balance
     : accrueInterest(balance - Math.min(Math.round(-balance * BASE_INTEREST_RATE), MAX_DAILY_OVERDRAFT), days - 1);
 
-export const upkeepDue = (context: Pick<Context, "balance" | "day" | "guardFleet">) =>
-  context.balance < 0
-    ? 0
-    : (context.day - context.guardFleet.lastMaintenanceDay) * calculateDailyMaintenanceCost(context);
+export const dailyUpkeep = (context: Pick<Context, "balance" | "guardFleet">) =>
+  isInOverdraft(context) ? 0 : calculateDailyMaintenanceCost(context);
 
 export const fleetSaleValue = (context: Pick<Context, "guardFleet">) =>
   Math.round(calculateGuardShipCost(context, 1) / 2) * context.guardFleet.ships;

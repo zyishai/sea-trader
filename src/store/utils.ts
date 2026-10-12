@@ -45,6 +45,7 @@ import {
   UpgradeType,
 } from "./types.js";
 import { Rng } from "./rng.js";
+import { currentSeason, daysUntilNextSeason } from "./clock.js";
 import { canAfford, isInOverdraft, netWorth } from "./treasury.js";
 import { goodsAboard, overloadLevel, value } from "./hold.js";
 
@@ -69,7 +70,7 @@ export const calculateEventChance = (template: EventTemplate, context: Context) 
   let chance = typeof template.baseChance === "number" ? template.baseChance : template.baseChance(context);
   const speedFactor = Math.max(1, 1 - (context.ship.speed - 8) / 24);
 
-  const seasonalModifier = seasonEventEffects[context.currentSeason]?.[template.type] ?? 1;
+  const seasonalModifier = seasonEventEffects[currentSeason(context)]?.[template.type] ?? 1;
   chance *= seasonalModifier;
 
   switch (template.type) {
@@ -119,10 +120,6 @@ export const calculateTravelTime = (to: Port, context: Context) => {
   const overloadPenalty = 1 + overloadLevel(context.ship.hold) * OVERLOAD_SPEED_PENALTY;
 
   return Math.max(1, Math.ceil(daysAtSea * healthPenalty * overloadPenalty));
-};
-export const getNextSeason = (season: Season) => {
-  const currentIndex = seasons.indexOf(season);
-  return seasons[(currentIndex + 1) % seasons.length]!;
 };
 
 // -~ GUARD FLEET ~-
@@ -326,28 +323,22 @@ export const calculateIntelligenceReliability = (context: Context) => {
 };
 
 // ->> Intelligence <<-
-export const updatePriceHistory = (context: Context) => {
-  const { prices, currentSeason, day } = context;
-  const history = context.marketIntelligence.analysis.priceHistory;
+export const updatePriceHistory = (
+  history: Record<Port, Record<Good, PriceHistory[]>>,
+  prices: Record<Port, Record<Good, number>>,
+  day: number,
+  season: Season,
+) => {
+  const priceHistory = Object.fromEntries(
+    ports.map((port) => [
+      port,
+      Object.fromEntries(
+        goods.map((good) => [good, [...history[port][good], { price: prices[port][good], day, season }].slice(-5)]),
+      ),
+    ]),
+  ) as Record<Port, Record<Good, PriceHistory[]>>;
 
-  // Add new price update
-  Object.entries(prices).forEach(([port, portPrices]) => {
-    Object.entries(portPrices).forEach(([good, price]) => {
-      const goodHistory = history[port as Port][good as Good];
-      goodHistory.push({ price, day, season: currentSeason });
-
-      // Keep only last 5 updates
-      if (goodHistory.length > 5) goodHistory.shift();
-    });
-  });
-
-  // Update typical ranges
-  const typicalRanges = calculateTypicalRanges(history);
-
-  return {
-    priceHistory: history,
-    typicalRanges,
-  };
+  return { priceHistory, typicalRanges: calculateTypicalRanges(priceHistory) };
 };
 export const calculateTypicalRanges = (history: Record<Port, Record<Good, PriceHistory[]>>) => {
   const ranges = {} as Record<Port, Record<Good, Range>>;
@@ -466,9 +457,8 @@ export const generateAllTips = (context: Context): MerchantTip[] => {
       }
 
       // Check for seasonal price effect
-      const currentSeason = context.currentSeason;
-      const seasonalEffect = SEASONAL_EFFECTS[currentSeason][good];
-      const daysUntilSeasonEnd = context.nextSeasonDay;
+      const seasonalEffect = SEASONAL_EFFECTS[currentSeason(context)][good];
+      const daysUntilSeasonEnd = daysUntilNextSeason(context.day);
       if (seasonalEffect) {
         tips.push({
           priority: Math.round(Math.abs(1 - seasonalEffect) * 15 + 85 + (1 - daysUntilSeasonEnd / SEASON_LENGTH) * 7),

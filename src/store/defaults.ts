@@ -5,8 +5,6 @@ import {
   BASE_SHIP_SPEED,
   goods,
   ports,
-  PRICE_UPDATE_INTERVAL,
-  SEASON_LENGTH,
   seasons,
 } from "./constants.js";
 import { Context, GameSettings, Good, Port, PriceHistory, Range } from "./types.js";
@@ -41,8 +39,7 @@ export const initialContext = (rng: Rng, settings?: GameSettings) => {
   return {
     rng,
     currentPort: "Hong Kong",
-    currentSeason: season,
-    nextSeasonDay: SEASON_LENGTH,
+    startingSeason: season,
     availablePorts: ports,
     availableGoods: goods,
     day: 1,
@@ -50,7 +47,6 @@ export const initialContext = (rng: Rng, settings?: GameSettings) => {
     guardFleet: {
       ships: 0,
       quality: 1,
-      lastMaintenanceDay: 1,
       damage: 0,
     },
     reputation: 50,
@@ -62,7 +58,6 @@ export const initialContext = (rng: Rng, settings?: GameSettings) => {
     },
     trends,
     prices: initialPrices,
-    nextPriceUpdate: PRICE_UPDATE_INTERVAL,
     marketIntelligence: {
       level: 1,
       lastPurchase: 1,
@@ -75,9 +70,7 @@ export const initialContext = (rng: Rng, settings?: GameSettings) => {
       },
     },
     announcedOverdraft: false,
-    lastInterestDay: 1,
     messages: [],
-    canRetire: false,
     extendedGame,
     settings: {
       disableAnimations,

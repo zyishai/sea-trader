@@ -79,8 +79,7 @@ export type Context = {
   currentPort: Port;
   day: number;
   balance: number;
-  currentSeason: Season;
-  nextSeasonDay: number;
+  startingSeason: Season;
 
   // Port context
   availablePorts: readonly Port[];
@@ -104,13 +103,11 @@ export type Context = {
       typicalRanges: Record<Port, Record<Good, Range>>;
     };
   };
-  nextPriceUpdate: number;
 
   // Shipyard context
   guardFleet: {
     ships: number;
     quality: number; // 1-3
-    lastMaintenanceDay: number;
     damage: number;
   };
   reputation: number; // 0-100
@@ -123,9 +120,7 @@ export type Context = {
 
   // Misc
   announcedOverdraft: boolean;
-  lastInterestDay: number;
   messages: string[][];
-  canRetire: boolean;
 
   // Settings
   extendedGame: boolean;

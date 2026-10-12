@@ -11,6 +11,7 @@ import {
 import { goodsAboard, isOverloaded, spaceUsed, unload, unloadWhere, withCapacity } from "./hold.js";
 import { CargoOffer } from "./cargo-offer.js";
 import { displayMonetaryValue } from "./utils.js";
+import { currentSeason } from "./clock.js";
 
 export const goods = ["Wheat", "Tea", "Spices", "Opium", "Porcelain"] as const;
 export const ports = ["Hong Kong", "Shanghai", "Nagasaki", "Singapore", "Manila"] as const;
@@ -38,7 +39,7 @@ const weatherEvents: EventTemplate[] = [
   {
     type: "weather",
     severity: "major",
-    baseChance: (context) => (context.currentSeason === "Winter" ? 0.2 : 0.08),
+    baseChance: (context) => (currentSeason(context) === "Winter" ? 0.2 : 0.08),
     message: "Captain, a freezing winter storm approaches! Our crew suggests finding shelter.",
     choices: [
       {
@@ -60,7 +61,7 @@ const weatherEvents: EventTemplate[] = [
           }
 
           const baseDamage = context.rng.int(15, 34);
-          const seasonMultiplier = context.currentSeason === "Winter" ? 1.3 : 1;
+          const seasonMultiplier = currentSeason(context) === "Winter" ? 1.3 : 1;
           const damage = Math.round(baseDamage * seasonMultiplier);
           return {
             ship: {

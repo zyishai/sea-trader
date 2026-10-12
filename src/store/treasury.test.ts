@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { accrueInterest, canAfford, fleetSaleValue, upkeepDue } from "./treasury.js";
+import { accrueInterest, canAfford, dailyUpkeep, fleetSaleValue } from "./treasury.js";
 
-const fleet = (ships: number, lastMaintenanceDay = 1) => ({ ships, quality: 1, lastMaintenanceDay, damage: 0 });
+const fleet = (ships: number) => ({ ships, quality: 1, damage: 0 });
 
 describe("Treasury", () => {
   it("pays only from a positive Balance", () => {
@@ -22,12 +22,12 @@ describe("Treasury", () => {
     expect(accrueInterest(500, 5)).toBe(500);
   });
 
-  it("bills Upkeep for each day since it was last paid", () => {
-    expect(upkeepDue({ balance: 1000, day: 4, guardFleet: fleet(2) })).toBe(150);
+  it("charges a daily Upkeep for each guard ship", () => {
+    expect(dailyUpkeep({ balance: 1000, guardFleet: fleet(2) })).toBe(50);
   });
 
   it("forgives Upkeep while in Overdraft", () => {
-    expect(upkeepDue({ balance: -1, day: 4, guardFleet: fleet(2) })).toBe(0);
+    expect(dailyUpkeep({ balance: -1, guardFleet: fleet(2) })).toBe(0);
   });
 
   it("sells the Guard Fleet for half of what hiring each ship would cost now", () => {
