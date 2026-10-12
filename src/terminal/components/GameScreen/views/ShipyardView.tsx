@@ -2,7 +2,7 @@ import { usePreferences } from "../../Preferences.js";
 import React from "react";
 import { Box, Text } from "ink";
 import { useNavigation } from "../Navigation.js";
-import { issueCommand } from "../../../store/plugin.js";
+import { Unavailable, displayMonetaryValue, issueCommand, shipyardView } from "../../../../game/index.js";
 import { GameContext } from "../../GameContext.js";
 import { ShipyardContext } from "../ShipyardContext.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
@@ -13,8 +13,6 @@ import { ConfirmPrompt as ConfirmPromptKeyboard } from "../../prompts/keyboard/C
 import { ConfirmPrompt as ConfirmPromptArrows } from "../../prompts/arrows/ConfirmPrompt.js";
 import { Table } from "../Table.js";
 import { ViewTitle } from "../ViewTitle.js";
-import { displayMonetaryValue } from "../../../store/format.js";
-import { Unavailable, shipyardView } from "../../../store/views/shipyard.js";
 
 const REASONS: Partial<Record<Unavailable, string>> = { notEnoughMoney: "not enough money" };
 

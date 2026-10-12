@@ -8,13 +8,12 @@ import { ActionPrompt as ActionPromptKeyboard } from "../prompts/keyboard/Action
 import { ActionPrompt as ActionPromptArrows } from "../prompts/arrows/ActionPrompt.js";
 import { StatusBar } from "./StatusBar.js";
 import { NavigationProvider, useNavigation } from "./Navigation.js";
-import { gamePhase } from "../../store/views/phase.js";
+import { eventView, gamePhase } from "../../../game/index.js";
 import { Badge } from "@inkjs/ui";
 import { MarketContext } from "./MarketContext.js";
 import { ShipyardContext } from "./ShipyardContext.js";
 import { useScreenSize } from "../../hooks/use-screen-size.js";
 import { MAX_PANEL_WIDTH, SIDEBAR_LAYOUT_MIN_WIDTH } from "../layout.js";
-import { eventView } from "../../store/views/event.js";
 
 export function Layout({ children }: React.PropsWithChildren) {
   const { width } = useScreenSize();

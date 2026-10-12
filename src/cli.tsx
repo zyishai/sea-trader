@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import React from "react";
 import { render } from "ink";
-import { App } from "./App.js";
-import { GameContext } from "./components/GameContext.js";
-import { Screen } from "./components/Screen.js";
-import { createInputStream, enterFullScreen, exitFullScreen } from "./terminal.js";
+import { App } from "./terminal/App.js";
+import { GameContext } from "./terminal/components/GameContext.js";
+import { Screen } from "./terminal/components/Screen.js";
+import { createInputStream, enterFullScreen, exitFullScreen } from "./terminal/terminal.js";
 
 enterFullScreen(process.stdout);
 

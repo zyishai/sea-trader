@@ -6,7 +6,7 @@ import { GameContext } from "../../GameContext.js";
 import { Table } from "../Table.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
 import { ActionPrompt as ActionPromptArrows } from "../../prompts/arrows/ActionPrompt.js";
-import { piratesView } from "../../../store/views/pirates.js";
+import { piratesView } from "../../../../game/index.js";
 
 export function PiratesView() {
   const actor = GameContext.useActorRef();

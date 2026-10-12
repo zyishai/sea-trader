@@ -2,8 +2,7 @@ import { Box, Text, useInput } from "ink";
 import React from "react";
 import { GameContext } from "./GameContext.js";
 import { Badge } from "@inkjs/ui";
-import { displayMonetaryValue } from "../store/format.js";
-import { RANKS, voyageResult } from "../store/views/voyage-result.js";
+import { RANKS, displayMonetaryValue, voyageResult } from "../../game/index.js";
 
 export function ScoreScreen() {
   const actor = GameContext.useActorRef();

@@ -5,7 +5,7 @@ import { Badge } from "@inkjs/ui";
 import { GameContext } from "../../GameContext.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
 import { ActionPrompt as ActionPromptArrows } from "../../prompts/arrows/ActionPrompt.js";
-import { cargoOfferView } from "../../../store/views/cargo-offer.js";
+import { cargoOfferView } from "../../../../game/index.js";
 
 export function CargoOfferView() {
   const actor = GameContext.useActorRef();

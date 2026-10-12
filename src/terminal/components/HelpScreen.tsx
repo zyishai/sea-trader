@@ -3,8 +3,7 @@ import { Box, DOMElement, measureElement, Text, useInput } from "ink";
 import BigText from "ink-big-text";
 import { OrderedList, UnorderedList } from "@inkjs/ui";
 import { useAnchorToTop } from "./Viewport.js";
-import { displayMonetaryValue, joinWords } from "../store/format.js";
-import { helpView } from "../store/views/help.js";
+import { displayMonetaryValue, helpView, joinWords } from "../../game/index.js";
 
 export function HelpScreen({ onClose }: { onClose: () => void }) {
   const { portCount, goods, startingBalance, voyageLength } = helpView();

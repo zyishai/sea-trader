@@ -1,8 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import { GameContext } from "../GameContext.js";
-import { displayMonetaryValue } from "../../store/format.js";
-import { statusView } from "../../store/views/status.js";
+import { displayMonetaryValue, statusView } from "../../../game/index.js";
 
 export function StatusBar({ orientation }: { orientation: "vertical" | "horizontal" }) {
   const status = GameContext.useSelector((snapshot) => statusView(snapshot.context));

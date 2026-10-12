@@ -9,7 +9,7 @@ import { useMachine } from "@xstate/react";
 import { ConfirmPrompt as ConfirmPromptKeyboard } from "../../prompts/keyboard/ConfirmPrompt.js";
 import { ConfirmPrompt as ConfirmPromptArrows } from "../../prompts/arrows/ConfirmPrompt.js";
 import { menuMachine } from "../../flows/menu.js";
-import { mainMenuView } from "../../../store/views/main-menu.js";
+import { mainMenuView } from "../../../../game/index.js";
 import { useNavigation } from "../Navigation.js";
 
 export function MainView() {

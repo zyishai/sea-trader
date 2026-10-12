@@ -4,7 +4,7 @@ import { GameScreen } from "./components/GameScreen/index.js";
 import { GameContext } from "./components/GameContext.js";
 import { ScoreScreen } from "./components/ScoreScreen.js";
 import { HelpScreen } from "./components/HelpScreen.js";
-import { gamePhase } from "./store/views/phase.js";
+import { gamePhase } from "../game/index.js";
 import { PreferencesProvider } from "./components/Preferences.js";
 
 export const App: React.FC = () => (
