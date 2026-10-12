@@ -110,7 +110,36 @@ describe("pirate encounter", () => {
     game.send({ type: "PIRATES_ENCOUNTER_FIGHT" });
 
     expect(amountOf(game.getSnapshot().context.ship.hold, "Tea")).toBe(26);
-    expect(messagesOf(game)).toContain("The pirates stole 14 Tea from our hold.");
+    expect(messagesOf(game)).toContain("Lost 14 picul of Tea.");
+  });
+
+  const atPirates = (patch: (context: Context) => Partial<Context>, rng: Rng) =>
+    gameAt({ gameScreen: { at_port: "piratesEncountered" } }, patch, rng);
+
+  it("wins a fight, taking loot and reputation", () => {
+    const game = atPirates(
+      () => ({ balance: 1000, reputation: 50 }),
+      createRng(() => 0.01),
+    );
+
+    game.send({ type: "PIRATES_ENCOUNTER_FIGHT" });
+
+    const { context } = game.getSnapshot();
+    expect(context.balance).toBeGreaterThan(1000);
+    expect(context.reputation).toBe(55);
+    expect(messagesOf(game)).toEqual(expect.arrayContaining(["We drove them off, Captain!", "Gained 5 reputation."]));
+  });
+
+  it("slips away from the pirates without a scratch", () => {
+    const game = atPirates(
+      () => ({}),
+      createRng(() => 0.01),
+    );
+
+    game.send({ type: "PIRATES_ENCOUNTER_FLEE" });
+
+    expect(game.getSnapshot().context.ship.health).toBe(100);
+    expect(messagesOf(game)).toContain("Captain, we maneuvered away from the pirates without a scratch!");
   });
 });
 

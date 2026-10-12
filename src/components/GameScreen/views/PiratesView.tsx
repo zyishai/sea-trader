@@ -2,15 +2,15 @@ import React from "react";
 import { Box, Text } from "ink";
 import { Badge } from "@inkjs/ui";
 import { GameContext } from "../../GameContext.js";
-import { calculateGuardEffectiveness } from "../../../store/utils.js";
+import { piratesView } from "../../../store/views/pirates.js";
 import { Table } from "../Table.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
 import { ActionPrompt as ActionPromptArrows } from "../../prompts/arrows/ActionPrompt.js";
 
 export function PiratesView() {
   const actor = GameContext.useActorRef();
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const controls = context.settings.controls;
+  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const status = GameContext.useSelector((snapshot) => piratesView(snapshot.context));
 
   const availableActions = [
     { label: "Attack them", value: "attack" },
@@ -45,9 +45,9 @@ export function PiratesView() {
         <Box flexDirection="column" paddingLeft={3}>
           <Table
             rows={[
-              ["Ship Health", `${context.ship.health}%`],
-              ["Fleet Size", `${context.guardFleet.ships} Ship${context.guardFleet.ships !== 1 ? "s" : ""}`],
-              ["Combat Advantage", `${Math.round(calculateGuardEffectiveness(context) * 100)}%`],
+              ["Ship Health", `${status.shipHealth}%`],
+              ["Fleet Size", `${status.fleetSize} Ship${status.fleetSize !== 1 ? "s" : ""}`],
+              ["Combat Advantage", `${status.combatAdvantage}%`],
             ]}
           />
         </Box>

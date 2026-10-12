@@ -19,7 +19,6 @@ import {
   SEASON_LENGTH,
   SEASONAL_EFFECTS,
   seasonEventEffects,
-  seasons,
   SPEED_UPGRADES,
   TREND_DIRECTION,
   TREND_STRENGTH,

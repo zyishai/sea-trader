@@ -17,6 +17,8 @@ export type Outcome =
 
 export type EventResult = { story: string[]; outcomes: Outcome[] };
 
+export const result = (story: string[], ...outcomes: Outcome[]): EventResult => ({ story, outcomes });
+
 export const outcome = {
   damageShip: (amount: number): Outcome => ({ kind: "damageShip", amount }),
   battleDamage: (amount: number): Outcome => ({ kind: "battleDamage", amount }),

@@ -1,28 +1,16 @@
 import { assign, enqueueActions, setup } from "xstate";
 import { initialContext } from "./defaults.js";
-import { Context, Good } from "./types.js";
+import { Context } from "./types.js";
 import { GameEvents } from "./events.js";
 import { Rng } from "./rng.js";
 import { applyEventResult } from "./outcomes.js";
+import { bribePirates, fightPirates, fleePirates } from "./pirates.js";
 import { advanceDays, canRetire } from "./clock.js";
-import { canAfford, cashOnHand, fleetSaleValue, isBankrupt, isInOverdraft, netWorth } from "./treasury.js";
+import { canAfford, fleetSaleValue, isBankrupt, isInOverdraft, netWorth } from "./treasury.js";
 import { needsCaptainsChoice, takeCargoOffer } from "./cargo-offer.js";
-import {
-  amountOf,
-  fitsAboard,
-  freeSpace,
-  goodsAboard,
-  isOverloaded,
-  load,
-  marginLeft,
-  overloadLevel,
-  unload,
-  value,
-  withCapacity,
-} from "./hold.js";
+import { amountOf, fitsAboard, freeSpace, isOverloaded, load, marginLeft, unload, withCapacity } from "./hold.js";
 import {
   calculateCostForRepair,
-  calculateGuardEffectiveness,
   calculateGuardShipCost,
   calculatePirateEncounterChance,
   calculatePrice,
@@ -31,7 +19,6 @@ import {
   calculateFleetUpgradeCost,
   checkForEvent,
   getShipStatus,
-  distributeFleetDamage,
   canAffordUpgrade,
   getNextUpgrade,
   joinWords,
@@ -48,6 +35,7 @@ import {
   OVERDRAFT_TRADING_LIMIT,
   ports,
 } from "./constants.js";
+// Lets tsc name xstate's guard types when emitting declarations for the machines
 import { type Guard } from "xstate/guards";
 
 const currentEventOf = (context: Context) => (context.currentEvent ? eventById(context.currentEvent) : undefined);
@@ -169,230 +157,15 @@ export const gameMachine = setup({
             piratesEncountered: {
               on: {
                 PIRATES_ENCOUNTER_FIGHT: {
-                  actions: enqueueActions(({ enqueue, context }) => {
-                    const successChance = calculateGuardEffectiveness(context);
-                    const success = context.rng.chance(successChance);
-
-                    if (success) {
-                      // Even when winning, ship might take some damage
-                      const takeDamage = context.rng.chance(0.7); // 70% chance to take damage
-                      const damage = takeDamage ? context.rng.int(5, 14) : 0;
-                      const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
-
-                      // Loot from pirates
-                      const cargoValue = value(context.ship.hold, context.prices[context.currentPort]);
-                      const baseLoot = context.rng.int(801, 1300);
-                      const factor = Math.floor(100_000 / Math.max(1, context.balance + cargoValue));
-                      const potentialLoot = Math.max(500, Math.floor(baseLoot * factor));
-                      const actualLoot = Math.min(15_000, potentialLoot);
-
-                      const messages = [
-                        "We drove them off, Captain!",
-                        `Found ${displayMonetaryValue(actualLoot)} in their hold.`,
-                      ];
-
-                      if (shipDamage > 0) {
-                        messages.push(`Captain, our ship took ${shipDamage} damage in the battle!`);
-                        if (shipsLost > 0) {
-                          messages.push(
-                            `We lost ${Math.min(shipsLost, context.guardFleet.ships)} guard ship${
-                              Math.min(shipsLost, context.guardFleet.ships) > 1 ? "s" : ""
-                            }.`,
-                          );
-                        }
-                      }
-
-                      messages.push(`Gained 5 reputation points for your bravery.`);
-
-                      enqueue({ type: "displayMessages", params: messages });
-                      enqueue.assign({
-                        ship: {
-                          ...context.ship,
-                          health: Math.max(0, context.ship.health - shipDamage),
-                        },
-                        guardFleet: {
-                          ...context.guardFleet,
-                          ships: Math.max(0, context.guardFleet.ships - shipsLost),
-                          damage: remainingFleetDamage,
-                        },
-                        balance: context.balance + actualLoot,
-                        reputation: Math.min(100, context.reputation + 5),
-                      });
-                    } else {
-                      // Lost the fight - more severe consequences
-                      const damage = context.rng.int(15, 34);
-                      const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
-
-                      const stolenGoods = context.rng.int(5, 14);
-                      const [randomGood] = context.rng.pick(goodsAboard(context.ship.hold)) ?? [];
-                      const { hold: newHold, unloaded: stolen } = randomGood
-                        ? unload(context.ship.hold, randomGood, stolenGoods)
-                        : { hold: context.ship.hold, unloaded: 0 };
-
-                      enqueue({
-                        type: "displayMessages",
-                        params: [
-                          "Despite our guard fleet's efforts, the pirates prevailed!",
-                          `We took ${Math.min(shipDamage, context.ship.health)} damage in the battle.`,
-                          randomGood ? `The pirates stole ${stolen} ${randomGood} from our hold.` : "",
-                          shipsLost > 0
-                            ? `We lost ${Math.min(shipsLost, context.guardFleet.ships)} guard ship${
-                                Math.min(shipsLost, context.guardFleet.ships) > 1 ? "s" : ""
-                              } in the battle.`
-                            : "",
-                          `Lost ${Math.min(shipsLost * 2 + 1, context.reputation)} reputation points.`,
-                        ].filter(Boolean),
-                      });
-                      enqueue.assign({
-                        ship: {
-                          ...context.ship,
-                          health: Math.max(0, context.ship.health - shipDamage),
-                          hold: newHold,
-                        },
-                        guardFleet: {
-                          ...context.guardFleet,
-                          ships: Math.max(0, context.guardFleet.ships - shipsLost),
-                          damage: remainingFleetDamage,
-                        },
-                        reputation: Math.max(0, context.reputation - (shipsLost * 2 + 1)),
-                      });
-                    }
-                  }),
+                  actions: assign(({ context }) => applyEventResult(context, fightPirates(context))),
                   target: "traveling",
                 },
                 PIRATES_ENCOUNTER_FLEE: {
-                  actions: enqueueActions(({ enqueue, context }) => {
-                    const baseFleeChance = 0.6 + calculateGuardEffectiveness(context) * 0.2;
-
-                    const overloadPenalty = overloadLevel(context.ship.hold) * 0.4;
-
-                    const fleeChance = Math.max(0.1, baseFleeChance - overloadPenalty);
-                    const success = context.rng.chance(fleeChance);
-
-                    if (success) {
-                      const noDamage = context.rng.chance(0.3); // 30% chance to escape without any damage
-                      if (noDamage) {
-                        enqueue({
-                          type: "displayMessages",
-                          params: ["Captain, you managed to maneuver away from the pirates without a scratch!"],
-                        });
-                      } else {
-                        const damage = context.rng.int(3, 10);
-                        const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
-
-                        const messages = [
-                          "Captain, we've successfully escaped from the pirates!",
-                          `Our ship took ${shipDamage} damage while fleeing.`,
-                        ];
-
-                        if (shipsLost > 0) {
-                          messages.push(
-                            `We've lost ${Math.min(shipsLost, context.guardFleet.ships)} guard ship${
-                              Math.min(shipsLost, context.guardFleet.ships) > 1 ? "s" : ""
-                            } covering our escape.`,
-                          );
-                        }
-
-                        enqueue({
-                          type: "displayMessages",
-                          params: messages,
-                        });
-                        enqueue.assign({
-                          ship: {
-                            ...context.ship,
-                            health: Math.max(0, context.ship.health - shipDamage),
-                          },
-                          guardFleet: {
-                            ...context.guardFleet,
-                            ships: Math.max(0, context.guardFleet.ships - shipsLost),
-                            damage: remainingFleetDamage,
-                          },
-                        });
-                      }
-                    } else {
-                      const damage = context.rng.int(10, 24);
-                      const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
-
-                      const messages = [
-                        "Failed to escape from the pirates, Captain!",
-                        `Our ship took ${shipDamage} damage while attempting to flee.`,
-                        shipsLost > 0
-                          ? `We've lost ${Math.min(shipsLost, context.guardFleet.ships)} guard ship${
-                              Math.min(shipsLost, context.guardFleet.ships) > 1 ? "s" : ""
-                            } to the pirates.`
-                          : "",
-                        `Lost ${Math.min(2, context.reputation)} reputation points.`,
-                      ].filter(Boolean);
-
-                      enqueue({
-                        type: "displayMessages",
-                        params: messages,
-                      });
-                      enqueue.assign({
-                        ship: {
-                          ...context.ship,
-                          health: Math.max(0, context.ship.health - shipDamage),
-                        },
-                        guardFleet: {
-                          ...context.guardFleet,
-                          ships: Math.max(0, context.guardFleet.ships - shipsLost),
-                          damage: remainingFleetDamage,
-                        },
-                        reputation: Math.max(0, context.reputation - 2),
-                      });
-                    }
-                  }),
+                  actions: assign(({ context }) => applyEventResult(context, fleePirates(context))),
                   target: "traveling",
                 },
                 PIRATES_ENCOUNTER_OFFER: {
-                  actions: enqueueActions(({ enqueue, context }) => {
-                    const cash = cashOnHand(context);
-                    const bribeCost = Math.round(cash * 0.15);
-                    const success = cash > 0 && context.rng.int(0, cash) >= bribeCost;
-
-                    if (success) {
-                      enqueue({
-                        type: "displayMessages",
-                        params: [
-                          `Captain, we paid the pirates ${displayMonetaryValue(bribeCost)} to let us pass freely.`,
-                          `Lost 1 reputation point.`,
-                        ],
-                      });
-                      enqueue.assign({
-                        balance: context.balance - bribeCost,
-                        reputation: Math.max(0, context.reputation - 1),
-                      });
-                    } else {
-                      const damage = context.rng.int(15, 39);
-                      const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
-
-                      const messages = [
-                        cash > 0
-                          ? "Captain, we couldn't afford to bribe the pirates!"
-                          : "We have nothing to offer them, Captain!",
-                        "They attacked us in anger!",
-                        `We took ${shipDamage} damage.`,
-                        `Lost ${Math.min(5, context.reputation)} reputation points.`,
-                      ];
-
-                      enqueue({
-                        type: "displayMessages",
-                        params: messages,
-                      });
-                      enqueue.assign({
-                        ship: {
-                          ...context.ship,
-                          health: Math.max(0, context.ship.health - shipDamage),
-                        },
-                        guardFleet: {
-                          ...context.guardFleet,
-                          ships: Math.max(0, context.guardFleet.ships - shipsLost),
-                          damage: remainingFleetDamage,
-                        },
-                        reputation: Math.max(0, context.reputation - 5),
-                      });
-                    }
-                  }),
+                  actions: assign(({ context }) => applyEventResult(context, bribePirates(context))),
                   target: "traveling",
                 },
               },

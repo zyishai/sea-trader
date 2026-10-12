@@ -2,10 +2,9 @@ import { CargoOffer } from "./cargo-offer.js";
 import { currentSeason } from "./clock.js";
 import { BASE_SHIP_SPEED, GOAL_DAYS, goods, ports } from "./constants.js";
 import { goodsAboard, isOverloaded, spaceUsed } from "./hold.js";
-import { EventResult, outcome } from "./outcomes.js";
+import { outcome, result } from "./outcomes.js";
 import { Context, EventTemplate, Good, Port } from "./types.js";
 
-const result = (story: string[], ...outcomes: EventResult["outcomes"]): EventResult => ({ story, outcomes });
 const marketOf = (context: Context) => context.destination ?? context.currentPort;
 
 const weatherEvents: EventTemplate[] = [
