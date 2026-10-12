@@ -24,3 +24,6 @@ Smarter Cargo, Fairer Money and Clearer Voyages
 - Event messages read more clearly, with spelling fixes
 - A capacity bonus from expert maintenance no longer makes your next hold upgrade skip a size
 - The help screen shows the correct starting money and names the goods you can trade
+- After buying or selling you stay on the goods list instead of jumping back to the market menu, and a refused order keeps you on its prompt so you can try again
+- Fractional or empty quantities are refused with a clear message
+- Not affording a guard fleet upgrade no longer throws you out of the shipyard, and fully upgraded ship parts say so instead of "not enough money"
