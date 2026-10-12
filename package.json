@@ -15,7 +15,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
-    "prepare": "husky install",
+    "prepare": "husky",
     "pre-commit": "lint-staged",
     "prepublish": "npm run build",
     "prepublishOnly": "npm run ci",
