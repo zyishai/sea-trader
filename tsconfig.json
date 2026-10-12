@@ -1,10 +1,10 @@
 {
-	"extends": "@sindresorhus/tsconfig",
-	"compilerOptions": {
-		"outDir": "dist",
-		"noUnusedLocals": false,
-		"noUnusedParameters": false
-	},
-	"include": ["src"],
-	"exclude": ["src/**/*.test.ts"]
+  "extends": "@sindresorhus/tsconfig",
+  "compilerOptions": {
+    "outDir": "dist",
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
 }
