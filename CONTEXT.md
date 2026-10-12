@@ -120,6 +120,10 @@ _Avoid_: Bank, creditors, lenders
 The Balance plus the value of the Hold's cargo at the current port's prices.
 _Avoid_: Net cash, wealth, assets
 
+**Stranded**:
+The Captain has an empty Hold, no Guard Fleet, and too little money to buy even one picul of any Good at any Port, so the Voyage can't go on by trading. A Stranded Captain may declare bankruptcy.
+_Avoid_: Stuck, broke, soft-locked
+
 **Voyage End**:
 How a voyage finished: **Retired** after the voyage days, **Bankrupt** when the Overdraft passed the limit, **Declared Bankrupt** when the Captain gave up while in Overdraft, or **Shipwrecked** when the Ship was a wreck the Captain couldn't afford to repair.
 _Avoid_: Game over, outcome
