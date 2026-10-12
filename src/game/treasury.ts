@@ -1,6 +1,6 @@
 import { Context } from "./context.js";
 import { calculateDailyMaintenanceCost, calculateGuardShipCost } from "./fleet.js";
-import { value } from "./hold.js";
+import { goodsAboard, value } from "./hold.js";
 
 export const BASE_BALANCE = 1500;
 export const BANKRUPTCY_THRESHOLD = -4000; // When debt exceeds this, player goes bankrupt
@@ -28,3 +28,14 @@ export const dailyUpkeep = (context: Pick<Context, "balance" | "guardFleet">) =>
 
 export const fleetSaleValue = (context: Pick<Context, "guardFleet">) =>
   Math.round(calculateGuardShipCost(context, 1) / 2) * context.guardFleet.ships;
+
+const cheapestPrice = ({ prices }: Pick<Context, "prices">) =>
+  Math.min(...Object.values(prices).flatMap((portPrices) => Object.values(portPrices)));
+
+export const isStranded = (context: Pick<Context, "balance" | "ship" | "guardFleet" | "prices">) =>
+  goodsAboard(context.ship.hold).length === 0 &&
+  context.guardFleet.ships === 0 &&
+  affordableUnits(context, cheapestPrice(context)) === 0;
+
+export const wouldStrand = (context: Pick<Context, "balance" | "ship" | "guardFleet" | "prices">, cost: number) =>
+  !isStranded(context) && isStranded({ ...context, balance: context.balance - cost });

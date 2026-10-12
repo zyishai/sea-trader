@@ -14,7 +14,9 @@ import { useNavigation } from "../Navigation.js";
 
 export function MainView() {
   const controls = usePreferences().controls;
-  const { canRetire, canDeclareBankruptcy } = GameContext.useSelector((snapshot) => mainMenuView(snapshot.context));
+  const { canRetire, canDeclareBankruptcy, stranded } = GameContext.useSelector((snapshot) =>
+    mainMenuView(snapshot.context),
+  );
   const [snapshot, send] = useMachine(menuMachine);
   const { navigate } = useNavigation();
 
@@ -65,6 +67,12 @@ export function MainView() {
   return (
     <Box flexDirection="column" gap={1}>
       <ViewTitle text="Sea Trader" />
+
+      {stranded ? (
+        <Text color="yellow">
+          We have no cargo and too little money to buy anything, Captain. We can declare bankruptcy and end the voyage.
+        </Text>
+      ) : null}
 
       {controls === "keyboard" ? (
         <>

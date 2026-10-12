@@ -1,7 +1,7 @@
 import { GOAL_DAYS, canRetire } from "../clock.js";
 import { Context } from "../context.js";
 import { getShipStatus } from "../ship.js";
-import { isInOverdraft } from "../treasury.js";
+import { isInOverdraft, isStranded } from "../treasury.js";
 import { accept, reject } from "./index.js";
 
 export const setSailRejection = (context: Context) =>
@@ -17,6 +17,6 @@ export const retire = (context: Context) =>
     : reject("voyageNotFinished", ["You haven't finished your voyage yet!"]);
 
 export const declareBankruptcy = (context: Context) =>
-  isInOverdraft(context)
+  isInOverdraft(context) || isStranded(context)
     ? accept({ ...context, voyageEnd: "declaredBankrupt" })
     : reject("notInOverdraft", ["You're not bankrupt!"]);

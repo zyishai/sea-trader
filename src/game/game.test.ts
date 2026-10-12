@@ -309,13 +309,21 @@ describe("voyage end", () => {
     expect(voyageResult(game.getSnapshot().context).score).toBeGreaterThan(0);
   });
 
-  it("refuses to declare bankruptcy without an Overdraft", () => {
-    const game = atMenu(() => ({ balance: 0 }));
+  it("refuses to declare bankruptcy while the Captain can still trade", () => {
+    const game = atMenu(() => ({ balance: 1500 }));
 
     game.send({ type: "DECLARE_BANKRUPTCY" });
 
     expect(game.getSnapshot().matches("ended")).toBe(false);
     expect(messagesOf(game)).toContain("You're not bankrupt!");
+  });
+
+  it("lets a Stranded Captain declare bankruptcy", () => {
+    const game = atMenu(() => ({ balance: 0 }));
+
+    game.send({ type: "DECLARE_BANKRUPTCY" });
+
+    expect(voyageResult(game.getSnapshot().context)).toMatchObject({ end: "declaredBankrupt", score: 0 });
   });
 
   it("declares bankruptcy while in Overdraft, scoring nothing", () => {
