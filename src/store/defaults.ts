@@ -59,15 +59,8 @@ export const initialContext = (rng: Rng, settings?: GameSettings) => {
     trends,
     prices: initialPrices,
     marketIntelligence: {
-      level: 1,
-      lastPurchase: 1,
-      trendChanges: 0,
-      seasonChanges: 0,
-      priceUpdates: 0,
-      analysis: {
-        priceHistory: emptyPriceHistory,
-        typicalRanges: emptyTypicalRanges,
-      },
+      priceHistory: emptyPriceHistory,
+      typicalRanges: emptyTypicalRanges,
     },
     announcedOverdraft: false,
     messages: [],

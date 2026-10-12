@@ -28,16 +28,12 @@ const passDay = (context: Context): Context => {
     balance,
     trends,
     prices,
-    marketIntelligence: {
-      ...context.marketIntelligence,
-      priceUpdates: context.marketIntelligence.priceUpdates + 1,
-      analysis: updatePriceHistory(
-        context.marketIntelligence.analysis.priceHistory,
-        prices,
-        day,
-        seasonOn(context.startingSeason, day),
-      ),
-    },
+    marketIntelligence: updatePriceHistory(
+      context.marketIntelligence.priceHistory,
+      prices,
+      day,
+      seasonOn(context.startingSeason, day),
+    ),
   };
 };
 

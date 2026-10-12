@@ -32,7 +32,6 @@ import {
   EventTemplate,
   FleetQuality,
   Good,
-  MarketInfoLevel,
   MerchantTip,
   Port,
   PriceHistory,
@@ -301,27 +300,6 @@ export const calculatePrice = ({
   good: Good;
   quantity: number;
 }) => prices[currentPort][good] * quantity;
-export const getIntelligenceCost = (level: MarketInfoLevel, context: Context) => {
-  const basePrice = {
-    1: 0,
-    2: 200,
-    3: 500,
-  }[level];
-
-  const wealthFactor = Math.min(3, Math.max(1, Math.sqrt(context.balance / 5000)));
-  return Math.round(basePrice * wealthFactor);
-};
-export const calculateIntelligenceReliability = (context: Context) => {
-  const intel = context.marketIntelligence;
-
-  const trendPenalty = intel.trendChanges * 15; // -15% per trend change
-  const seasonPenalty = intel.seasonChanges * 20;
-  const pricePenalty = intel.priceUpdates * 10;
-
-  const reliability = Math.max(0, 100 - trendPenalty - seasonPenalty - pricePenalty);
-  return reliability;
-};
-
 // ->> Intelligence <<-
 export const updatePriceHistory = (
   history: Record<Port, Record<Good, PriceHistory[]>>,
@@ -424,11 +402,11 @@ export const findProfitablePorts = (context: Context) => {
 export const generateAllTips = (context: Context): MerchantTip[] => {
   const tips: MerchantTip[] = [];
   const currentPort = context.currentPort;
-  const analysis = context.marketIntelligence.analysis;
+  const analysis = context.marketIntelligence;
   const currentPrices = context.prices;
 
   goods.forEach((good) => {
-    if (context.marketIntelligence.priceUpdates > 3) {
+    if (analysis.priceHistory[currentPort][good].length > 3) {
       const price = currentPrices[currentPort][good];
       const range = analysis.typicalRanges[currentPort][good];
 

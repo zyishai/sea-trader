@@ -40,7 +40,7 @@ describe("Voyage Clock", () => {
     const { context, notices } = advanceDays(before, 30);
 
     expect(context.prices).not.toEqual(before.prices);
-    expect(context.marketIntelligence.analysis.priceHistory["Hong Kong"].Tea).toHaveLength(2);
+    expect(context.marketIntelligence.priceHistory["Hong Kong"].Tea).toHaveLength(2);
     expect(notices.filter((notice) => notice === "Prices have updated!")).toHaveLength(1);
   });
 
@@ -75,7 +75,7 @@ describe("Voyage Clock", () => {
 
   it("leaves the original game state unchanged", () => {
     const before = voyage(() => ({ day: 10 }));
-    const history = before.marketIntelligence.analysis.priceHistory["Hong Kong"].Tea;
+    const history = before.marketIntelligence.priceHistory["Hong Kong"].Tea;
 
     advanceDays(before, 10);
 

@@ -51,7 +51,6 @@ export type TrendInfo = {
 };
 export type Season = (typeof seasons)[number];
 export type GoodInfo = (typeof goodsInfo)[number];
-export type MarketInfoLevel = 1 | 2 | 3;
 
 // Intelligence
 export type PriceHistory = {
@@ -94,15 +93,8 @@ export type Context = {
   prices: Record<Port, Record<Good, number>>;
   trends: Record<Port, Record<Good, TrendInfo>>;
   marketIntelligence: {
-    level: MarketInfoLevel;
-    lastPurchase: number;
-    trendChanges: number; // Number of trend changes since last purchase
-    seasonChanges: number;
-    priceUpdates: number;
-    analysis: {
-      priceHistory: Record<Port, Record<Good, PriceHistory[]>>;
-      typicalRanges: Record<Port, Record<Good, Range>>;
-    };
+    priceHistory: Record<Port, Record<Good, PriceHistory[]>>;
+    typicalRanges: Record<Port, Record<Good, Range>>;
   };
 
   // Shipyard context
