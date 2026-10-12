@@ -22,3 +22,5 @@ Smarter Cargo, Fairer Money and Clearer Voyages
 - Long passages no longer skip a price update
 - Events and pirate encounters report exactly what happened to your ship, money, cargo, reputation and schedule, in the same words every time
 - Event messages read more clearly, with spelling fixes
+- A capacity bonus from expert maintenance no longer makes your next hold upgrade skip a size
+- The help screen shows the correct starting money and names the goods you can trade
