@@ -11,12 +11,13 @@ import {
 } from "./constants.js";
 import { Context, GameSettings, Good, Port, PriceHistory, Range } from "./types.js";
 import { generatePrices, generateTrends } from "./utils.js";
+import { Rng } from "./rng.js";
 
-export const initialContext = (settings?: GameSettings) => {
+export const initialContext = (rng: Rng, settings?: GameSettings) => {
   const { extendedGame = false, disableAnimations = false, controls = "keyboard" } = settings || {};
-  const season = seasons[Math.floor(Math.random() * seasons.length)]!;
-  const trends = generateTrends();
-  const initialPrices = generatePrices(trends, season);
+  const season = rng.pick(seasons)!;
+  const trends = generateTrends(rng);
+  const initialPrices = generatePrices(trends, season, rng);
 
   const emptyPriceHistory = {} as Record<Port, Record<Good, PriceHistory[]>>;
   const emptyTypicalRanges = {} as Record<Port, Record<Good, Range>>;
@@ -37,6 +38,7 @@ export const initialContext = (settings?: GameSettings) => {
   });
 
   return {
+    rng,
     currentPort: "Hong Kong",
     currentSeason: season,
     nextSeasonDay: SEASON_LENGTH,

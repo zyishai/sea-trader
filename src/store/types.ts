@@ -1,4 +1,5 @@
 import { goods, goodsInfo, ports, seasons, TREND_DIRECTION, TREND_STRENGTH } from "./constants.js";
+import { Rng } from "./rng.js";
 
 export type GameSettings = {
   extendedGame?: boolean;
@@ -68,6 +69,8 @@ export type MerchantTip = {
 
 // Context
 export type Context = {
+  rng: Rng;
+
   // Game-wide context
   currentPort: Port;
   day: number;

@@ -43,7 +43,7 @@ const weatherEvents: EventTemplate[] = [
         key: "P",
         effect: (context) => {
           const baseSuccess = 0.4 + context.ship.health / 200;
-          const success = Math.random() < baseSuccess;
+          const success = context.rng.chance(baseSuccess);
 
           if (success) {
             const reputationGain = Math.round(5 + (context.day / GOAL_DAYS) * 5);
@@ -56,7 +56,7 @@ const weatherEvents: EventTemplate[] = [
             };
           }
 
-          const baseDamage = Math.floor(Math.random() * 20) + 15; // 15-35 damage
+          const baseDamage = context.rng.int(15, 34);
           const seasonMultiplier = context.currentSeason === "Winter" ? 1.3 : 1;
           const damage = Math.round(baseDamage * seasonMultiplier);
           return {
@@ -159,14 +159,14 @@ const weatherEvents: EventTemplate[] = [
         label: "Risk sailing through",
         key: "R",
         effect: (context) => {
-          const success = Math.random() < 0.4;
+          const success = context.rng.chance(0.4);
           if (success) {
             return {
               reputation: Math.min(100, context.reputation + 10),
               messages: [...context.messages, ["Captain, your bold gamble paid off! Our reputation increases."]],
             };
           }
-          const damage = Math.floor(Math.random() * 20) + 10;
+          const damage = context.rng.int(10, 29);
           return {
             ship: {
               ...context.ship,
@@ -185,7 +185,7 @@ const weatherEvents: EventTemplate[] = [
     message: "Heavy seas have damaged some cargo",
     effect: (context) => {
       const goodsInHold = [...context.ship.hold.entries()].filter(([_, quantity]) => quantity > 0);
-      const pick = goodsInHold[Math.floor(Math.random() * goodsInHold.length)];
+      const pick = context.rng.pick(goodsInHold);
       if (!pick) return {};
       const [randomGood] = pick;
       const currentQuantity = context.ship.hold.get(randomGood) || 0;
@@ -222,7 +222,7 @@ const cargoEvents: EventTemplate[] = [
         label: "Take time to redistribute the load",
         key: "R",
         effect: (context) => {
-          const success = Math.random() < 0.8;
+          const success = context.rng.chance(0.8);
           if (success) {
             return {
               day: context.day + 1,
@@ -237,7 +237,7 @@ const cargoEvents: EventTemplate[] = [
             };
           }
 
-          const lossRatio = 0.1 + Math.random() * 0.15; // 0.1-0.25
+          const lossRatio = 0.1 + context.rng.float() * 0.15; // 0.1-0.25
           const goodsInHold = [...context.ship.hold.entries()].filter(([_, qty]) => qty > 0);
           const newHold = new Map(context.ship.hold);
 
@@ -260,7 +260,7 @@ const cargoEvents: EventTemplate[] = [
         label: "Continue carefully",
         key: "C",
         effect: (context) => {
-          const success = Math.random() < 0.6; // 60% chance to make it safely
+          const success = context.rng.chance(0.6); // 60% chance to make it safely
           if (success) {
             return {
               messages: [...context.messages, ["Despite the stability issues, we managed to continue safely."]],
@@ -268,7 +268,7 @@ const cargoEvents: EventTemplate[] = [
           }
 
           const goodsInHold = [...context.ship.hold.entries()].filter(([_, quantity]) => quantity > 0);
-          const [randomGood] = goodsInHold[Math.floor(Math.random() * goodsInHold.length)] || [];
+          const [randomGood] = context.rng.pick(goodsInHold) || [];
           if (!randomGood) return {}; // Shouldn't happen, see baseChance for this event
 
           const currentQuantity = context.ship.hold.get(randomGood) || 0;
@@ -355,7 +355,7 @@ const marketEvents: EventTemplate[] = [
         label: "Host a banquet ($500)",
         key: "H",
         effect: (context) => {
-          const success = Math.random() < 0.8;
+          const success = context.rng.chance(0.8);
           if (success) {
             const targetGoods = ["Porcelain", "Tea"] as const;
             return {
@@ -391,7 +391,7 @@ const marketEvents: EventTemplate[] = [
         label: "Observe from afar",
         key: "O",
         effect: (context) => {
-          const success = Math.random() < 0.4;
+          const success = context.rng.chance(0.4);
           if (success) {
             return {
               prices: {
@@ -428,10 +428,10 @@ const marketEvents: EventTemplate[] = [
         label: "Investigate ($300)",
         key: "I",
         effect: (context) => {
-          const success = Math.random() < 0.75;
+          const success = context.rng.chance(0.75);
           if (success) {
             const targetPort = [...ports]
-              .sort(() => (Math.random() < 0.5 ? 1 : -1))
+              .sort(() => (context.rng.chance(0.5) ? 1 : -1))
               .find((p) => p !== context.destination);
             if (!targetPort) return {};
 
@@ -462,7 +462,7 @@ const marketEvents: EventTemplate[] = [
         label: "Trade on rumors",
         key: "T",
         effect: (context) => {
-          const success = Math.random() < 0.5;
+          const success = context.rng.chance(0.5);
           if (success) {
             return {
               reputation: Math.min(100, context.reputation + 3),
@@ -491,8 +491,8 @@ const marketEvents: EventTemplate[] = [
     baseChance: (context) => (context.destination ? 0.08 : 0),
     message: "A perfect trade opportunity presents itself!",
     effect: (context) => {
-      const good = goods[Math.floor(Math.random() * goods.length)];
-      const multiplier = 2 + Math.random();
+      const good = context.rng.pick(goods);
+      const multiplier = 2 + context.rng.float();
 
       if (!good) return {};
 
@@ -538,17 +538,17 @@ const discoveryEvents: EventTemplate[] = [
         label: "Explore the island",
         key: "E",
         effect: (context) => {
-          const outcome = Math.random();
+          const outcome = context.rng.float();
           const baseReward = Math.max(500, context.balance * 0.15);
 
           // 50% chance of finding goods
           if (outcome < 0.5) {
-            const goodsFound = Math.floor(2 + Math.random() * 3); // 2-4
+            const goodsFound = context.rng.int(2, 4);
             const newHold = new Map(context.ship.hold);
             const discoveries = [];
 
             for (let i = 0; i < goodsFound; i++) {
-              const good = goods[Math.floor(Math.random() * goods.length)] as Good;
+              const good = context.rng.pick(goods) as Good;
               const amount = Math.round(10 * (1 + context.day / GOAL_DAYS));
               newHold.set(good, (newHold.get(good) || 0) + amount);
               discoveries.push(`${amount} picul of ${good}.`);
@@ -575,7 +575,7 @@ const discoveryEvents: EventTemplate[] = [
 
           // 30% of ship damage
           if (outcome < 0.8) {
-            const damage = Math.floor(Math.random() * 15) + 10; // 10-24 damage
+            const damage = context.rng.int(10, 24);
             return {
               ship: {
                 ...context.ship,
@@ -616,7 +616,7 @@ const discoveryEvents: EventTemplate[] = [
         label: "Follow the lead",
         key: "F",
         effect: (context) => {
-          const success = Math.random() < 0.6;
+          const success = context.rng.chance(0.6);
           if (success) {
             return {
               reputation: Math.min(100, context.reputation + 5),

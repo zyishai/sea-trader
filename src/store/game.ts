@@ -2,6 +2,7 @@ import { assign, enqueueActions, setup } from "xstate";
 import { initialContext } from "./defaults.js";
 import { Context, Good } from "./types.js";
 import { GameEvents } from "./events.js";
+import { Rng } from "./rng.js";
 import {
   calculateCostForRepair,
   calculateDailyMaintenanceCost,
@@ -50,6 +51,7 @@ export const gameMachine = setup({
   types: {
     context: {} as Context,
     events: {} as GameEvents,
+    input: {} as { rng: Rng },
   },
   actions: {
     displayMessages: assign(({ context }, messages: string[]) => ({
@@ -59,11 +61,14 @@ export const gameMachine = setup({
   },
 }).createMachine({
   initial: "introScreen",
-  context: initialContext(),
+  context: ({ input }) => initialContext(input.rng),
   states: {
     introScreen: {
       on: {
-        START_GAME: { target: "gameScreen", actions: assign(({ event }) => initialContext(event.settings)) },
+        START_GAME: {
+          target: "gameScreen",
+          actions: assign(({ context, event }) => initialContext(context.rng, event.settings)),
+        },
         SHOW_HELP: { target: "helpScreen" },
       },
     },
@@ -118,7 +123,7 @@ export const gameMachine = setup({
             checkPiratesEncounter: {
               always: [
                 {
-                  guard: ({ context }) => Math.random() < calculatePirateEncounterChance(context),
+                  guard: ({ context }) => context.rng.chance(calculatePirateEncounterChance(context)),
                   target: "piratesEncountered",
                 },
                 { target: "checkEvent" },
@@ -129,12 +134,12 @@ export const gameMachine = setup({
                 PIRATES_ENCOUNTER_FIGHT: {
                   actions: enqueueActions(({ enqueue, context }) => {
                     const successChance = calculateGuardEffectiveness(context);
-                    const success = Math.random() < successChance;
+                    const success = context.rng.chance(successChance);
 
                     if (success) {
                       // Even when winning, ship might take some damage
-                      const takeDamage = Math.random() < 0.7; // 70% chance to take damage
-                      const damage = takeDamage ? Math.floor(Math.random() * 10) + 5 : 0; // 5 - 15 damage
+                      const takeDamage = context.rng.chance(0.7); // 70% chance to take damage
+                      const damage = takeDamage ? context.rng.int(5, 14) : 0; // 5 - 15 damage
                       const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
 
                       // Loot from pirates
@@ -142,7 +147,7 @@ export const gameMachine = setup({
                         (sum, [good, quantity]) => sum + context.prices[context.currentPort][good] * quantity,
                         0,
                       );
-                      const baseLoot = Math.floor(Math.random() * 500) + 801; // [$800, $1300]
+                      const baseLoot = context.rng.int(801, 1300);
                       const factor = Math.floor(100_000 / Math.max(1, context.balance + cargoValue));
                       const potentialLoot = Math.max(500, Math.floor(baseLoot * factor));
                       const actualLoot = Math.min(15_000, potentialLoot);
@@ -178,13 +183,13 @@ export const gameMachine = setup({
                       });
                     } else {
                       // Lost the fight - more severe consequences
-                      const damage = Math.floor(Math.random() * 20) + 15; // 15 - 35 damage
+                      const damage = context.rng.int(15, 34);
                       const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
 
-                      const stolenGoods = Math.floor(Math.random() * 10) + 5;
+                      const stolenGoods = context.rng.int(5, 14);
                       const randomGood = [...context.ship.hold.entries()]
                         .filter(([_, amount]) => amount > 0)
-                        .map(([good]) => good)[Math.floor(Math.random() * context.ship.hold.size)];
+                        .map(([good]) => good)[Math.floor(context.rng.float() * context.ship.hold.size)];
 
                       const newHold = new Map(context.ship.hold);
                       if (randomGood) {
@@ -236,17 +241,17 @@ export const gameMachine = setup({
                       : 0;
 
                     const fleeChance = Math.max(0.1, baseFleeChance - overloadPenalty);
-                    const success = Math.random() < fleeChance;
+                    const success = context.rng.chance(fleeChance);
 
                     if (success) {
-                      const noDamage = Math.random() < 0.3; // 30% chance to escape without any damage
+                      const noDamage = context.rng.chance(0.3); // 30% chance to escape without any damage
                       if (noDamage) {
                         enqueue({
                           type: "displayMessages",
                           params: ["Captain, you managed to maneuver away from the pirates without a scratch!"],
                         });
                       } else {
-                        const damage = Math.floor(Math.random() * 8) + 3; // 3 - 11 damage
+                        const damage = context.rng.int(3, 10);
                         const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
 
                         const messages = [
@@ -279,7 +284,7 @@ export const gameMachine = setup({
                         });
                       }
                     } else {
-                      const damage = Math.floor(Math.random() * 15) + 10; // 10 - 25 damage
+                      const damage = context.rng.int(10, 24);
                       const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
 
                       const messages = [
@@ -316,7 +321,7 @@ export const gameMachine = setup({
                 PIRATES_ENCOUNTER_OFFER: {
                   actions: enqueueActions(({ enqueue, context }) => {
                     const bribeCost = Math.round(context.balance * 0.15);
-                    const actualBribe = Math.floor(Math.random() * (context.balance + 1));
+                    const actualBribe = context.rng.int(0, context.balance);
                     const success = actualBribe >= bribeCost;
 
                     if (success) {
@@ -332,7 +337,7 @@ export const gameMachine = setup({
                         reputation: Math.max(0, context.reputation - 1),
                       });
                     } else {
-                      const damage = Math.floor(Math.random() * 25) + 15; // 15 - 40 damage
+                      const damage = context.rng.int(15, 39);
                       const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
 
                       const messages = [
@@ -957,8 +962,8 @@ export const gameMachine = setup({
           actions: [
             { type: "displayMessages", params: ["Prices have updated!"] },
             assign(({ context }) => {
-              const newTrends = updateTrends(context.trends);
-              const newPrices = generatePrices(newTrends, context.currentSeason);
+              const newTrends = updateTrends(context.trends, context.rng);
+              const newPrices = generatePrices(newTrends, context.currentSeason, context.rng);
               const shouldIncreaseTrendChanges = Object.values(context.trends).some((rec) =>
                 Object.values(rec).some((trend) => trend.duration <= 1),
               );
