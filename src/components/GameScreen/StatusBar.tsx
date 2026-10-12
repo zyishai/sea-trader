@@ -2,23 +2,29 @@ import React from "react";
 import { Box, Text } from "ink";
 import { GameContext } from "../GameContext.js";
 import { displayMonetaryValue } from "../../store/utils.js";
+import { statusView } from "../../store/views/status.js";
 
 export function StatusBar({ orientation }: { orientation: "vertical" | "horizontal" }) {
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const status = GameContext.useSelector((snapshot) => statusView(snapshot.context));
   const items = [
-    { label: "Day", value: context.day },
-    { label: "Location", value: context.currentPort, highlight: true },
-    { label: "Ship Health", value: `${context.ship.health}%` },
-    { label: "Cash", value: displayMonetaryValue(context.balance), highlight: true },
-    { label: "Reputation", value: context.reputation },
+    { label: "Day", value: status.day },
+    { label: "Location", value: status.port, highlight: true },
+    { label: "Ship Health", value: `${status.shipHealth}%` },
+    {
+      label: "Balance",
+      value: displayMonetaryValue(status.balance),
+      highlight: true,
+      color: status.inOverdraft ? "red" : undefined,
+    },
+    { label: "Reputation", value: status.reputation },
   ];
 
   return orientation === "vertical" ? (
     <Box flexDirection="column" alignItems="stretch" gap={1} flexShrink={0} paddingX={1} paddingY={1}>
-      {items.map(({ label, value, highlight }) => (
+      {items.map(({ label, value, highlight, color }) => (
         <Box key={label} flexDirection="column" alignItems="center" flexWrap="nowrap">
           <Text>{label}</Text>
-          <Text inverse={highlight} dimColor>
+          <Text inverse={highlight} dimColor={!color} color={color}>
             {value}
           </Text>
         </Box>
@@ -36,10 +42,10 @@ export function StatusBar({ orientation }: { orientation: "vertical" | "horizont
       borderRight={false}
       borderDimColor
     >
-      {items.map(({ label, value, highlight }) => (
+      {items.map(({ label, value, highlight, color }) => (
         <Text key={label} wrap="truncate">
           {label}:{" "}
-          <Text inverse={highlight} dimColor>
+          <Text inverse={highlight} dimColor={!color} color={color}>
             {value}
           </Text>
         </Text>
