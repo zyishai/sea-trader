@@ -1,5 +1,5 @@
-import { Context } from "../types.js";
-import { calculateGuardEffectiveness } from "../utils.js";
+import { Context } from "../context.js";
+import { calculateGuardEffectiveness } from "../fleet.js";
 
 export const piratesView = (context: Context) => ({
   shipHealth: context.ship.health,

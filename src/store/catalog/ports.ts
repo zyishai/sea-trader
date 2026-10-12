@@ -1,4 +1,4 @@
-import type { Good } from "./goods.js";
+import { Good } from "./goods.js";
 
 export type MarketSize = "Small" | "Medium" | "Large";
 

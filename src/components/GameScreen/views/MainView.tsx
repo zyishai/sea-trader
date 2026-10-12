@@ -5,10 +5,10 @@ import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/Act
 import { ActionPrompt as ActionPromptArrows } from "../../prompts/arrows/ActionPrompt.js";
 import { ViewTitle } from "../ViewTitle.js";
 import { useMachine } from "@xstate/react";
-import { menuMachine } from "../../../store/ui/menu.js";
-import { mainMenuView } from "../../../store/views/main-menu.js";
 import { ConfirmPrompt as ConfirmPromptKeyboard } from "../../prompts/keyboard/ConfirmPrompt.js";
 import { ConfirmPrompt as ConfirmPromptArrows } from "../../prompts/arrows/ConfirmPrompt.js";
+import { menuMachine } from "../../../store/ui/menu.js";
+import { mainMenuView } from "../../../store/views/main-menu.js";
 
 export function MainView() {
   const actor = GameContext.useActorRef();

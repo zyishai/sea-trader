@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { portCatalog, ports, STARTING_PORT } from "./ports.js";
+import { STARTING_PORT, portCatalog, ports } from "./ports.js";
 import { distanceBetween } from "./sea-routes.js";
 
 describe("Ports catalog", () => {

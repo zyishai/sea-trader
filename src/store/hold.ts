@@ -1,5 +1,6 @@
-import { OVERLOAD_BUFFER } from "./constants.js";
-import { Good } from "./types.js";
+import { Good } from "./catalog/goods.js";
+
+export const OVERLOAD_BUFFER = 0.2;
 
 export type Hold = {
   cargo: Partial<Record<Good, number>>;

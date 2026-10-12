@@ -1,4 +1,4 @@
-import type { Port } from "./ports.js";
+import { Port } from "./ports.js";
 
 // Distances in nautical miles
 export const seaRoutes: [Port, Port, number][] = [

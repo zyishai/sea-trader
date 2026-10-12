@@ -2,7 +2,7 @@ import { Box, Text, useInput } from "ink";
 import React from "react";
 import { GameContext } from "./GameContext.js";
 import { Badge } from "@inkjs/ui";
-import { displayMonetaryValue } from "../store/utils.js";
+import { displayMonetaryValue } from "../store/format.js";
 import { RANKS, voyageResult } from "../store/views/voyage-result.js";
 
 export function ScoreScreen() {

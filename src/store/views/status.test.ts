@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initialContext } from "../defaults.js";
+import { initialContext } from "../context.js";
 import { seededRng } from "../rng.js";
 import { statusView } from "./status.js";
 

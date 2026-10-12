@@ -1,6 +1,6 @@
 import { offeredPicul, takeCargoOffer } from "../cargo-offer.js";
+import { Context } from "../context.js";
 import { isOverloaded } from "../hold.js";
-import { Context } from "../types.js";
 
 export const cargoOfferView = (context: Context) => {
   const offer = context.cargoOffer ?? {};

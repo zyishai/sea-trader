@@ -2,10 +2,10 @@ import React from "react";
 import { Box, Text } from "ink";
 import { Badge } from "@inkjs/ui";
 import { GameContext } from "../../GameContext.js";
-import { piratesView } from "../../../store/views/pirates.js";
 import { Table } from "../Table.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
 import { ActionPrompt as ActionPromptArrows } from "../../prompts/arrows/ActionPrompt.js";
+import { piratesView } from "../../../store/views/pirates.js";
 
 export function PiratesView() {
   const actor = GameContext.useActorRef();

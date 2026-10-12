@@ -1,5 +1,5 @@
-import { Context } from "../types.js";
-import { eventById } from "../utils.js";
+import { Context } from "../context.js";
+import { eventById } from "../events/chance.js";
 
 export const eventView = (context: Context) => {
   const event = context.currentEvent ? eventById(context.currentEvent) : undefined;

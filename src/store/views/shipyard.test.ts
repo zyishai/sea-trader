@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { initialContext } from "../defaults.js";
+import { Context, initialContext } from "../context.js";
 import { seededRng } from "../rng.js";
-import { Context } from "../types.js";
 import { shipyardView } from "./shipyard.js";
 
 const shipyardContext = (patch: (context: Context) => Partial<Context> = () => ({})): Context => {

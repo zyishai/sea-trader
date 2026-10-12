@@ -1,13 +1,32 @@
-import { CargoOffer } from "./cargo-offer.js";
-import { currentSeason } from "./clock.js";
-import { GOAL_DAYS } from "./constants.js";
-import { vesselClassRecord } from "./catalog/vessels.js";
-import { shipStats } from "./ship.js";
-import { ports } from "./catalog/ports.js";
-import { goods } from "./catalog/goods.js";
-import { goodsAboard, isOverloaded, spaceUsed } from "./hold.js";
-import { outcome, result } from "./outcomes.js";
-import { Context, EventTemplate, Good, Port } from "./types.js";
+import { CargoOffer } from "../cargo-offer.js";
+import { Good, goods } from "../catalog/goods.js";
+import { Port, ports } from "../catalog/ports.js";
+import { vesselClassRecord } from "../catalog/vessels.js";
+import { GOAL_DAYS, currentSeason } from "../clock.js";
+import { Context } from "../context.js";
+import { EventResult, outcome, result } from "./outcomes.js";
+import { goodsAboard, isOverloaded, spaceUsed } from "../hold.js";
+import { shipStats } from "../ship.js";
+
+export type EventType = "weather" | "cargo" | "market" | "encounter" | "discovery" | "special";
+
+export type EventSeverity = "minor" | "moderate" | "major";
+
+export type EventChoice = {
+  label: string;
+  key: string;
+  effect: (context: Context) => EventResult;
+};
+
+export type EventTemplate = {
+  id: string;
+  type: EventType;
+  severity: EventSeverity;
+  baseChance: number | ((context: Context) => number);
+  message: string;
+  effect?: (context: Context) => EventResult;
+  choices?: EventChoice[];
+};
 
 const marketOf = (context: Context) => context.destination ?? context.currentPort;
 const speedGained = ({ ship }: Context) => shipStats(ship).speed - vesselClassRecord(ship.vesselClass).base.speed;

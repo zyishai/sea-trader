@@ -1,6 +1,6 @@
 import { currentSeason, lastDay } from "../clock.js";
+import { Context } from "../context.js";
 import { isInOverdraft } from "../treasury.js";
-import { Context } from "../types.js";
 
 export const statusView = (context: Context) => ({
   day: context.day,

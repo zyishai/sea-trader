@@ -1,13 +1,13 @@
 import React from "react";
 import { Box, Text } from "ink";
 import { GameContext } from "../../GameContext.js";
-import { Port } from "../../../store/types.js";
-import { displayMonetaryValue } from "../../../store/utils.js";
-import { travelOptions } from "../../../store/views/travel.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
 import { ActionPrompt as ActionPromptArrows } from "../../prompts/arrows/ActionPrompt.js";
 import { Table } from "../Table.js";
 import { ViewTitle } from "../ViewTitle.js";
+import { Port } from "../../../store/catalog/ports.js";
+import { displayMonetaryValue } from "../../../store/format.js";
+import { travelOptions } from "../../../store/views/travel.js";
 
 export function PortView() {
   const actor = GameContext.useActorRef();

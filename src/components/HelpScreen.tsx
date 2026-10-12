@@ -3,9 +3,9 @@ import { Box, DOMElement, measureElement, Text, useInput } from "ink";
 import { GameContext } from "./GameContext.js";
 import BigText from "ink-big-text";
 import { OrderedList, UnorderedList } from "@inkjs/ui";
-import { displayMonetaryValue, joinWords } from "../store/utils.js";
-import { helpView } from "../store/views/help.js";
 import { useAnchorToTop } from "./Viewport.js";
+import { displayMonetaryValue, joinWords } from "../store/format.js";
+import { helpView } from "../store/views/help.js";
 
 export function HelpScreen() {
   const actor = GameContext.useActorRef();

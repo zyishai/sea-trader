@@ -1,7 +1,7 @@
-import { netWorth } from "../treasury.js";
+import { Context } from "../context.js";
+import { calculateScore } from "../score.js";
 import { shipStats } from "../ship.js";
-import { Context } from "../types.js";
-import { calculateScore } from "../utils.js";
+import { netWorth } from "../treasury.js";
 
 export const RANKS = [
   { title: "Admiral", minScore: 30_000 },

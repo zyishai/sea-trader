@@ -1,8 +1,11 @@
-import { CargoOffer } from "./cargo-offer.js";
-import { unload, unloadWhere } from "./hold.js";
-import { addCapacityBonus } from "./ship.js";
-import { Context, Good, Port } from "./types.js";
-import { displayMonetaryValue, distributeFleetDamage } from "./utils.js";
+import { CargoOffer } from "../cargo-offer.js";
+import { Good } from "../catalog/goods.js";
+import { Port } from "../catalog/ports.js";
+import { Context } from "../context.js";
+import { distributeFleetDamage } from "../fleet.js";
+import { displayMonetaryValue } from "../format.js";
+import { unload, unloadWhere } from "../hold.js";
+import { addCapacityBonus } from "../ship.js";
 
 export type Outcome =
   | { kind: "damageShip"; amount: number }

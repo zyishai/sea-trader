@@ -1,7 +1,15 @@
-import { GOAL_DAYS, PRICE_UPDATE_INTERVAL, SEASON_LENGTH, seasons } from "./constants.js";
+import { Context } from "./context.js";
+import { generatePrices, updateTrends } from "./market/prices.js";
+import { updatePriceHistory } from "./market/tips.js";
 import { accrueInterest, dailyUpkeep } from "./treasury.js";
-import { Context } from "./types.js";
-import { generatePrices, updatePriceHistory, updateTrends } from "./utils.js";
+
+export type Season = (typeof seasons)[number];
+
+export const seasons = ["Spring", "Summer", "Autumn", "Winter"] as const;
+
+export const GOAL_DAYS = 200;
+export const SEASON_LENGTH = 30; // days
+export const PRICE_UPDATE_INTERVAL = 14;
 
 const seasonOn = (startingSeason: Context["startingSeason"], day: number) =>
   seasons[(seasons.indexOf(startingSeason) + Math.floor((day - 1) / SEASON_LENGTH)) % seasons.length]!;

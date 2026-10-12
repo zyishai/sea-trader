@@ -1,8 +1,8 @@
-import { goodsAboard, overloadLevel, value } from "./hold.js";
+import { Context } from "../context.js";
 import { EventResult, outcome, result } from "./outcomes.js";
-import { cashOnHand } from "./treasury.js";
-import { Context } from "./types.js";
-import { calculateGuardEffectiveness, distributeFleetDamage } from "./utils.js";
+import { calculateGuardEffectiveness, distributeFleetDamage } from "../fleet.js";
+import { goodsAboard, overloadLevel, value } from "../hold.js";
+import { cashOnHand } from "../treasury.js";
 
 const loot = (context: Context) => {
   const cargoValue = value(context.ship.hold, context.prices[context.currentPort]);

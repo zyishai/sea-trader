@@ -1,5 +1,7 @@
-import { GameSettings, Good, Port } from "./types.js";
+import { Good } from "./catalog/goods.js";
+import { Port } from "./catalog/ports.js";
 import { ShipStat } from "./catalog/vessels.js";
+import { GameSettings } from "./context.js";
 
 export type GameEvents =
   | { type: "START_GAME"; settings?: GameSettings }

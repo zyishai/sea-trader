@@ -1,9 +1,9 @@
 import { goods } from "../catalog/goods.js";
 import { ports } from "../catalog/ports.js";
+import { Context } from "../context.js";
 import { amountOf, fitsAboard, freeSpace, spaceUsed } from "../hold.js";
+import { getMerchantTip } from "../market/tips.js";
 import { affordableUnits } from "../treasury.js";
-import { Context } from "../types.js";
-import { getMerchantTip } from "../utils.js";
 
 export const marketView = (context: Context) => {
   const { hold } = context.ship;

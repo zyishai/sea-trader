@@ -1,8 +1,8 @@
 import { ports } from "../catalog/ports.js";
 import { lastDay } from "../clock.js";
+import { Context } from "../context.js";
+import { calculateTravelTime } from "../travel.js";
 import { dailyUpkeep } from "../treasury.js";
-import { Context } from "../types.js";
-import { calculateTravelTime } from "../utils.js";
 
 export const travelOptions = (context: Context) =>
   ports

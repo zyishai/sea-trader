@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { initialContext } from "../defaults.js";
+import { Context, initialContext } from "../context.js";
 import { seededRng } from "../rng.js";
-import { Context } from "../types.js";
-import { calculateTravelTime } from "../utils.js";
+import { calculateTravelTime } from "../travel.js";
 import { travelOptions } from "./travel.js";
 
 const atPort = (patch: (context: Context) => Partial<Context> = () => ({})): Context => {

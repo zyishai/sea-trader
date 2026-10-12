@@ -1,40 +1,32 @@
 import { assign, enqueueActions, setup } from "xstate";
-import { initialContext } from "./defaults.js";
-import { Context } from "./types.js";
-import { GameEvents } from "./events.js";
-import { Rng } from "./rng.js";
-import { nextUpgrade, upgradeShip } from "./ship.js";
-import { applyEventResult } from "./outcomes.js";
-import { bribePirates, fightPirates, fleePirates } from "./pirates.js";
-import { advanceDays, canRetire } from "./clock.js";
-import { canAfford, fleetSaleValue, isBankrupt, isInOverdraft, netWorth } from "./treasury.js";
-import { needsCaptainsChoice, takeCargoOffer } from "./cargo-offer.js";
-import { amountOf, fitsAboard, freeSpace, isOverloaded, load, marginLeft, unload } from "./hold.js";
-import {
-  calculateCostForRepair,
-  calculateGuardShipCost,
-  calculatePirateEncounterChance,
-  calculatePrice,
-  calculateRepairForCost,
-  calculateTravelTime,
-  calculateFleetUpgradeCost,
-  checkForEvent,
-  getShipStatus,
-  canAffordUpgrade,
-  joinWords,
-  eventById,
-  displayMonetaryValue,
-} from "./utils.js";
-import {
-  BANKRUPTCY_THRESHOLD,
-  GOAL_DAYS,
-  MAX_DAILY_OVERDRAFT,
-  MAX_GUARD_QUALITY,
-  MAX_GUARD_SHIPS,
-  OVERDRAFT_TRADING_LIMIT,
-} from "./constants.js";
+
 // Lets tsc name xstate's guard types when emitting declarations for the machines
 import { type Guard } from "xstate/guards";
+import { needsCaptainsChoice, takeCargoOffer } from "./cargo-offer.js";
+import { GOAL_DAYS, advanceDays, canRetire } from "./clock.js";
+import { GameEvents } from "./commands.js";
+import { Context, initialContext } from "./context.js";
+import { checkForEvent, eventById } from "./events/chance.js";
+import { applyEventResult } from "./events/outcomes.js";
+import { bribePirates, fightPirates, fleePirates } from "./events/pirates.js";
+import { MAX_GUARD_QUALITY, MAX_GUARD_SHIPS, calculateFleetUpgradeCost, calculateGuardShipCost } from "./fleet.js";
+import { displayMonetaryValue, joinWords } from "./format.js";
+import { amountOf, fitsAboard, freeSpace, isOverloaded, load, marginLeft, unload } from "./hold.js";
+import { calculatePrice } from "./market/prices.js";
+import { Rng } from "./rng.js";
+import { getShipStatus, nextUpgrade, upgradeShip } from "./ship.js";
+import { calculateCostForRepair, calculateRepairForCost, canAffordUpgrade } from "./shipyard.js";
+import { calculatePirateEncounterChance, calculateTravelTime } from "./travel.js";
+import {
+  BANKRUPTCY_THRESHOLD,
+  MAX_DAILY_OVERDRAFT,
+  FLEET_SALE_DEBT_LIMIT,
+  canAfford,
+  fleetSaleValue,
+  isBankrupt,
+  isInOverdraft,
+  netWorth,
+} from "./treasury.js";
 
 const currentEventOf = (context: Context) => (context.currentEvent ? eventById(context.currentEvent) : undefined);
 
@@ -638,7 +630,7 @@ export const gameMachine = setup({
         },
         // If the player is in overdraft and his debt is greater than -$1000, sell his fleet
         {
-          guard: ({ context }) => context.balance < -OVERDRAFT_TRADING_LIMIT && context.guardFleet.ships > 0,
+          guard: ({ context }) => context.balance < -FLEET_SALE_DEBT_LIMIT && context.guardFleet.ships > 0,
           actions: [
             assign(({ context }) => ({
               balance: context.balance + fleetSaleValue(context),

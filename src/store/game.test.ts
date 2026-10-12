@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createActor, type StateValue } from "xstate";
+import { Context } from "./context.js";
 import { gameMachine } from "./game.js";
 import { amountOf, emptyHold, isOverloaded, load } from "./hold.js";
-import { createRng, Rng, seededRng } from "./rng.js";
-import { Context } from "./types.js";
-import { eventView } from "./views/event.js";
+import { Rng, createRng, seededRng } from "./rng.js";
+import { calculateTravelTime } from "./travel.js";
 import { cargoOfferView } from "./views/cargo-offer.js";
+import { eventView } from "./views/event.js";
 import { voyageResult } from "./views/voyage-result.js";
-import { calculateTravelTime } from "./utils.js";
 
 const startGame = (rng: Rng = seededRng(42)) => {
   const actor = createActor(gameMachine, { input: { rng } }).start();

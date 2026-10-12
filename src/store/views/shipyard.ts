@@ -1,17 +1,17 @@
-import { MAX_GUARD_QUALITY, MAX_GUARD_SHIPS } from "../constants.js";
-import { spaceUsed } from "../hold.js";
-import { canAfford, cashOnHand } from "../treasury.js";
-import { Context } from "../types.js";
 import { ShipStat } from "../catalog/vessels.js";
-import { nextUpgrade, shipStats } from "../ship.js";
+import { Context } from "../context.js";
 import {
-  calculateCostForRepair,
+  MAX_GUARD_QUALITY,
+  MAX_GUARD_SHIPS,
   calculateDailyMaintenanceCost,
   calculateFleetUpgradeCost,
   calculateGuardShipCost,
   getFleetQuality,
-  getShipStatus,
-} from "../utils.js";
+} from "../fleet.js";
+import { spaceUsed } from "../hold.js";
+import { getShipStatus, nextUpgrade, shipStats } from "../ship.js";
+import { calculateCostForRepair } from "../shipyard.js";
+import { canAfford, cashOnHand } from "../treasury.js";
 
 export type Unavailable = "notEnoughMoney" | "maxedOut" | "perfectCondition" | "noFleet" | "fleetFull";
 

@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { advanceDays, canRetire, currentSeason, daysUntilNextSeason } from "./clock.js";
-import { initialContext } from "./defaults.js";
+import { Context, initialContext } from "./context.js";
 import { seededRng } from "./rng.js";
-import { Context } from "./types.js";
 
 const voyage = (patch: (context: Context) => Partial<Context> = () => ({})): Context => {
   const context = initialContext(seededRng(3));

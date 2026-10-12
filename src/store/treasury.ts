@@ -1,7 +1,12 @@
-import { BANKRUPTCY_THRESHOLD, BASE_INTEREST_RATE, MAX_DAILY_OVERDRAFT } from "./constants.js";
+import { Context } from "./context.js";
+import { calculateDailyMaintenanceCost, calculateGuardShipCost } from "./fleet.js";
 import { value } from "./hold.js";
-import { Context } from "./types.js";
-import { calculateDailyMaintenanceCost, calculateGuardShipCost } from "./utils.js";
+
+export const BASE_BALANCE = 1500;
+export const BANKRUPTCY_THRESHOLD = -4000; // When debt exceeds this, player goes bankrupt
+export const FLEET_SALE_DEBT_LIMIT = 2000; // Overdraft past this sells the Guard Fleet
+export const MAX_DAILY_OVERDRAFT = 50; // Most interest charged in one day
+export const BASE_INTEREST_RATE = 0.03; // 3% daily interest
 
 type Money = Pick<Context, "balance">;
 

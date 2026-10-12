@@ -1,5 +1,5 @@
+import { Good } from "./catalog/goods.js";
 import { Hold, load } from "./hold.js";
-import { Good } from "./types.js";
 
 export type CargoOffer = Partial<Record<Good, number>>;
 

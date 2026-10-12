@@ -6,12 +6,12 @@ import { CargoOfferView, MainView, PortView, MarketView, ShipyardView, PiratesVi
 import { ActionPrompt as ActionPromptKeyboard } from "../prompts/keyboard/ActionPrompt.js";
 import { ActionPrompt as ActionPromptArrows } from "../prompts/arrows/ActionPrompt.js";
 import { StatusBar } from "./StatusBar.js";
-import { eventView } from "../../store/views/event.js";
 import { Badge } from "@inkjs/ui";
 import { MarketContext } from "./MarketContext.js";
 import { ShipyardContext } from "./ShipyardContext.js";
 import { useScreenSize } from "../../hooks/use-screen-size.js";
 import { MAX_PANEL_WIDTH, SIDEBAR_LAYOUT_MIN_WIDTH } from "../layout.js";
+import { eventView } from "../../store/views/event.js";
 
 export function Layout({ children }: React.PropsWithChildren) {
   const { width } = useScreenSize();

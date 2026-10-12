@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { initialContext } from "../defaults.js";
+import { Context, initialContext } from "../context.js";
 import { emptyHold, load } from "../hold.js";
 import { seededRng } from "../rng.js";
-import { Context } from "../types.js";
 import { marketView } from "./market.js";
 
 const hongKongPrices = { Wheat: 100, Tea: 400, Spices: 800, Opium: 2000, Porcelain: 300 };

@@ -1,5 +1,10 @@
-import { ShipStat, vesselClassRecord, VesselClass } from "./catalog/vessels.js";
-import { emptyHold, Hold, withCapacity } from "./hold.js";
+import { ShipStat, VesselClass, vesselClassRecord } from "./catalog/vessels.js";
+import { Hold, emptyHold, withCapacity } from "./hold.js";
+
+export type ShipStatus = "Perfect" | "Minor damages" | "Major damages" | "Wreckage";
+
+export const getShipStatus = (health: number): ShipStatus =>
+  health >= 90 ? "Perfect" : health >= 70 ? "Minor damages" : health >= 40 ? "Major damages" : "Wreckage";
 
 export type Ship = {
   vesselClass: VesselClass;

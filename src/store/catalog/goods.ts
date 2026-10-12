@@ -1,4 +1,4 @@
-import type { Season } from "../types.js";
+import { Season } from "../clock.js";
 
 type GoodRecord = {
   basePrice: number;

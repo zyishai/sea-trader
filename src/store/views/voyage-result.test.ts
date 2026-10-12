@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { initialContext } from "../defaults.js";
 import { seededRng } from "../rng.js";
+import { initialContext } from "../context.js";
 import { voyageResult } from "./voyage-result.js";
 
 describe("voyage result", () => {

@@ -1,6 +1,7 @@
 import { goods } from "../catalog/goods.js";
 import { ports } from "../catalog/ports.js";
-import { BASE_BALANCE, GOAL_DAYS } from "../constants.js";
+import { GOAL_DAYS } from "../clock.js";
+import { BASE_BALANCE } from "../treasury.js";
 
 export const helpView = () => ({
   portCount: ports.length,

@@ -1,9 +1,6 @@
 import React from "react";
 import { Box, Text } from "ink";
 import { GameContext } from "../../GameContext.js";
-import { displayMonetaryValue } from "../../../store/utils.js";
-import { marketView } from "../../../store/views/market.js";
-import { Good } from "../../../store/types.js";
 import { MarketContext } from "../MarketContext.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
 import { ActionPrompt as ActionPromptArrows } from "../../prompts/arrows/ActionPrompt.js";
@@ -11,6 +8,9 @@ import { InputPrompt as InputPromptKeyboard } from "../../prompts/keyboard/Input
 import { InputPrompt as InputPromptArrows } from "../../prompts/arrows/InputPrompt.js";
 import { Table } from "../Table.js";
 import { ViewTitle } from "../ViewTitle.js";
+import { Good } from "../../../store/catalog/goods.js";
+import { displayMonetaryValue } from "../../../store/format.js";
+import { marketView } from "../../../store/views/market.js";
 
 export function MarketView() {
   const view = GameContext.useSelector((snapshot) => marketView(snapshot.context));
