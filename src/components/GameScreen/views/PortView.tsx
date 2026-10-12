@@ -1,3 +1,4 @@
+import { usePreferences } from "../../Preferences.js";
 import React from "react";
 import { Box, Text } from "ink";
 import { useNavigation } from "../Navigation.js";
@@ -13,7 +14,7 @@ import { travelOptions } from "../../../store/views/travel.js";
 export function PortView() {
   const actor = GameContext.useActorRef();
   const { navigate } = useNavigation();
-  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const controls = usePreferences().controls;
   const destinations = GameContext.useSelector((snapshot) => travelOptions(snapshot.context));
 
   const availableActions = destinations.map(({ port }) => ({ label: port, value: port }));

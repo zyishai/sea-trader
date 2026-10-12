@@ -1,3 +1,4 @@
+import { usePreferences } from "../../Preferences.js";
 import React from "react";
 import { Box, Text } from "ink";
 import { Badge } from "@inkjs/ui";
@@ -9,7 +10,7 @@ import { piratesView } from "../../../store/views/pirates.js";
 
 export function PiratesView() {
   const actor = GameContext.useActorRef();
-  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const controls = usePreferences().controls;
   const status = GameContext.useSelector((snapshot) => piratesView(snapshot.context));
 
   const availableActions = [

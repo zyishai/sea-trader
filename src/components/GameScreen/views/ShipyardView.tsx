@@ -1,3 +1,4 @@
+import { usePreferences } from "../../Preferences.js";
 import React from "react";
 import { Box, Text } from "ink";
 import { useNavigation } from "../Navigation.js";
@@ -70,7 +71,7 @@ export function ShipyardView() {
 
 function ShipyardOverview() {
   const { navigate } = useNavigation();
-  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const controls = usePreferences().controls;
   const { repair } = useShipyardView();
   const shipyard = ShipyardContext.useActorRef();
 
@@ -124,7 +125,7 @@ function ShipyardOverview() {
 
 function RepairShip() {
   const actor = GameContext.useActorRef();
-  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const controls = usePreferences().controls;
   const { repair } = useShipyardView();
   const shipyard = ShipyardContext.useActorRef();
 
@@ -181,7 +182,7 @@ function RepairShip() {
 function UpgradeShip() {
   const actor = GameContext.useActorRef();
   const shipyard = ShipyardContext.useActorRef();
-  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const controls = usePreferences().controls;
   const { upgrades } = useShipyardView();
 
   const labels = {
@@ -235,7 +236,7 @@ function ManageFleet() {
   const { fleet } = useShipyardView();
   const shipyard = ShipyardContext.useActorRef();
   const shipyardSnapshot = ShipyardContext.useSelector((snapshot) => snapshot);
-  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const controls = usePreferences().controls;
 
   const availableActions = [
     { label: "Hire Guard Ships", value: "hire", offer: fleet.hire },
@@ -293,7 +294,7 @@ function ManageFleet() {
 function FleetHire() {
   const actor = GameContext.useActorRef();
   const shipyard = ShipyardContext.useActorRef();
-  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const controls = usePreferences().controls;
   const { fleet } = useShipyardView();
 
   const onValidateQuantity = (value: string) => {
@@ -347,7 +348,7 @@ function FleetHire() {
 function FleetUpgrade() {
   const actor = GameContext.useActorRef();
   const shipyard = ShipyardContext.useActorRef();
-  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const controls = usePreferences().controls;
   const { fleet } = useShipyardView();
 
   const onUpgradeFleet = () => {
@@ -378,7 +379,7 @@ function FleetUpgrade() {
 function FleetDismiss() {
   const actor = GameContext.useActorRef();
   const shipyard = ShipyardContext.useActorRef();
-  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const controls = usePreferences().controls;
 
   const onValidate = (value: string) => {
     const ships = +value;

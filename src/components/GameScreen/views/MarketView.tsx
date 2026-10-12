@@ -1,3 +1,4 @@
+import { usePreferences } from "../../Preferences.js";
 import React from "react";
 import { Box, Text } from "ink";
 import { useNavigation } from "../Navigation.js";
@@ -50,7 +51,7 @@ export function MarketView() {
 
 function MarketOverview() {
   const { navigate } = useNavigation();
-  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const controls = usePreferences().controls;
   const { merchantTip } = GameContext.useSelector((snapshot) => marketView(snapshot.context));
   const market = MarketContext.useActorRef();
 
@@ -118,7 +119,7 @@ function BuyMarket() {
 
 function PickGood({ action }: { action: "buy" | "sell" }) {
   const market = MarketContext.useActorRef();
-  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const controls = usePreferences().controls;
   const { goods } = GameContext.useSelector((snapshot) => marketView(snapshot.context));
 
   const availableActions = goods.map(({ good }) => ({ label: good, value: good }));
@@ -148,7 +149,7 @@ function SelectQuantity({ action }: { action: "buy" | "sell" }) {
   const market = MarketContext.useActorRef();
   const marketSnapshot = MarketContext.useSelector((snapshot) => snapshot);
   const marketContext = marketSnapshot.context;
-  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const controls = usePreferences().controls;
   const { goods } = GameContext.useSelector((snapshot) => marketView(snapshot.context));
   const maxBuy = goods.find(({ good }) => good === marketContext.good)?.maxBuy;
 

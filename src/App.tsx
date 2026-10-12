@@ -5,8 +5,15 @@ import { GameContext } from "./components/GameContext.js";
 import { ScoreScreen } from "./components/ScoreScreen.js";
 import { HelpScreen } from "./components/HelpScreen.js";
 import { gamePhase } from "./store/views/phase.js";
+import { PreferencesProvider } from "./components/Preferences.js";
 
-export const App: React.FC = () => {
+export const App: React.FC = () => (
+  <PreferencesProvider>
+    <CurrentScreen />
+  </PreferencesProvider>
+);
+
+function CurrentScreen() {
   const phase = GameContext.useSelector(gamePhase);
   const [showHelp, setShowHelp] = useState(false);
 
@@ -19,4 +26,4 @@ export const App: React.FC = () => {
   }
 
   return phase === "ended" ? <ScoreScreen /> : <GameScreen />;
-};
+}

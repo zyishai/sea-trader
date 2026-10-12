@@ -12,8 +12,6 @@ import { BASE_BALANCE } from "./treasury.js";
 
 export type GameSettings = {
   extendedGame?: boolean;
-  disableAnimations?: boolean;
-  controls?: "keyboard" | "arrows";
 };
 
 export type VoyageEnd = "retired" | "bankrupt" | "declaredBankrupt" | "shipwrecked";
@@ -57,11 +55,10 @@ export type Context = {
 
   // Settings
   extendedGame: boolean;
-  settings: Omit<Required<GameSettings>, "extendedGame">;
 };
 
 export const initialContext = (rng: Rng, settings?: GameSettings) => {
-  const { extendedGame = false, disableAnimations = false, controls = "keyboard" } = settings || {};
+  const { extendedGame = false } = settings ?? {};
   const season = rng.pick(seasons)!;
   const trends = generateTrends(rng);
   const initialPrices = generatePrices(trends, season, rng);
@@ -106,9 +103,5 @@ export const initialContext = (rng: Rng, settings?: GameSettings) => {
     announcedOverdraft: false,
     notices: [],
     extendedGame,
-    settings: {
-      disableAnimations,
-      controls,
-    },
   } satisfies Context;
 };

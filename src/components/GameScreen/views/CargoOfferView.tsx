@@ -1,3 +1,4 @@
+import { usePreferences } from "../../Preferences.js";
 import React from "react";
 import { Box } from "ink";
 import { Badge } from "@inkjs/ui";
@@ -9,7 +10,7 @@ import { cargoOfferView } from "../../../store/views/cargo-offer.js";
 export function CargoOfferView() {
   const actor = GameContext.useActorRef();
   const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const controls = context.settings.controls;
+  const { controls } = usePreferences();
   const { offered, takeAll, takeFitting } = cargoOfferView(context);
 
   const message = `We found ${offered} picul of goods, but there isn't room for all of it, Captain.`;

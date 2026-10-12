@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Text, type TextProps, useInput } from "ink";
-import { GameContext } from "../GameContext.js";
+import { usePreferences } from "../Preferences.js";
 
 export function Typed({
   text,
@@ -8,10 +8,10 @@ export function Typed({
   children,
   ...props
 }: React.PropsWithChildren<{ text: string; enabled?: boolean } & TextProps>) {
-  const settings = GameContext.useSelector((snapshot) => snapshot.context.settings);
+  const { disableAnimations } = usePreferences();
   const [current, setCurrent] = useState(0);
   const [finished, setFinished] = useState(false);
-  const shouldAnimate = !settings.disableAnimations && enabled;
+  const shouldAnimate = !disableAnimations && enabled;
 
   useEffect(() => {
     const id = setTimeout(() => {

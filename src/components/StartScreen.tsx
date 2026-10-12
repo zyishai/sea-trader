@@ -2,6 +2,7 @@ import { Box, DOMElement, measureElement, Spacer, Text, useInput } from "ink";
 import BigText from "ink-big-text";
 import React, { useEffect, useState } from "react";
 import { GameContext } from "./GameContext.js";
+import { usePreferences } from "./Preferences.js";
 import { Badge } from "@inkjs/ui";
 
 export function StartScreen({ onShowHelp }: { onShowHelp: () => void }) {
@@ -9,8 +10,9 @@ export function StartScreen({ onShowHelp }: { onShowHelp: () => void }) {
   const [ref, setRef] = useState<DOMElement | null>(null);
   const [width, setWidth] = useState(0);
   const [extendedGame, setExtendedGame] = useState(false);
-  const [disableAnimations, setDisableAnimations] = useState(true);
-  const [controls, setControls] = useState<"keyboard" | "arrows">("keyboard");
+  const preferences = usePreferences();
+  const [disableAnimations, setDisableAnimations] = useState(preferences.disableAnimations);
+  const [controls, setControls] = useState(preferences.controls);
 
   useEffect(() => {
     if (ref) {
@@ -21,7 +23,8 @@ export function StartScreen({ onShowHelp }: { onShowHelp: () => void }) {
 
   useInput((input, key) => {
     if (key.return) {
-      actor.send({ type: "START_GAME", settings: { extendedGame, disableAnimations, controls } });
+      preferences.setPreferences({ controls, disableAnimations });
+      actor.send({ type: "START_GAME", settings: { extendedGame } });
     } else if (input.toUpperCase() === "H") {
       onShowHelp();
     } else if (input.toUpperCase() === "M") {

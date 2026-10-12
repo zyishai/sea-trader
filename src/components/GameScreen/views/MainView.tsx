@@ -1,3 +1,4 @@
+import { usePreferences } from "../../Preferences.js";
 import React from "react";
 import { Box, Text } from "ink";
 import { GameContext } from "../../GameContext.js";
@@ -12,7 +13,7 @@ import { mainMenuView } from "../../../store/views/main-menu.js";
 import { useNavigation } from "../Navigation.js";
 
 export function MainView() {
-  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const controls = usePreferences().controls;
   const { canRetire, canDeclareBankruptcy } = GameContext.useSelector((snapshot) => mainMenuView(snapshot.context));
   const [snapshot, send] = useMachine(menuMachine);
   const { navigate } = useNavigation();
@@ -96,7 +97,7 @@ export function MainView() {
 
 function ConfirmRetirement({ onCancel }: { onCancel: () => void }) {
   const actor = GameContext.useActorRef();
-  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const controls = usePreferences().controls;
 
   return controls === "keyboard" ? (
     <ConfirmPromptKeyboard
@@ -115,7 +116,7 @@ function ConfirmRetirement({ onCancel }: { onCancel: () => void }) {
 
 function ConfirmBankruptcy({ onCancel }: { onCancel: () => void }) {
   const actor = GameContext.useActorRef();
-  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const controls = usePreferences().controls;
 
   return controls === "keyboard" ? (
     <ConfirmPromptKeyboard
@@ -133,7 +134,7 @@ function ConfirmBankruptcy({ onCancel }: { onCancel: () => void }) {
 }
 
 function ConfirmExitGame({ onCancel }: { onCancel: () => void }) {
-  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const controls = usePreferences().controls;
 
   return controls === "keyboard" ? (
     <ConfirmPromptKeyboard

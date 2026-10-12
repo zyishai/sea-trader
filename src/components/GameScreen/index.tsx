@@ -1,3 +1,4 @@
+import { usePreferences } from "../Preferences.js";
 import React from "react";
 import { Box, Text, useInput } from "ink";
 import { GameContext } from "../GameContext.js";
@@ -133,7 +134,7 @@ function ContinueMessage() {
 
 function InteractiveEvent() {
   const actor = GameContext.useActorRef();
-  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const controls = usePreferences().controls;
   const event = GameContext.useSelector((snapshot) => eventView(snapshot.context));
 
   const onPickChoice = (value: string) => {

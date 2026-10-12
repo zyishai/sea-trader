@@ -517,3 +517,14 @@ describe("command results", () => {
     expect(phases).toEqual(["encounter", "inPort"]);
   });
 });
+
+describe("game settings", () => {
+  it("keeps only Voyage rules in game state, not display preferences", () => {
+    const game = createActor(gameMachine, { input: { rng: seededRng(1) } }).start();
+
+    game.send({ type: "START_GAME", settings: { extendedGame: true } });
+
+    expect(game.getSnapshot().context.extendedGame).toBe(true);
+    expect(game.getSnapshot().context).not.toHaveProperty("settings");
+  });
+});
