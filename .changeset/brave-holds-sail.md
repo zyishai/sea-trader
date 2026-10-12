@@ -2,7 +2,7 @@
 "ctrader": minor
 ---
 
-Smarter Cargo and Fairer Money
+Smarter Cargo, Fairer Money and Clearer Voyages
 
 - When you find more goods than your hold can take, choose to take as much as you can carry (overloading the ship) or only what fits; the most valuable goods are loaded first
 - The market tells you how much you can buy, counting both your money and your cargo space, with and without overloading
@@ -16,3 +16,7 @@ Smarter Cargo and Fairer Money
 - Retiring with a small debt now scores your voyage instead of calling it bankruptcy
 - The shipyard shows upgrades you can't afford yet and tells you why
 - The status bar shows your balance, in red while you're in debt
+- The port screen shows how many days each passage takes, the day you'll arrive, and your guard fleet's upkeep for the trip
+- The status bar shows the day of your voyage (for example "Day 34 of 200") and the current season
+- Days lost to storms and other events now count toward price updates and season changes, and never carry a classic voyage past day 200
+- Long passages no longer skip a price update
