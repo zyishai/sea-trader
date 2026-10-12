@@ -5,6 +5,7 @@ import { amountOf, emptyHold, isOverloaded, load } from "./hold.js";
 import { createRng, Rng, seededRng } from "./rng.js";
 import { Context, EventTemplate } from "./types.js";
 import { cargoOfferView } from "./views/cargo-offer.js";
+import { voyageResult } from "./views/voyage-result.js";
 
 const startGame = (rng: Rng = seededRng(42)) => {
   const actor = createActor(gameMachine, { input: { rng } }).start();
@@ -265,5 +266,51 @@ describe("bribing pirates", () => {
 
     expect(game.getSnapshot().context.balance).toBeLessThanOrEqual(-500);
     expect(messagesOf(game)).toContain("We have nothing to offer them, Captain!");
+  });
+});
+
+describe("voyage end", () => {
+  const atMenu = (patch: (context: Context) => Partial<Context>) =>
+    gameAt({ gameScreen: "menu" }, (context) => ({ lastInterestDay: context.day, ...patch(context) }));
+
+  it("retires with a score even when slightly in Overdraft", () => {
+    const game = atMenu(() => ({ balance: -100, announcedOverdraft: true, canRetire: true }));
+
+    game.send({ type: "RETIRE" });
+
+    expect(game.getSnapshot().matches("scoringScreen")).toBe(true);
+    expect(voyageResult(game.getSnapshot().context).end).toBe("retired");
+    expect(voyageResult(game.getSnapshot().context).score).toBeGreaterThan(0);
+  });
+
+  it("refuses to declare bankruptcy without an Overdraft", () => {
+    const game = atMenu(() => ({ balance: 0 }));
+
+    game.send({ type: "DECLARE_BANKRUPTCY" });
+
+    expect(game.getSnapshot().matches("scoringScreen")).toBe(false);
+    expect(messagesOf(game)).toContain("You're not bankrupt!");
+  });
+
+  it("declares bankruptcy while in Overdraft, scoring nothing", () => {
+    const game = atMenu(() => ({ balance: -1, announcedOverdraft: true }));
+
+    game.send({ type: "DECLARE_BANKRUPTCY" });
+
+    expect(voyageResult(game.getSnapshot().context)).toMatchObject({ end: "declaredBankrupt", score: 0 });
+  });
+
+  it("goes bankrupt when the Overdraft passes the limit", () => {
+    const game = atMenu(() => ({ balance: -4001, announcedOverdraft: true }));
+    game.send({ type: "MSG_ACK" });
+
+    expect(voyageResult(game.getSnapshot().context)).toMatchObject({ end: "bankrupt", score: 0 });
+  });
+
+  it("is shipwrecked when the wreck can't be repaired", () => {
+    const game = atMenu((context) => ({ balance: 0, ship: { ...context.ship, health: 10 } }));
+    game.send({ type: "MSG_ACK" });
+
+    expect(voyageResult(game.getSnapshot().context).end).toBe("shipwrecked");
   });
 });

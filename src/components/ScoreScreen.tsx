@@ -2,15 +2,12 @@ import { Box, Text, useInput } from "ink";
 import React from "react";
 import { GameContext } from "./GameContext.js";
 import { Badge } from "@inkjs/ui";
-import { calculateScore, getNetCash, getShipStatus } from "../store/utils.js";
-import { GOAL_DAYS } from "../store/constants.js";
+import { displayMonetaryValue } from "../store/utils.js";
+import { RANKS, voyageResult } from "../store/views/voyage-result.js";
 
 export function ScoreScreen() {
   const actor = GameContext.useActorRef();
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const bankrupcy = context.balance < 0;
-  const shipSank = getShipStatus(context.ship.health) === "Wreckage" && context.day < GOAL_DAYS;
-  const score = bankrupcy ? 0 : calculateScore(context);
+  const result = GameContext.useSelector((snapshot) => voyageResult(snapshot.context));
 
   useInput((input, key) => {
     if (input.toUpperCase() === "R") {
@@ -20,7 +17,7 @@ export function ScoreScreen() {
     }
   });
 
-  return bankrupcy ? (
+  return result.end === "bankrupt" || result.end === "declaredBankrupt" ? (
     <Box width="100%" flexGrow={1} flexDirection="column" alignItems="center">
       <Box flexDirection="column" borderStyle="round" padding={1} gap={1} minWidth={60}>
         <Badge color="gray">
@@ -33,7 +30,7 @@ export function ScoreScreen() {
         </Box>
       </Box>
     </Box>
-  ) : shipSank ? (
+  ) : result.end === "shipwrecked" ? (
     <Box width="100%" flexGrow={1} flexDirection="column" alignItems="center">
       <Box flexDirection="column" borderStyle="round" padding={1} gap={1} minWidth={60}>
         <Badge color="red">
@@ -49,38 +46,41 @@ export function ScoreScreen() {
   ) : (
     <Box width="100%" flexGrow={1} flexDirection="column" alignItems="center">
       <Box flexDirection="column" borderStyle="round" padding={1} gap={1} minWidth={60}>
-        <Badge color={context.extendedGame ? "blueBright" : "cyanBright"}>
-          {context.extendedGame ? "Extended Game" : "Regular Game"}
+        <Badge color={result.extendedGame ? "blueBright" : "cyanBright"}>
+          {result.extendedGame ? "Extended Game" : "Regular Game"}
         </Badge>
         <Text underline>Game Stats:</Text>
         <Text>
-          <Text dimColor>Days Played:</Text> {context.day} days
+          <Text dimColor>Days Played:</Text> {result.day} days
         </Text>
         <Text>
-          <Text dimColor>Net Value:</Text> ${getNetCash(context)}
+          <Text dimColor>Net Worth:</Text> {displayMonetaryValue(result.netWorth)}
         </Text>
         <Text>
-          <Text dimColor>Ship Capacity:</Text> {context.ship.hold.capacity} picul
+          <Text dimColor>Ship Capacity:</Text> {result.capacity} picul
         </Text>
         <Text>
-          <Text dimColor>Ship Speed:</Text> {context.ship.speed} knots
+          <Text dimColor>Ship Speed:</Text> {result.speed} knots
         </Text>
-        <Text inverse>You&apos;ve scored {score} points</Text>
+        <Text inverse>You&apos;ve scored {result.score} points</Text>
         <Box flexDirection="column" marginTop={2}>
           <Text underline>Your Rating</Text>
           <Box flexDirection="column" borderStyle="round" width={40} gap={1} paddingX={1}>
-            <Box justifyContent="space-between" alignItems="center">
-              <Text inverse={score >= 30_000}>Admiral </Text>
-              <Text>30,000 and over</Text>
-            </Box>
-            <Box justifyContent="space-between" alignItems="center">
-              <Text inverse={score >= 5000 && score < 30_000}>Captain </Text>
-              <Text>5,000 to 30,000</Text>
-            </Box>
-            <Box justifyContent="space-between" alignItems="center">
-              <Text inverse={score < 5000}>Mate </Text>
-              <Text>Less than 5,000</Text>
-            </Box>
+            {RANKS.map(({ title, minScore }, index) => {
+              const nextMinScore = RANKS[index - 1]?.minScore;
+              return (
+                <Box key={title} justifyContent="space-between" alignItems="center">
+                  <Text inverse={result.rank === title}>{title} </Text>
+                  <Text>
+                    {nextMinScore === undefined
+                      ? `${minScore.toLocaleString("en-US")} and over`
+                      : minScore === -Infinity
+                        ? `Less than ${nextMinScore.toLocaleString("en-US")}`
+                        : `${minScore.toLocaleString("en-US")} to ${nextMinScore.toLocaleString("en-US")}`}
+                  </Text>
+                </Box>
+              );
+            })}
           </Box>
         </Box>
 

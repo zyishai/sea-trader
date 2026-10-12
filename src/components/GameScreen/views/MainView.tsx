@@ -6,21 +6,22 @@ import { ActionPrompt as ActionPromptArrows } from "../../prompts/arrows/ActionP
 import { ViewTitle } from "../ViewTitle.js";
 import { useMachine } from "@xstate/react";
 import { menuMachine } from "../../../store/ui/menu.js";
+import { mainMenuView } from "../../../store/views/main-menu.js";
 import { ConfirmPrompt as ConfirmPromptKeyboard } from "../../prompts/keyboard/ConfirmPrompt.js";
 import { ConfirmPrompt as ConfirmPromptArrows } from "../../prompts/arrows/ConfirmPrompt.js";
 
 export function MainView() {
   const actor = GameContext.useActorRef();
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const controls = context.settings.controls;
+  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const { canRetire, canDeclareBankruptcy } = GameContext.useSelector((snapshot) => mainMenuView(snapshot.context));
   const [snapshot, send] = useMachine(menuMachine);
 
   const availableActions = [
     { label: "Go to Port", value: "go_to_port" },
     { label: "Visit Market", value: "visit_market" },
     { label: "Visit Shipyard", value: "visit_shipyard" },
-    { label: "Retire", value: "retire", disabled: !context.canRetire },
-    { label: "Declare bankruptcy", value: "declare_bankruptcy", disabled: context.balance >= 0 },
+    { label: "Retire", value: "retire", disabled: !canRetire },
+    { label: "Declare bankruptcy", value: "declare_bankruptcy", disabled: !canDeclareBankruptcy },
   ];
   const handleSelectAction = (value: string) => {
     switch (value) {
@@ -94,8 +95,7 @@ export function MainView() {
 
 function ConfirmRetirement({ onCancel }: { onCancel: () => void }) {
   const actor = GameContext.useActorRef();
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const controls = context.settings.controls;
+  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
 
   return controls === "keyboard" ? (
     <ConfirmPromptKeyboard
@@ -114,8 +114,7 @@ function ConfirmRetirement({ onCancel }: { onCancel: () => void }) {
 
 function ConfirmBankruptcy({ onCancel }: { onCancel: () => void }) {
   const actor = GameContext.useActorRef();
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const controls = context.settings.controls;
+  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
 
   return controls === "keyboard" ? (
     <ConfirmPromptKeyboard
@@ -133,8 +132,7 @@ function ConfirmBankruptcy({ onCancel }: { onCancel: () => void }) {
 }
 
 function ConfirmExitGame({ onCancel }: { onCancel: () => void }) {
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const controls = context.settings.controls;
+  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
 
   return controls === "keyboard" ? (
     <ConfirmPromptKeyboard

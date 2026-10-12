@@ -69,6 +69,8 @@ export type MerchantTip = {
   message: string;
 };
 
+export type VoyageEnd = "retired" | "bankrupt" | "declaredBankrupt" | "shipwrecked";
+
 // Context
 export type Context = {
   rng: Rng;
@@ -85,6 +87,7 @@ export type Context = {
   destination?: Port;
   currentEvent?: EventTemplate;
   cargoOffer?: CargoOffer;
+  voyageEnd?: VoyageEnd;
 
   // Market context
   availableGoods: readonly Good[];

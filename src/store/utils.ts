@@ -45,13 +45,13 @@ import {
   UpgradeType,
 } from "./types.js";
 import { Rng } from "./rng.js";
-import { canAfford, isInOverdraft } from "./treasury.js";
+import { canAfford, isInOverdraft, netWorth } from "./treasury.js";
 import { goodsAboard, overloadLevel, value } from "./hold.js";
 
 // ~~ PORT ~~
 export const calculatePirateEncounterChance = (context: Context) => {
   const baseChance = 0.2;
-  const wealthFactor = Math.min(1.5, getNetCash(context) / 10_000);
+  const wealthFactor = Math.min(1.5, netWorth(context) / 10_000);
   const reputationFactor = Math.max(0.5, (100 - context.reputation) / 100);
   const guardFactor = context.guardFleet.ships * 0.01 * context.guardFleet.quality;
   const defenseFactor = Math.min(0.2, context.ship.defense / MAX_SHIP_DEFENSE);
@@ -584,10 +584,8 @@ export const canAffordUpgrade = (type: UpgradeType, context: Context) => {
 };
 
 // !! SCORE !!
-export const getNetCash = (context: Context) =>
-  context.balance + value(context.ship.hold, context.prices[context.currentPort]);
 export const calculateScore = (context: Context) => {
-  let score = Math.round(getNetCash(context) / 50);
+  let score = Math.round(netWorth(context) / 50);
 
   // Add a logarithmic bonus for ship capacity
   // This provides diminishing returns for larger capacities

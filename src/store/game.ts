@@ -3,7 +3,16 @@ import { initialContext } from "./defaults.js";
 import { Context, Good } from "./types.js";
 import { GameEvents } from "./events.js";
 import { Rng } from "./rng.js";
-import { accrueInterest, canAfford, cashOnHand, fleetSaleValue, isInOverdraft, upkeepDue } from "./treasury.js";
+import {
+  accrueInterest,
+  canAfford,
+  cashOnHand,
+  fleetSaleValue,
+  isBankrupt,
+  isInOverdraft,
+  netWorth,
+  upkeepDue,
+} from "./treasury.js";
 import { needsCaptainsChoice, takeCargoOffer } from "./cargo-offer.js";
 import {
   amountOf,
@@ -29,7 +38,6 @@ import {
   calculateFleetUpgradeCost,
   checkForEvent,
   generatePrices,
-  getNetCash,
   getShipStatus,
   distributeFleetDamage,
   canAffordUpgrade,
@@ -819,11 +827,11 @@ export const gameMachine = setup({
             meta: {
               description: "Check if the player is actually bankrupt",
             },
-            guard: ({ context }) => context.balance > 0,
+            guard: ({ context }) => !isInOverdraft(context),
             actions: { type: "displayMessages", params: ["You're not bankrupt!"] },
             target: "#mainMenu",
           },
-          { target: "scoringScreen" },
+          { actions: assign({ voyageEnd: "declaredBankrupt" }), target: "scoringScreen" },
         ],
         RETIRE: [
           {
@@ -834,7 +842,7 @@ export const gameMachine = setup({
             actions: { type: "displayMessages", params: ["You haven't finished your voyage yet!"] },
             target: "#mainMenu",
           },
-          { target: "scoringScreen" },
+          { actions: assign({ voyageEnd: "retired" }), target: "scoringScreen" },
         ],
       },
       always: [
@@ -843,14 +851,17 @@ export const gameMachine = setup({
           guard: ({ context }) =>
             getShipStatus(context.ship.health) === "Wreckage" &&
             context.day < GOAL_DAYS && // Make sure the player can't retire yet
-            getShipStatus(calculateRepairForCost(getNetCash(context), context) + context.ship.health) === "Wreckage",
-          actions: {
-            type: "displayMessages",
-            params: [
-              "Captain, our ship is in wreckage condition and we don't have enough money to repair it.",
-              "You've lost the game.",
-            ],
-          },
+            getShipStatus(calculateRepairForCost(netWorth(context), context) + context.ship.health) === "Wreckage",
+          actions: [
+            assign({ voyageEnd: "shipwrecked" }),
+            {
+              type: "displayMessages",
+              params: [
+                "Captain, our ship is in wreckage condition and we don't have enough money to repair it.",
+                "You've lost the game.",
+              ],
+            },
+          ],
           target: "scoringScreen",
         },
         // Pay the Guard Fleet's Upkeep, which is forgiven while in Overdraft
@@ -863,11 +874,14 @@ export const gameMachine = setup({
         },
         // Check if the player is bankrupt
         {
-          guard: ({ context }) => context.balance < BANKRUPTCY_THRESHOLD,
-          actions: {
-            type: "displayMessages",
-            params: ["Captain, we have gone bankrupt! The creditors have seized our assets."],
-          },
+          guard: ({ context }) => isBankrupt(context),
+          actions: [
+            assign({ voyageEnd: "bankrupt" }),
+            {
+              type: "displayMessages",
+              params: ["Captain, we have gone bankrupt! The creditors have seized our assets."],
+            },
+          ],
           target: "scoringScreen",
         },
         // If the player is in overdraft and his debt is greater than -$1000, sell his fleet

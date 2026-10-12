@@ -1,0 +1,13 @@
+import { describe, expect, it } from "vitest";
+import { initialContext } from "../defaults.js";
+import { seededRng } from "../rng.js";
+import { mainMenuView } from "./main-menu.js";
+
+describe("main menu view", () => {
+  it("offers bankruptcy only while in Overdraft", () => {
+    const context = initialContext(seededRng(1));
+
+    expect(mainMenuView({ ...context, balance: 0 }).canDeclareBankruptcy).toBe(false);
+    expect(mainMenuView({ ...context, balance: -1 }).canDeclareBankruptcy).toBe(true);
+  });
+});
