@@ -23,6 +23,7 @@ describe("shipyard view", () => {
       next: 10,
       cost: 1500,
       unavailable: undefined,
+      strands: false,
     });
   });
 
@@ -64,5 +65,20 @@ describe("shipyard view", () => {
     expect(fullFleet.hire.unavailable).toBe("fleetFull");
     expect(fullFleet.upgrade.unavailable).toBe("maxedOut");
     expect(fullFleet.dailyUpkeep).toBe(750);
+  });
+
+  it("flags an upgrade that would leave the Captain Stranded", () => {
+    expect(
+      upgrade(
+        shipyardContext(() => ({ balance: 1500 })),
+        "speed",
+      ).strands,
+    ).toBe(true);
+    expect(
+      upgrade(
+        shipyardContext(() => ({ balance: 1500 })),
+        "defense",
+      ).strands,
+    ).toBe(false);
   });
 });

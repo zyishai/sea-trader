@@ -24,3 +24,4 @@ export { displayMonetaryValue, joinWords } from "./format.js";
 export type { Good } from "./catalog/goods.js";
 export type { Port } from "./catalog/ports.js";
 export type { ShipStat } from "./catalog/vessels.js";
+export { wouldStrand } from "./treasury.js";

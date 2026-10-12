@@ -1,8 +1,15 @@
 import { usePreferences } from "../../Preferences.js";
-import React from "react";
+import React, { useState } from "react";
 import { Box, Text } from "ink";
 import { useNavigation } from "../Navigation.js";
-import { Unavailable, displayMonetaryValue, issueCommand, shipyardView } from "../../../../game/index.js";
+import {
+  ShipStat,
+  Unavailable,
+  displayMonetaryValue,
+  issueCommand,
+  shipyardView,
+  wouldStrand,
+} from "../../../../game/index.js";
 import { GameContext } from "../../GameContext.js";
 import { ShipyardContext } from "../ShipyardContext.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
@@ -20,6 +27,16 @@ const isOffered = ({ unavailable }: { unavailable?: Unavailable }) => !unavailab
 const reasonFor = (unavailable?: Unavailable) => (unavailable ? REASONS[unavailable] : undefined);
 
 const useShipyardView = () => GameContext.useSelector((snapshot) => shipyardView(snapshot.context));
+
+function ConfirmStranding({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  const controls = usePreferences().controls;
+  const message = "This leaves us without money to trade, Captain. Go ahead?";
+  return controls === "keyboard" ? (
+    <ConfirmPromptKeyboard message={message} onConfirm={onConfirm} onCancel={onCancel} />
+  ) : (
+    <ConfirmPromptArrows message={message} onConfirm={onConfirm} onCancel={onCancel} />
+  );
+}
 
 export function ShipyardView() {
   const { ship, fleet } = useShipyardView();
@@ -127,6 +144,13 @@ function RepairShip() {
   const controls = usePreferences().controls;
   const { repair } = useShipyardView();
   const shipyard = ShipyardContext.useActorRef();
+  const [pendingCash, setPendingCash] = useState<number>();
+
+  const repairFor = (cash: number) => {
+    if (issueCommand(actor, { type: "REPAIR", cash })?.accepted) {
+      shipyard.send({ type: "COMMIT" });
+    }
+  };
 
   const onValidateAmount = (value: string) => {
     const amount = +value;
@@ -136,12 +160,18 @@ function RepairShip() {
     return;
   };
   const onSubmit = (values: Record<string, string>) => {
-    const { amount = "" } = values;
+    const cash = +(values["amount"] ?? "");
 
-    if (issueCommand(actor, { type: "REPAIR", cash: +amount })?.accepted) {
-      shipyard.send({ type: "COMMIT" });
+    if (wouldStrand(actor.getSnapshot().context, cash)) {
+      setPendingCash(cash);
+    } else {
+      repairFor(cash);
     }
   };
+
+  if (pendingCash !== undefined) {
+    return <ConfirmStranding onConfirm={() => repairFor(pendingCash)} onCancel={() => setPendingCash(undefined)} />;
+  }
 
   return (
     <Box flexDirection="column" gap={1}>
@@ -196,22 +226,23 @@ function UpgradeShip() {
     disabled: !isOffered(offer),
     unavailableReason: reasonFor(offer.unavailable),
   }));
+  const [pendingUpgrade, setPendingUpgrade] = useState<ShipStat>();
+  const upgrade = (stat: ShipStat) => {
+    setPendingUpgrade(undefined);
+    actor.send({ type: "UPGRADE_SHIP", upgradeType: stat });
+  };
   const onSelectAction = (action: string) => {
-    switch (action) {
-      case "capacity": {
-        actor.send({ type: "UPGRADE_SHIP", upgradeType: "capacity" });
-        break;
-      }
-      case "speed": {
-        actor.send({ type: "UPGRADE_SHIP", upgradeType: "speed" });
-        break;
-      }
-      case "defense": {
-        actor.send({ type: "UPGRADE_SHIP", upgradeType: "defense" });
-        break;
-      }
+    const offer = upgrades.find(({ type }) => type === action)!;
+    if (offer.strands) {
+      setPendingUpgrade(offer.type);
+    } else {
+      upgrade(offer.type);
     }
   };
+
+  if (pendingUpgrade) {
+    return <ConfirmStranding onConfirm={() => upgrade(pendingUpgrade)} onCancel={() => setPendingUpgrade(undefined)} />;
+  }
 
   return controls === "keyboard" ? (
     <ActionPromptKeyboard

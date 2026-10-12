@@ -11,7 +11,7 @@ import {
 import { spaceUsed } from "../hold.js";
 import { getShipStatus, nextUpgrade, shipStats } from "../ship.js";
 import { calculateCostForRepair } from "../shipyard.js";
-import { canAfford, cashOnHand } from "../treasury.js";
+import { canAfford, cashOnHand, wouldStrand } from "../treasury.js";
 
 export type Unavailable = "notEnoughMoney" | "maxedOut" | "perfectCondition" | "noFleet" | "fleetFull";
 
@@ -27,6 +27,7 @@ const upgradeOffer = (context: Context, stat: ShipStat) => {
       [!upgrade, "maxedOut"],
       [!!upgrade && !canAfford(context, upgrade.cost), "notEnoughMoney"],
     ),
+    strands: !!upgrade && wouldStrand(context, upgrade.cost),
   };
 };
 
