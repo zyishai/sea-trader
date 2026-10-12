@@ -56,7 +56,8 @@ export function HelpScreen() {
               <Text bold color="blue">
                 Trading:
               </Text>{" "}
-              Buy low, sell high between 5 major ports. Watch market trends!
+              Buy low, sell high between 5 major ports. Watch market trends! Goods and cargo space are measured in picul
+              (1 picul ≈ 60 kg, one porter&apos;s load).
             </Text>
           </UnorderedList.Item>
           <UnorderedList.Item>

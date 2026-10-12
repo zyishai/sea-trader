@@ -516,8 +516,8 @@ export const gameMachine = setup({
                 actions: {
                   type: "displayMessages",
                   params: ({ context, event }) => [
-                    `Captain, you don't have enough storage space for ${event.quantity} picul of ${event.good.toLowerCase()}`,
-                    `Available storage: ${freeSpace(context.ship.hold)} piculs (+${marginLeft(context.ship.hold) - freeSpace(context.ship.hold)} overloaded)`,
+                    `Captain, we don't have room in the hold for ${event.quantity} picul of ${event.good.toLowerCase()}.`,
+                    `We have room for ${freeSpace(context.ship.hold)} more picul (${marginLeft(context.ship.hold)} if we overload).`,
                   ],
                 },
               },
@@ -530,8 +530,8 @@ export const gameMachine = setup({
                   enqueue({
                     type: "displayMessages",
                     params: [
-                      `Purchased ${event.quantity} piculs of ${event.good} for $${cost}.`,
-                      `We have ${freeSpace(hold)} units of storage left, Captain.`,
+                      `Purchased ${event.quantity} picul of ${event.good} for $${cost}.`,
+                      `We have room for ${freeSpace(hold)} more picul, Captain.`,
                     ],
                   });
                   if (becameOverloaded) {
@@ -560,11 +560,11 @@ export const gameMachine = setup({
                   {
                     type: "displayMessages",
                     params: ({ context, event }) => [
-                      `Sold ${event.quantity} piculs of ${event.good} for $${calculatePrice({
+                      `Sold ${event.quantity} picul of ${event.good} for $${calculatePrice({
                         ...context,
                         ...event,
                       })}.`,
-                      `Captain, we have ${freeSpace(context.ship.hold)} units of storage left.`,
+                      `We have room for ${freeSpace(context.ship.hold)} more picul, Captain.`,
                     ],
                   },
                 ],

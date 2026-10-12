@@ -39,7 +39,7 @@ export function ShipyardView() {
         <Box flexDirection="column" paddingLeft={3}>
           <Table
             rows={[
-              ["- Capacity", `${spaceUsed(gameContext.ship.hold)}/${gameContext.ship.hold.capacity}`],
+              ["- Capacity", `${spaceUsed(gameContext.ship.hold)} / ${gameContext.ship.hold.capacity} picul`],
               ["- Speed", `${gameContext.ship.speed} knots`],
               ["- Condition", `${getShipStatus(gameContext.ship.health)} (${gameContext.ship.health}%)`],
             ]}
@@ -203,7 +203,7 @@ function UpgradeShip() {
 
   const availableActions = [
     {
-      label: `Increase Capacity - ${nextCapacityUpgrade?.capacity} Units ($${nextCapacityUpgrade?.cost})`,
+      label: `Increase Capacity - ${nextCapacityUpgrade?.capacity} picul ($${nextCapacityUpgrade?.cost})`,
       value: "capacity",
       disabled: !nextCapacityUpgrade,
     },

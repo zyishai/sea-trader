@@ -24,7 +24,7 @@ export function MarketView() {
         <Box justifyContent="space-between" columnGap={2} flexWrap="wrap">
           <Text underline>Price List</Text>
           <Text>
-            Cargo Hold: {view.hold.used}/{view.hold.capacity} (Available: {view.hold.free})
+            Hold: {view.hold.used} / {view.hold.capacity} picul
           </Text>
         </Box>
         <Table
@@ -186,8 +186,8 @@ function SelectQuantity({ action }: { action: "buy" | "sell" }) {
               type: "text",
               message:
                 action === "buy"
-                  ? `How many piculs of ${marketContext.good.toLocaleLowerCase()} would you like, Captain?`
-                  : `How many piculs of ${marketContext.good.toLocaleLowerCase()} are you selling, Captain?`,
+                  ? `How many picul of ${marketContext.good.toLocaleLowerCase()} would you like, Captain?`
+                  : `How many picul of ${marketContext.good.toLocaleLowerCase()} are you selling, Captain?`,
               validate: onValidateQuantity,
             },
           ]}
@@ -202,8 +202,8 @@ function SelectQuantity({ action }: { action: "buy" | "sell" }) {
               type: "text",
               message:
                 action === "buy"
-                  ? `How many piculs of ${marketContext.good.toLocaleLowerCase()} would you like, Captain?`
-                  : `How many piculs of ${marketContext.good.toLocaleLowerCase()} are you selling, Captain?`,
+                  ? `How many picul of ${marketContext.good.toLocaleLowerCase()} would you like, Captain?`
+                  : `How many picul of ${marketContext.good.toLocaleLowerCase()} are you selling, Captain?`,
               validate: onValidateQuantity,
             },
           ]}

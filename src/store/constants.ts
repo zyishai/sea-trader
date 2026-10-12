@@ -297,7 +297,7 @@ const cargoEvents: EventTemplate[] = [
         },
         messages: [
           ...context.messages,
-          [`Expert maintenance has yielded ${extraSpace} additional cargo space, Captain!`],
+          [`Expert maintenance has made room for ${extraSpace} more picul in the hold, Captain!`],
         ],
       };
     },
@@ -696,7 +696,7 @@ export const EXTENDED_GAME_PENALTY = 0.01;
 export const SEASON_LENGTH = 30; // days
 
 // Player Vessel
-export const BASE_SHIP_CAPACITY = 120; // In tons burden
+export const BASE_SHIP_CAPACITY = 120; // In picul
 export const CAPACITY_UPGRADES = [
   { capacity: 180, cost: 2000 },
   { capacity: 240, cost: 3500 },
