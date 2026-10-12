@@ -33,7 +33,6 @@ export type ShipStatus = "Perfect" | "Minor damages" | "Major damages" | "Wrecka
 export type FleetQuality = "Basic" | "Trained" | "Elite";
 
 // Inventory & Market
-export type BulkinessCategory = "Compact" | "Standard" | "Bulky";
 export type Good = (typeof goods)[number];
 export type Port = (typeof ports)[number];
 export type MarketSize = "Small" | "Medium" | "Large";

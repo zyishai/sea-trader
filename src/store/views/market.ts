@@ -16,8 +16,8 @@ export const marketView = (context: Context) => {
         price: prices[good],
         inHold: amountOf(hold, good),
         maxBuy: {
-          withinCapacity: Math.min(affordable, fitsAboard(hold, good, { overload: false })),
-          withOverload: Math.min(affordable, fitsAboard(hold, good, { overload: true })),
+          withinCapacity: Math.min(affordable, fitsAboard(hold, { overload: false })),
+          withOverload: Math.min(affordable, fitsAboard(hold, { overload: true })),
         },
         maxSell: amountOf(hold, good),
       };

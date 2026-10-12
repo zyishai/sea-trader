@@ -102,11 +102,11 @@ describe("Hold", () => {
     expect(goodsAboard(hold)).toEqual([["Tea", 30]]);
   });
 
-  it("tells how much of a good fits, with and without overloading", () => {
+  it("tells how much more fits, with and without overloading", () => {
     const hold = holdWith(100, [["Tea", 70]]);
 
-    expect(fitsAboard(hold, "Wheat", { overload: false })).toBe(30);
-    expect(fitsAboard(hold, "Wheat", { overload: true })).toBe(50);
+    expect(fitsAboard(hold, { overload: false })).toBe(30);
+    expect(fitsAboard(hold, { overload: true })).toBe(50);
   });
 
   it("measures how deep into the overload margin it is", () => {

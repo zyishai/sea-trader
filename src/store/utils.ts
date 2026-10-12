@@ -25,7 +25,6 @@ import {
   TREND_STRENGTH_FACTORS,
 } from "./constants.js";
 import {
-  BulkinessCategory,
   Context,
   EventTemplate,
   FleetQuality,
@@ -174,25 +173,6 @@ export const getFleetQuality = (quality: number): FleetQuality => {
       return "Elite";
     default:
       return "Basic";
-  }
-};
-
-// -* INVENTORY *-
-export const getBulkinessCategory = (bulkiness: number): BulkinessCategory => {
-  if (bulkiness <= 0.8) return "Compact";
-  if (bulkiness >= 1.2) return "Bulky";
-  return "Standard";
-};
-export const getBulkinessDescription = (good: Good) => {
-  const goodInfo = goodsInfo.find((item) => item.name === good);
-  if (!goodInfo) return "";
-  switch (getBulkinessCategory(goodInfo.bulkiness)) {
-    case "Compact":
-      return "Dense cargo that stores efficiently";
-    case "Standard":
-      return "Takes standard storage space";
-    case "Bulky":
-      return "Requires extra storage space due to careful packing";
   }
 };
 

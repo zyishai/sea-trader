@@ -1,4 +1,4 @@
-import { bulkinessOf, Hold, load } from "./hold.js";
+import { Hold, load } from "./hold.js";
 import { Good } from "./types.js";
 
 export type CargoOffer = Partial<Record<Good, number>>;
@@ -12,7 +12,7 @@ export const takeCargoOffer = (
   { overload }: { overload: boolean },
 ) =>
   (Object.entries(offer) as [Good, number][])
-    .sort(([a], [b]) => prices[b] / bulkinessOf(b) - prices[a] / bulkinessOf(a))
+    .sort(([a], [b]) => prices[b] - prices[a])
     .reduce(
       (result, [good, picul]) => {
         const { hold, loaded, leftBehind } = load(result.hold, good, picul, { overload });

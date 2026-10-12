@@ -30,17 +30,12 @@ export const distanceMatrix: Record<Port, Record<Port, number>> = {
   Singapore: { "Hong Kong": 1460, Shanghai: 2279, Nagasaki: 2561, Singapore: 0, Manila: 1308 },
   Manila: { "Hong Kong": 706, Shanghai: 1307, Nagasaki: 1668, Singapore: 1308, Manila: 0 },
 } as const;
-export const goodsInfo: { name: Good; basePrice: number; volatility: number; bulkiness: number }[] = [
-  { name: "Wheat", basePrice: 100, volatility: 0.35, bulkiness: 1.0 },
-  { name: "Tea", basePrice: 400, volatility: 0.45, bulkiness: 1.0 },
-  { name: "Spices", basePrice: 800, volatility: 0.55, bulkiness: 1.0 },
-  { name: "Opium", basePrice: 2000, volatility: 0.65, bulkiness: 1.0 },
-  { name: "Porcelain", basePrice: 300, volatility: 0.4, bulkiness: 1.0 },
-  // { name: "Wheat", basePrice: 25, volatility: 0.1, bulkiness: 1.0 },
-  // { name: "Tea", basePrice: 80, volatility: 0.15, bulkiness: 1.4 },
-  // { name: "Spices", basePrice: 150, volatility: 0.2, bulkiness: 0.8 },
-  // { name: "Opium", basePrice: 300, volatility: 0.25, bulkiness: 0.6 },
-  // { name: "Porcelain", basePrice: 45, volatility: 0.05, bulkiness: 1.2 },
+export const goodsInfo: { name: Good; basePrice: number; volatility: number }[] = [
+  { name: "Wheat", basePrice: 100, volatility: 0.35 },
+  { name: "Tea", basePrice: 400, volatility: 0.45 },
+  { name: "Spices", basePrice: 800, volatility: 0.55 },
+  { name: "Opium", basePrice: 2000, volatility: 0.65 },
+  { name: "Porcelain", basePrice: 300, volatility: 0.4 },
 ] as const;
 
 // Gameplay

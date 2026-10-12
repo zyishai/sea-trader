@@ -285,8 +285,7 @@ export const gameMachine = setup({
                 meta: {
                   description: "Check that player has enough cargo space",
                 },
-                guard: ({ context, event }) =>
-                  fitsAboard(context.ship.hold, event.good, { overload: true }) < event.quantity,
+                guard: ({ context, event }) => fitsAboard(context.ship.hold, { overload: true }) < event.quantity,
                 actions: {
                   type: "displayMessages",
                   params: ({ context, event }) => [
