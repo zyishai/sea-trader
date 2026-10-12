@@ -37,7 +37,9 @@ describe("shipyard view", () => {
   });
 
   it("marks a fully upgraded ship as maxed out", () => {
-    const context = shipyardContext((context) => ({ ship: { ...context.ship, speed: 20 } }));
+    const context = shipyardContext((context) => ({
+      ship: { ...context.ship, upgrades: { ...context.ship.upgrades, speed: 6 } },
+    }));
 
     expect(upgrade(context, "speed")).toMatchObject({ next: undefined, unavailable: "maxedOut" });
   });

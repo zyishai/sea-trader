@@ -1,4 +1,5 @@
 import { netWorth } from "../treasury.js";
+import { shipStats } from "../ship.js";
 import { Context } from "../types.js";
 import { calculateScore } from "../utils.js";
 
@@ -18,7 +19,7 @@ export const voyageResult = (context: Context) => {
     extendedGame: context.extendedGame,
     netWorth: netWorth(context),
     capacity: context.ship.hold.capacity,
-    speed: context.ship.speed,
+    speed: shipStats(context.ship).speed,
     score,
     rank: end === "retired" ? RANKS.find(({ minScore }) => score >= minScore)?.title : undefined,
   };

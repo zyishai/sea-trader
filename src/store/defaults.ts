@@ -1,8 +1,9 @@
-import { BASE_BALANCE, BASE_SHIP_CAPACITY, BASE_SHIP_DEFENSE, BASE_SHIP_SPEED, seasons } from "./constants.js";
+import { BASE_BALANCE, seasons } from "./constants.js";
 import { Context, GameSettings, Good, Port, PriceHistory, Range } from "./types.js";
 import { generatePrices, generateTrends } from "./utils.js";
 import { Rng } from "./rng.js";
-import { emptyHold } from "./hold.js";
+import { newShip } from "./ship.js";
+import { STARTING_VESSEL_CLASS } from "./catalog/vessels.js";
 import { goods } from "./catalog/goods.js";
 import { ports, STARTING_PORT } from "./catalog/ports.js";
 
@@ -44,12 +45,7 @@ export const initialContext = (rng: Rng, settings?: GameSettings) => {
       damage: 0,
     },
     reputation: 50,
-    ship: {
-      health: 100,
-      defense: BASE_SHIP_DEFENSE,
-      speed: BASE_SHIP_SPEED, // 8 - 20 knots
-      hold: emptyHold(BASE_SHIP_CAPACITY),
-    },
+    ship: newShip(STARTING_VESSEL_CLASS),
     trends,
     prices: initialPrices,
     marketIntelligence: {

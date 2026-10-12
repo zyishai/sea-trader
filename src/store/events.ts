@@ -1,4 +1,5 @@
-import { GameSettings, Good, Port, UpgradeType } from "./types.js";
+import { GameSettings, Good, Port } from "./types.js";
+import { ShipStat } from "./catalog/vessels.js";
 
 export type GameEvents =
   | { type: "START_GAME"; settings?: GameSettings }
@@ -14,7 +15,7 @@ export type GameEvents =
   | { type: "SELL"; good: Good; quantity: number }
   | { type: "GO_TO_SHIPYARD" }
   | { type: "REPAIR"; cash: number }
-  | { type: "UPGRADE_SHIP"; upgradeType: UpgradeType }
+  | { type: "UPGRADE_SHIP"; upgradeType: ShipStat }
   | { type: "HIRE_PERMANENT_GUARDS"; amount: number }
   | { type: "UPGRADE_GUARDS" }
   | { type: "DISMISS_GUARDS"; amount: number }

@@ -4,13 +4,14 @@ import { Context } from "./types.js";
 import { GameEvents } from "./events.js";
 import { Rng } from "./rng.js";
 import { goods } from "./catalog/goods.js";
+import { nextUpgrade, upgradeShip } from "./ship.js";
 import { ports } from "./catalog/ports.js";
 import { applyEventResult } from "./outcomes.js";
 import { bribePirates, fightPirates, fleePirates } from "./pirates.js";
 import { advanceDays, canRetire } from "./clock.js";
 import { canAfford, fleetSaleValue, isBankrupt, isInOverdraft, netWorth } from "./treasury.js";
 import { needsCaptainsChoice, takeCargoOffer } from "./cargo-offer.js";
-import { amountOf, fitsAboard, freeSpace, isOverloaded, load, marginLeft, unload, withCapacity } from "./hold.js";
+import { amountOf, fitsAboard, freeSpace, isOverloaded, load, marginLeft, unload } from "./hold.js";
 import {
   calculateCostForRepair,
   calculateGuardShipCost,
@@ -22,7 +23,6 @@ import {
   checkForEvent,
   getShipStatus,
   canAffordUpgrade,
-  getNextUpgrade,
   joinWords,
   eventById,
   displayMonetaryValue,
@@ -404,35 +404,27 @@ export const gameMachine = setup({
                 },
                 guard: ({ context, event }) => !canAffordUpgrade(event.upgradeType, context),
                 actions: [
-                  { type: "displayMessages", params: ["Captain, we don't have enough cash for this upgrade."] },
+                  { type: "displayMessages", params: ["Captain, we don't have enough money for this upgrade."] },
                 ],
               },
               {
                 actions: [
                   assign(({ context, event }) => {
-                    const upgrade = getNextUpgrade(event.upgradeType, context);
+                    const upgrade = nextUpgrade(context.ship, event.upgradeType);
 
                     if (!upgrade) return context;
 
                     const messages = [`Captain, they've upgraded our ship's ${event.upgradeType}!`];
 
-                    if ("reputation" in upgrade) {
+                    if (upgrade.reputation) {
                       messages.push(`Your ship improvements have earned you ${upgrade.reputation} reputation points!`);
                     }
 
                     return {
-                      ship:
-                        "capacity" in upgrade
-                          ? { ...context.ship, hold: withCapacity(context.ship.hold, upgrade.capacity) }
-                          : "speed" in upgrade
-                            ? { ...context.ship, speed: upgrade.speed }
-                            : { ...context.ship, defense: upgrade.defense },
+                      ship: upgradeShip(context.ship, event.upgradeType),
                       balance: context.balance - upgrade.cost,
                       messages: [...context.messages, messages],
-                      reputation: Math.min(
-                        100,
-                        context.reputation + ("reputation" in upgrade ? upgrade.reputation : 0),
-                      ),
+                      reputation: Math.min(100, context.reputation + (upgrade.reputation ?? 0)),
                     };
                   }),
                 ],

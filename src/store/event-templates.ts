@@ -1,6 +1,8 @@
 import { CargoOffer } from "./cargo-offer.js";
 import { currentSeason } from "./clock.js";
-import { BASE_SHIP_SPEED, GOAL_DAYS } from "./constants.js";
+import { GOAL_DAYS } from "./constants.js";
+import { vesselClassRecord } from "./catalog/vessels.js";
+import { shipStats } from "./ship.js";
 import { ports } from "./catalog/ports.js";
 import { goods } from "./catalog/goods.js";
 import { goodsAboard, isOverloaded, spaceUsed } from "./hold.js";
@@ -8,6 +10,7 @@ import { outcome, result } from "./outcomes.js";
 import { Context, EventTemplate, Good, Port } from "./types.js";
 
 const marketOf = (context: Context) => context.destination ?? context.currentPort;
+const speedGained = ({ ship }: Context) => shipStats(ship).speed - vesselClassRecord(ship.vesselClass).base.speed;
 
 const weatherEvents: EventTemplate[] = [
   {
@@ -57,7 +60,7 @@ const weatherEvents: EventTemplate[] = [
     id: "light-breeze",
     type: "weather",
     severity: "minor",
-    baseChance: (context) => Math.min(0.3, 0.2 + (context.ship.speed - BASE_SHIP_SPEED) * 0.02),
+    baseChance: (context) => Math.min(0.3, 0.2 + speedGained(context) * 0.02),
     message: "A light breeze speeds up our journey.",
     effect: () => result([], outcome.delay(-1)),
   },
@@ -65,7 +68,7 @@ const weatherEvents: EventTemplate[] = [
     id: "storm",
     type: "weather",
     severity: "moderate",
-    baseChance: (context) => Math.min(0.25, 0.15 + (context.ship.speed - BASE_SHIP_SPEED) * 0.015),
+    baseChance: (context) => Math.min(0.25, 0.15 + speedGained(context) * 0.015),
     message: "A storm approaches our vessel, Captain. What's your course of action?",
     choices: [
       {

@@ -1,18 +1,13 @@
 import {
   BASE_GUARD_COST,
-  BASE_SHIP_CAPACITY,
-  CAPACITY_UPGRADES,
   DAMAGE_PER_GUARD_SHIP,
   DAMAGE_REPAIR_COST_PER_UNIT,
-  DEFENSE_UPGRADES,
   EXTENDED_GAME_PENALTY,
   GOAL_DAYS,
   MAINTENANCE_COST_PER_SHIP,
-  MAX_SHIP_DEFENSE,
   OVERLOAD_SPEED_PENALTY,
   SEASON_LENGTH,
   seasonEventEffects,
-  SPEED_UPGRADES,
   TREND_DIRECTION,
   TREND_STRENGTH,
   TREND_STRENGTH_FACTORS,
@@ -31,12 +26,13 @@ import {
   Trend,
   TrendInfo,
   TrendStrength,
-  UpgradeType,
 } from "./types.js";
 import { Rng } from "./rng.js";
 import { goodCatalog, goods, seasonalPriceFactor } from "./catalog/goods.js";
 import { MARKET_SIZE_FACTORS, portRecord, ports } from "./catalog/ports.js";
 import { distanceBetween } from "./catalog/sea-routes.js";
+import { MAX_SHIP_DEFENSE, ShipStat, vesselClassRecord } from "./catalog/vessels.js";
+import { nextUpgrade, shipStats } from "./ship.js";
 import { eventTemplates } from "./event-templates.js";
 import { currentSeason, daysUntilNextSeason } from "./clock.js";
 import { canAfford, isInOverdraft, netWorth } from "./treasury.js";
@@ -48,20 +44,20 @@ export const calculatePirateEncounterChance = (context: Context) => {
   const wealthFactor = Math.min(1.5, netWorth(context) / 10_000);
   const reputationFactor = Math.max(0.5, (100 - context.reputation) / 100);
   const guardFactor = context.guardFleet.ships * 0.01 * context.guardFleet.quality;
-  const defenseFactor = Math.min(0.2, context.ship.defense / MAX_SHIP_DEFENSE);
+  const defenseFactor = Math.min(0.2, shipStats(context.ship).defense / MAX_SHIP_DEFENSE);
   return Math.max(0.05, Math.min(0.3, baseChance * reputationFactor * wealthFactor - guardFactor - defenseFactor)); // 5%-30% chance
 };
 export const calculateGuardEffectiveness = (context: Context) => {
   const baseEffectiveness = 0.4;
   const qualityBonus = (context.guardFleet.quality - 1) * 0.1;
   const fleetBonus = Math.min(0.3, context.guardFleet.ships * 0.05);
-  const defenseBonus = Math.min(0.2, context.ship.defense / MAX_SHIP_DEFENSE);
+  const defenseBonus = Math.min(0.2, shipStats(context.ship).defense / MAX_SHIP_DEFENSE);
   const overdraftPenalty = isInOverdraft(context) ? 0.5 : 1;
   return Math.min(0.9, (baseEffectiveness + qualityBonus + fleetBonus + defenseBonus) * overdraftPenalty);
 };
 export const calculateEventChance = (template: EventTemplate, context: Context) => {
   let chance = typeof template.baseChance === "number" ? template.baseChance : template.baseChance(context);
-  const speedFactor = Math.max(1, 1 - (context.ship.speed - 8) / 24);
+  const speedFactor = Math.max(1, 1 - (shipStats(context.ship).speed - 8) / 24);
 
   const seasonalModifier = seasonEventEffects[currentSeason(context)]?.[template.type] ?? 1;
   chance *= seasonalModifier;
@@ -106,7 +102,7 @@ export const calculateTravelTime = (to: Port, context: Context) => {
 
   // At 8 knots, a ship travels ~192nmi per day
   // Adding 20% for port operations, weather delays, etc.
-  const daysAtSea = Math.ceil((distance / (context.ship.speed * 24)) * 1.2);
+  const daysAtSea = Math.ceil((distance / (shipStats(context.ship).speed * 24)) * 1.2);
 
   const shipCondition = getShipStatus(context.ship.health);
   const healthPenalty = shipCondition === "Wreckage" ? 2 : shipCondition === "Major damages" ? 1.5 : 1;
@@ -133,7 +129,7 @@ export const calculateDailyMaintenanceCost = (context: Pick<Context, "guardFleet
   context.guardFleet.ships * MAINTENANCE_COST_PER_SHIP * context.guardFleet.quality;
 export const distributeFleetDamage = (damage: number, context: Context) => {
   if (context.guardFleet.ships === 0) {
-    const defenseFactor = Math.max(0.5, 1 - context.ship.defense / MAX_SHIP_DEFENSE);
+    const defenseFactor = Math.max(0.5, 1 - shipStats(context.ship).defense / MAX_SHIP_DEFENSE);
     const reducedDamage = Math.round(damage * defenseFactor);
     return {
       shipDamage: reducedDamage,
@@ -144,7 +140,7 @@ export const distributeFleetDamage = (damage: number, context: Context) => {
   }
 
   // Guards take 70% of the damage, ship takes 30%
-  const defenseFactor = Math.max(0.6, 1 - context.ship.defense / MAX_SHIP_DEFENSE);
+  const defenseFactor = Math.max(0.6, 1 - shipStats(context.ship).defense / MAX_SHIP_DEFENSE);
   const fleetDamage = Math.floor(damage * 0.7);
   const shipDamage = Math.ceil(damage * 0.3 * defenseFactor);
 
@@ -491,41 +487,24 @@ export const getMerchantTip = (context: Context): MerchantTip => {
 export const getShipStatus = (health: number): ShipStatus =>
   health >= 90 ? "Perfect" : health >= 70 ? "Minor damages" : health >= 40 ? "Major damages" : "Wreckage";
 export const calculateCostForRepair = (damageToRepair: number, context: Context) => {
-  const capacityFactor = Math.max(1, Math.sqrt(context.ship.hold.capacity / BASE_SHIP_CAPACITY));
+  const capacityFactor = Math.max(
+    1,
+    Math.sqrt(context.ship.hold.capacity / vesselClassRecord(context.ship.vesselClass).base.capacity),
+  );
   return Math.floor(damageToRepair * DAMAGE_REPAIR_COST_PER_UNIT * capacityFactor); // How much it'll cost to repair `damageToRepair` damage.
 };
 export const calculateRepairForCost = (price: number, context: Context) => {
-  const capacityFactor = Math.max(1, Math.sqrt(context.ship.hold.capacity / BASE_SHIP_CAPACITY));
+  const capacityFactor = Math.max(
+    1,
+    Math.sqrt(context.ship.hold.capacity / vesselClassRecord(context.ship.vesselClass).base.capacity),
+  );
   return Math.floor(price / (DAMAGE_REPAIR_COST_PER_UNIT * capacityFactor)); // How much damage can be repaired with `price`.
 };
 
 // >- UPGRADES -<
-export const getNextSpeedUpgrade = (currentSpeed: number) =>
-  SPEED_UPGRADES.find((upgrade) => upgrade.speed > currentSpeed);
-export const getNextDefenseUpgrade = (currentDefense: number) =>
-  DEFENSE_UPGRADES.find((upgrade) => upgrade.defense > currentDefense);
-export const getNextCapacityUpgrade = (currentCapacity: number) =>
-  CAPACITY_UPGRADES.find((upgrade) => upgrade.capacity > currentCapacity);
-export const getNextUpgrade = (type: UpgradeType, context: Context) => {
-  switch (type) {
-    case "capacity": {
-      return getNextCapacityUpgrade(context.ship.hold.capacity);
-    }
-    case "speed": {
-      return getNextSpeedUpgrade(context.ship.speed);
-    }
-    case "defense": {
-      return getNextDefenseUpgrade(context.ship.defense);
-    }
-    default: {
-      return;
-    }
-  }
-};
-export const canAffordUpgrade = (type: UpgradeType, context: Context) => {
-  const nextUpgrade = getNextUpgrade(type, context);
-
-  return !!nextUpgrade && canAfford(context, nextUpgrade.cost);
+export const canAffordUpgrade = (stat: ShipStat, context: Context) => {
+  const upgrade = nextUpgrade(context.ship, stat);
+  return !!upgrade && canAfford(context, upgrade.cost);
 };
 
 // !! SCORE !!
@@ -539,7 +518,7 @@ export const calculateScore = (context: Context) => {
 
   // Add a logarithmic bonus for ship speed
   // This, too, provides diminishing returns for larger speeds
-  const speedBonus = Math.floor(500 * Math.log2((context.ship.speed - 7) * 2));
+  const speedBonus = Math.floor(500 * Math.log2((shipStats(context.ship).speed - 7) * 2));
   score += speedBonus;
 
   // Calculate damage penalty

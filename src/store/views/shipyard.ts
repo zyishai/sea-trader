@@ -1,14 +1,15 @@
 import { MAX_GUARD_QUALITY, MAX_GUARD_SHIPS } from "../constants.js";
 import { spaceUsed } from "../hold.js";
 import { canAfford, cashOnHand } from "../treasury.js";
-import { Context, UpgradeType } from "../types.js";
+import { Context } from "../types.js";
+import { ShipStat } from "../catalog/vessels.js";
+import { nextUpgrade, shipStats } from "../ship.js";
 import {
   calculateCostForRepair,
   calculateDailyMaintenanceCost,
   calculateFleetUpgradeCost,
   calculateGuardShipCost,
   getFleetQuality,
-  getNextUpgrade,
   getShipStatus,
 } from "../utils.js";
 
@@ -16,11 +17,11 @@ export type Unavailable = "notEnoughMoney" | "maxedOut" | "perfectCondition" | "
 
 const firstReason = (...checks: [boolean, Unavailable][]) => checks.find(([applies]) => applies)?.[1];
 
-const upgradeOffer = (context: Context, type: UpgradeType) => {
-  const upgrade = getNextUpgrade(type, context);
+const upgradeOffer = (context: Context, stat: ShipStat) => {
+  const upgrade = nextUpgrade(context.ship, stat);
   return {
-    type,
-    next: upgrade && ("capacity" in upgrade ? upgrade.capacity : "speed" in upgrade ? upgrade.speed : upgrade.defense),
+    type: stat,
+    next: upgrade?.value,
     cost: upgrade?.cost,
     unavailable: firstReason(
       [!upgrade, "maxedOut"],
@@ -39,7 +40,7 @@ export const shipyardView = (context: Context) => {
     ship: {
       spaceUsed: spaceUsed(ship.hold),
       capacity: ship.hold.capacity,
-      speed: ship.speed,
+      speed: shipStats(ship).speed,
       health: ship.health,
       condition: getShipStatus(ship.health),
     },

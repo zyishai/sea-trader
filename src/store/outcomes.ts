@@ -1,5 +1,6 @@
 import { CargoOffer } from "./cargo-offer.js";
-import { unload, unloadWhere, withCapacity } from "./hold.js";
+import { unload, unloadWhere } from "./hold.js";
+import { addCapacityBonus } from "./ship.js";
 import { Context, Good, Port } from "./types.js";
 import { displayMonetaryValue, distributeFleetDamage } from "./utils.js";
 
@@ -112,7 +113,7 @@ const applyOne = (context: Context, outcome: Outcome): Applied => {
       return {
         context: {
           ...context,
-          ship: { ...context.ship, hold: withCapacity(context.ship.hold, context.ship.hold.capacity + outcome.picul) },
+          ship: addCapacityBonus(context.ship, outcome.picul),
         },
         report: [`The hold can now carry ${outcome.picul} more picul.`],
       };

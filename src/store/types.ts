@@ -1,5 +1,6 @@
 import { seasons, TREND_DIRECTION, TREND_STRENGTH } from "./constants.js";
 import type { MarketSize, Port } from "./catalog/ports.js";
+import type { Ship } from "./ship.js";
 import type { Good } from "./catalog/goods.js";
 import { Rng } from "./rng.js";
 import { Hold } from "./hold.js";
@@ -99,12 +100,7 @@ export type Context = {
     damage: number;
   };
   reputation: number; // 0-100
-  ship: {
-    health: number;
-    defense: number;
-    speed: number;
-    hold: Hold;
-  };
+  ship: Ship;
 
   // Misc
   announcedOverdraft: boolean;
@@ -116,5 +112,3 @@ export type Context = {
 };
 
 // Upgrades
-export type UpgradeType = "speed" | "defense" | "capacity";
-export type ShipClass = "Coastal Junk" | "Brig" | "Clipper";
