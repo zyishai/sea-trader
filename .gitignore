@@ -1,0 +1,14 @@
+node_modules
+dist
+
+.*
+!.gitignore
+!.husky
+!.prettierrc.json
+!.prettierignore
+!.editorconfig
+!.vscode
+!.github
+!.changeset
+
+ROADMAP.md

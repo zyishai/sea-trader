@@ -1,0 +1,538 @@
+import { describe, expect, it } from "vitest";
+import { createActor, type StateValue } from "xstate";
+import { Context } from "./context.js";
+import { gameMachine } from "./game.js";
+import { amountOf, emptyHold, isOverloaded, load } from "./hold.js";
+import { Rng, createRng, seededRng } from "./rng.js";
+import { calculateTravelTime } from "./travel.js";
+import { cargoOfferView } from "./views/cargo-offer.js";
+import { eventView } from "./views/event.js";
+import { voyageResult } from "./views/voyage-result.js";
+import { gamePhase } from "./views/phase.js";
+
+const startGame = (rng: Rng = seededRng(42)) => {
+  const actor = createActor(gameMachine, { input: { rng } }).start();
+  actor.send({ type: "START_GAME" });
+  return actor;
+};
+
+const gameAt = (value: StateValue, patch: (context: Context) => Partial<Context>, rng: Rng = seededRng(42)) => {
+  const context = startGame(rng).getSnapshot().context;
+  const snapshot = gameMachine.resolveState({ value, context: { ...context, ...patch(context) } });
+  return createActor(gameMachine, { snapshot, input: { rng } }).start();
+};
+
+const atMarket = (patch: (context: Context) => Partial<Context> = () => ({})) => gameAt("inPort", patch);
+
+const messagesOf = (actor: ReturnType<typeof startGame>) => actor.getSnapshot().context.notices.flat();
+
+// An unhandled command makes the machine re-run its eventless checks
+const settle = (actor: ReturnType<typeof startGame>) => actor.send({ type: "RESTART_GAME" });
+
+describe("game start", () => {
+  it("opens with the same prices and season for the same seed", () => {
+    const first = startGame(seededRng(42)).getSnapshot().context;
+    const second = startGame(seededRng(42)).getSnapshot().context;
+
+    expect(second.prices).toEqual(first.prices);
+    expect(second.startingSeason).toBe(first.startingSeason);
+  });
+
+  it("opens with different prices for a different seed", () => {
+    expect(startGame(seededRng(7)).getSnapshot().context.prices).not.toEqual(
+      startGame(seededRng(42)).getSnapshot().context.prices,
+    );
+  });
+});
+
+describe("market", () => {
+  it("loads bought goods into the Hold and pays for them", () => {
+    const game = atMarket();
+    const before = game.getSnapshot().context;
+    const price = before.prices[before.currentPort].Wheat;
+
+    game.send({ type: "PURCHASE", good: "Wheat", quantity: 5 });
+
+    const after = game.getSnapshot().context;
+    expect(amountOf(after.ship.hold, "Wheat")).toBe(5);
+    expect(after.balance).toBe(before.balance - 5 * price);
+    expect(amountOf(before.ship.hold, "Wheat")).toBe(0);
+  });
+
+  it("warns once when a purchase overloads the Ship", () => {
+    const game = atMarket((context) => ({ balance: 1_000_000, ship: { ...context.ship, hold: emptyHold(100) } }));
+
+    game.send({ type: "PURCHASE", good: "Wheat", quantity: 105 });
+    game.send({ type: "PURCHASE", good: "Wheat", quantity: 5 });
+
+    expect(isOverloaded(game.getSnapshot().context.ship.hold)).toBe(true);
+    expect(messagesOf(game).filter((message) => message === "Our ship is overloaded, Captain!")).toHaveLength(1);
+  });
+
+  it("refuses a purchase that doesn't fit inside the overload margin", () => {
+    const game = atMarket((context) => ({ balance: 1_000_000, ship: { ...context.ship, hold: emptyHold(100) } }));
+
+    game.send({ type: "PURCHASE", good: "Wheat", quantity: 121 });
+
+    expect(amountOf(game.getSnapshot().context.ship.hold, "Wheat")).toBe(0);
+    expect(game.getSnapshot().context.balance).toBe(1_000_000);
+  });
+
+  it("doesn't buy on credit while in Overdraft", () => {
+    const game = atMarket(() => ({ balance: -10, announcedOverdraft: true }));
+
+    game.send({ type: "PURCHASE", good: "Wheat", quantity: 1 });
+
+    expect(amountOf(game.getSnapshot().context.ship.hold, "Wheat")).toBe(0);
+    expect(game.getSnapshot().context.balance).toBe(-10);
+  });
+
+  it("sells goods from the Hold, but not more than is aboard", () => {
+    const game = atMarket((context) => ({ ship: { ...context.ship, hold: load(emptyHold(100), "Tea", 10).hold } }));
+    const before = game.getSnapshot().context;
+    const price = before.prices[before.currentPort].Tea;
+
+    game.send({ type: "SELL", good: "Tea", quantity: 11 });
+    expect(amountOf(game.getSnapshot().context.ship.hold, "Tea")).toBe(10);
+
+    game.send({ type: "SELL", good: "Tea", quantity: 4 });
+    expect(amountOf(game.getSnapshot().context.ship.hold, "Tea")).toBe(6);
+    expect(game.getSnapshot().context.balance).toBe(before.balance + 4 * price);
+  });
+});
+
+describe("pirate encounter", () => {
+  it("pirates steal from the goods actually aboard when the fight is lost", () => {
+    const losingRolls = createRng(() => 0.95);
+    const game = gameAt(
+      { atSea: "encounter" },
+      (context) => ({ ship: { ...context.ship, hold: load(emptyHold(100), "Tea", 40).hold } }),
+      losingRolls,
+    );
+
+    game.send({ type: "PIRATES_ENCOUNTER_FIGHT" });
+
+    expect(amountOf(game.getSnapshot().context.ship.hold, "Tea")).toBe(26);
+    expect(messagesOf(game)).toContain("Lost 14 picul of Tea.");
+  });
+
+  const atPirates = (patch: (context: Context) => Partial<Context>, rng: Rng) =>
+    gameAt({ atSea: "encounter" }, patch, rng);
+
+  it("wins a fight, taking loot and reputation", () => {
+    const game = atPirates(
+      () => ({ balance: 1000, reputation: 50 }),
+      createRng(() => 0.01),
+    );
+
+    game.send({ type: "PIRATES_ENCOUNTER_FIGHT" });
+
+    const { context } = game.getSnapshot();
+    expect(context.balance).toBeGreaterThan(1000);
+    expect(context.reputation).toBe(55);
+    expect(messagesOf(game)).toEqual(expect.arrayContaining(["We drove them off, Captain!", "Gained 5 reputation."]));
+  });
+
+  it("slips away from the pirates without a scratch", () => {
+    const game = atPirates(
+      () => ({}),
+      createRng(() => 0.01),
+    );
+
+    game.send({ type: "PIRATES_ENCOUNTER_FLEE" });
+
+    expect(game.getSnapshot().context.ship.health).toBe(100);
+    expect(messagesOf(game)).toContain("Captain, we maneuvered away from the pirates without a scratch!");
+  });
+});
+
+describe("cargo offer", () => {
+  const hongKongPrices = { Wheat: 100, Tea: 400, Spices: 800, Opium: 2000, Porcelain: 300 };
+  const luckyRolls = createRng(() => 0.1);
+
+  const exploreIsland = (hold = emptyHold(100)) => {
+    const game = gameAt(
+      { atSea: { event: "multi_choice" } },
+      (context) => ({ ship: { ...context.ship, hold }, currentEvent: "uncharted-island", destination: "Shanghai" }),
+      luckyRolls,
+    );
+    game.send({ type: "RESOLVE_EVENT", choice: "E" });
+    return game;
+  };
+
+  const offered = (cargoOffer: Context["cargoOffer"]) =>
+    gameAt({ atSea: "cargoOffer" }, (context) => ({
+      ship: { ...context.ship, hold: emptyHold(100) },
+      cargoOffer,
+      destination: "Shanghai",
+      prices: { ...context.prices, [context.currentPort]: hongKongPrices },
+    }));
+
+  const isAsking = (game: ReturnType<typeof startGame>) => game.getSnapshot().matches({ atSea: "cargoOffer" });
+
+  it("loads found goods that fit without asking", () => {
+    const game = exploreIsland();
+
+    expect(amountOf(game.getSnapshot().context.ship.hold, "Wheat")).toBe(20);
+    expect(isAsking(game)).toBe(false);
+  });
+
+  it("asks the Captain when found goods don't fit", () => {
+    expect(isAsking(exploreIsland(load(emptyHold(100), "Tea", 90).hold))).toBe(true);
+  });
+
+  it("doesn't ask when there is no room either way", () => {
+    const game = exploreIsland(load(emptyHold(100), "Tea", 120).hold);
+
+    expect(isAsking(game)).toBe(false);
+    expect(amountOf(game.getSnapshot().context.ship.hold, "Wheat")).toBe(0);
+  });
+
+  it("shows both choices with their amounts", () => {
+    expect(cargoOfferView(offered({ Wheat: 60, Opium: 70 }).getSnapshot().context)).toEqual({
+      offered: 130,
+      takeAll: { picul: 120, overloads: true },
+      takeFitting: { picul: 100 },
+    });
+  });
+
+  it("takes only what fits, most valuable goods first", () => {
+    const game = offered({ Wheat: 60, Opium: 70 });
+
+    game.send({ type: "TAKE_CARGO", overload: false });
+
+    const { hold } = game.getSnapshot().context.ship;
+    expect(amountOf(hold, "Opium")).toBe(70);
+    expect(amountOf(hold, "Wheat")).toBe(30);
+    expect(isOverloaded(hold)).toBe(false);
+  });
+
+  it("takes as much as the Ship can carry, overloading it", () => {
+    const game = offered({ Wheat: 60, Opium: 70 });
+
+    game.send({ type: "TAKE_CARGO", overload: true });
+
+    const { hold } = game.getSnapshot().context.ship;
+    expect(amountOf(hold, "Opium")).toBe(70);
+    expect(amountOf(hold, "Wheat")).toBe(50);
+    expect(isOverloaded(hold)).toBe(true);
+    expect(game.getSnapshot().context.cargoOffer).toBeUndefined();
+  });
+});
+
+describe("money", () => {
+  const atMenu = (patch: (context: Context) => Partial<Context>, rng?: Rng) => {
+    const game = gameAt("inPort", patch, rng);
+    settle(game);
+    return game;
+  };
+
+  it("charges Upkeep for every day at sea", () => {
+    const calmSeas = createRng(() => 0.99);
+    const game = gameAt(
+      "inPort",
+      (context) => ({ balance: 1000, guardFleet: { ...context.guardFleet, ships: 2, quality: 1 } }),
+      calmSeas,
+    );
+    const before = game.getSnapshot().context;
+
+    game.send({ type: "TRAVEL_TO", destination: "Shanghai" });
+
+    const after = game.getSnapshot().context;
+    const daysAtSea = after.day - before.day;
+    expect(daysAtSea).toBeGreaterThan(0);
+    expect(after.balance).toBe(1000 - 50 * daysAtSea);
+    expect(after.currentPort).toBe("Shanghai");
+    expect(messagesOf(game)).toContain("Arrived at Shanghai");
+  });
+
+  it("sells the Guard Fleet at a loss when the Overdraft grows too deep", () => {
+    const game = atMenu((context) => ({
+      balance: -2500,
+      announcedOverdraft: true,
+      guardFleet: { ...context.guardFleet, ships: 2, quality: 1 },
+    }));
+
+    expect(game.getSnapshot().context.guardFleet.ships).toBe(0);
+    expect(game.getSnapshot().context.balance).toBe(-1460);
+  });
+});
+
+describe("overdraft notices", () => {
+  const atMenu = (patch: (context: Context) => Partial<Context>) => {
+    const game = gameAt("inPort", patch);
+    settle(game);
+    return game;
+  };
+
+  it("announces falling into Overdraft once", () => {
+    const game = gameAt("inPort", (context) => ({ balance: -50 }));
+    game.send({ type: "RESTART_GAME" });
+    game.send({ type: "RESTART_GAME" });
+
+    expect(
+      messagesOf(game).filter((message) => message === "Captain, we're in debt with the moneylenders."),
+    ).toHaveLength(1);
+  });
+
+  it("announces leaving Overdraft", () => {
+    const game = atMenu(() => ({ balance: 10, announcedOverdraft: true }));
+
+    expect(messagesOf(game)).toContain("We're no longer in overdraft, Captain!");
+  });
+});
+
+describe("bribing pirates", () => {
+  it("has nothing to offer while in Overdraft", () => {
+    const game = gameAt({ atSea: "encounter" }, () => ({
+      balance: -500,
+      announcedOverdraft: true,
+    }));
+
+    game.send({ type: "PIRATES_ENCOUNTER_OFFER" });
+
+    expect(game.getSnapshot().context.balance).toBeLessThanOrEqual(-500);
+    expect(messagesOf(game)).toContain("We have nothing to offer them, Captain!");
+  });
+});
+
+describe("voyage end", () => {
+  const atMenu = (patch: (context: Context) => Partial<Context>) => gameAt("inPort", patch);
+
+  it("retires with a score even when slightly in Overdraft", () => {
+    const game = atMenu(() => ({ balance: -100, announcedOverdraft: true, day: 200 }));
+
+    game.send({ type: "RETIRE" });
+
+    expect(game.getSnapshot().matches("ended")).toBe(true);
+    expect(voyageResult(game.getSnapshot().context).end).toBe("retired");
+    expect(voyageResult(game.getSnapshot().context).score).toBeGreaterThan(0);
+  });
+
+  it("refuses to declare bankruptcy while the Captain can still trade", () => {
+    const game = atMenu(() => ({ balance: 1500 }));
+
+    game.send({ type: "DECLARE_BANKRUPTCY" });
+
+    expect(game.getSnapshot().matches("ended")).toBe(false);
+    expect(messagesOf(game)).toContain("You're not bankrupt!");
+  });
+
+  it("lets a Stranded Captain declare bankruptcy", () => {
+    const game = atMenu(() => ({ balance: 0 }));
+
+    game.send({ type: "DECLARE_BANKRUPTCY" });
+
+    expect(voyageResult(game.getSnapshot().context)).toMatchObject({ end: "declaredBankrupt", score: 0 });
+  });
+
+  it("declares bankruptcy while in Overdraft, scoring nothing", () => {
+    const game = atMenu(() => ({ balance: -1, announcedOverdraft: true }));
+
+    game.send({ type: "DECLARE_BANKRUPTCY" });
+
+    expect(voyageResult(game.getSnapshot().context)).toMatchObject({ end: "declaredBankrupt", score: 0 });
+  });
+
+  it("goes bankrupt when the Overdraft passes the limit", () => {
+    const game = atMenu(() => ({ balance: -4001, announcedOverdraft: true }));
+    settle(game);
+
+    expect(voyageResult(game.getSnapshot().context)).toMatchObject({ end: "bankrupt", score: 0 });
+  });
+
+  it("is shipwrecked when the wreck can't be repaired", () => {
+    const game = atMenu((context) => ({ balance: 0, ship: { ...context.ship, health: 10 } }));
+    settle(game);
+
+    expect(voyageResult(game.getSnapshot().context).end).toBe("shipwrecked");
+  });
+});
+
+describe("events", () => {
+  const duringStorm = () =>
+    gameAt({ atSea: { event: "multi_choice" } }, () => ({
+      currentEvent: "storm",
+      destination: "Shanghai",
+    }));
+
+  it("keeps only the Event's id in game state", () => {
+    const { context } = duringStorm().getSnapshot();
+
+    expect(JSON.parse(JSON.stringify(context.currentEvent))).toBe("storm");
+    expect(eventView(context)).toEqual({
+      message: "A storm approaches our vessel, Captain. What's your course of action?",
+      choices: [
+        { label: "Brave the storm", key: "B" },
+        { label: "Take a detour", key: "D" },
+      ],
+    });
+  });
+
+  it("adds an Event's Delay to the passage", () => {
+    const game = duringStorm();
+    const before = game.getSnapshot().context;
+
+    game.send({ type: "RESOLVE_EVENT", choice: "D" });
+
+    const after = game.getSnapshot().context;
+    expect(after.day).toBe(before.day + calculateTravelTime("Shanghai", before) + 3);
+    expect(after.delayDays).toBeUndefined();
+  });
+
+  it("tells the story and reports each Outcome", () => {
+    const game = duringStorm();
+    const before = game.getSnapshot().context;
+
+    game.send({ type: "RESOLVE_EVENT", choice: "B" });
+
+    expect(game.getSnapshot().context.ship.health).toBe(before.ship.health - 20);
+    expect(messagesOf(game)).toEqual(
+      expect.arrayContaining([
+        "We weathered the storm, but it battered the ship.",
+        "Our ship took 20 damage.",
+        "We lost 1 day.",
+      ]),
+    );
+  });
+
+  it("applies an Event without choices straight away", () => {
+    const game = gameAt({ atSea: "checkEvent" }, () => ({ currentEvent: "light-breeze", destination: "Shanghai" }));
+
+    settle(game);
+
+    expect(messagesOf(game)).toEqual(
+      expect.arrayContaining(["A light breeze speeds up our journey.", "We saved a day."]),
+    );
+    expect(gamePhase(game.getSnapshot())).toBe("inPort");
+  });
+});
+
+describe("game phases", () => {
+  const calmSeas = createRng(() => 0.99);
+
+  it("waits idle until a Voyage starts, then is In Port", () => {
+    const game = createActor(gameMachine, { input: { rng: calmSeas } }).start();
+    expect(gamePhase(game.getSnapshot())).toBe("idle");
+
+    game.send({ type: "START_GAME" });
+    expect(gamePhase(game.getSnapshot())).toBe("inPort");
+  });
+
+  it("sails At Sea and is back In Port on arrival", () => {
+    const game = gameAt("inPort", () => ({}), calmSeas);
+
+    game.send({ type: "TRAVEL_TO", destination: "Manila" });
+
+    expect(gamePhase(game.getSnapshot())).toBe("inPort");
+    expect(game.getSnapshot().context.currentPort).toBe("Manila");
+  });
+
+  it("stops At Sea for a Pirate Encounter", () => {
+    const game = gameAt(
+      "inPort",
+      () => ({}),
+      createRng(() => 0.01),
+    );
+
+    game.send({ type: "TRAVEL_TO", destination: "Manila" });
+
+    expect(gamePhase(game.getSnapshot())).toBe("encounter");
+  });
+
+  it("refuses to set sail once a classic Voyage is over", () => {
+    const game = gameAt("inPort", () => ({ day: 200 }), calmSeas);
+
+    game.send({ type: "TRAVEL_TO", destination: "Manila" });
+
+    expect(game.getSnapshot().context.currentPort).toBe("Hong Kong");
+    expect(messagesOf(game)).toContain("You've finished your 200 days voyage.");
+  });
+
+  it("ends the Voyage and can start over", () => {
+    const game = gameAt("inPort", () => ({ day: 200 }));
+
+    game.send({ type: "RETIRE" });
+    expect(gamePhase(game.getSnapshot())).toBe("ended");
+
+    game.send({ type: "RESTART_GAME" });
+    expect(gamePhase(game.getSnapshot())).toBe("idle");
+  });
+});
+
+describe("notices", () => {
+  it("keeps every Notice in a log and emits each one", () => {
+    const game = atMarket();
+    const emitted: string[][] = [];
+    game.on("notice", ({ lines }) => emitted.push(lines));
+
+    game.send({ type: "PURCHASE", good: "Wheat", quantity: 1 });
+    game.send({ type: "PURCHASE", good: "Wheat", quantity: 1 });
+
+    expect(game.getSnapshot().context.notices).toHaveLength(2);
+    expect(emitted).toEqual(game.getSnapshot().context.notices);
+  });
+});
+
+describe("command results", () => {
+  const results = (game: ReturnType<typeof startGame>) => {
+    const seen: { command: string; accepted: boolean; reason?: string }[] = [];
+    game.on("commandResult", ({ command, accepted, reason }) => seen.push({ command, accepted, reason }));
+    return seen;
+  };
+
+  it("reports an accepted order", () => {
+    const game = atMarket();
+    const seen = results(game);
+
+    game.send({ type: "PURCHASE", good: "Wheat", quantity: 1 });
+
+    expect(seen).toEqual([{ command: "PURCHASE", accepted: true, reason: undefined }]);
+  });
+
+  it("reports why an order was refused", () => {
+    const game = atMarket(() => ({ balance: 10 }));
+    const seen = results(game);
+
+    game.send({ type: "PURCHASE", good: "Opium", quantity: 1 });
+
+    expect(seen).toEqual([{ command: "PURCHASE", accepted: false, reason: "notEnoughMoney" }]);
+  });
+
+  it("refuses fractional and empty quantities", () => {
+    const game = atMarket(() => ({ balance: 100_000 }));
+    const seen = results(game);
+
+    game.send({ type: "PURCHASE", good: "Wheat", quantity: 1.5 });
+    game.send({ type: "PURCHASE", good: "Wheat", quantity: 0 });
+
+    expect(seen.map(({ reason }) => reason)).toEqual(["invalidQuantity", "invalidQuantity"]);
+    expect(amountOf(game.getSnapshot().context.ship.hold, "Wheat")).toBe(0);
+  });
+
+  it("emits each phase the Voyage enters", () => {
+    const game = gameAt(
+      "inPort",
+      () => ({}),
+      createRng(() => 0.01),
+    );
+    const phases: string[] = [];
+    game.on("phaseChanged", ({ phase }) => phases.push(phase));
+
+    game.send({ type: "TRAVEL_TO", destination: "Manila" });
+    game.send({ type: "PIRATES_ENCOUNTER_FLEE" });
+
+    expect(phases).toEqual(["encounter", "inPort"]);
+  });
+});
+
+describe("game settings", () => {
+  it("keeps only Voyage rules in game state, not display preferences", () => {
+    const game = createActor(gameMachine, { input: { rng: seededRng(1) } }).start();
+
+    game.send({ type: "START_GAME", settings: { extendedGame: true } });
+
+    expect(game.getSnapshot().context.extendedGame).toBe(true);
+    expect(game.getSnapshot().context).not.toHaveProperty("settings");
+  });
+});

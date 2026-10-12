@@ -1,6 +1,6 @@
 {
   "name": "ctrader",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Turn-based strategic trading game",
   "type": "module",
   "publishConfig": {
@@ -8,11 +8,15 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "dev": "npm run build && DEV=true dist/cli.js",
-    "build": "tsc",
-    "ci": "npm run build",
+    "dev": "npm run build && DEV=true node dist/cli.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "ci": "npm run format:check && npm run lint && npm run typecheck && npm run build && npm test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
-    "prepare": "husky install",
+    "prepare": "husky",
     "pre-commit": "lint-staged",
     "prepublish": "npm run build",
     "prepublishOnly": "npm run ci",
@@ -92,9 +96,10 @@
     "vitest": "^2.1.4"
   },
   "lint-staged": {
-    "*.{ts,tsx}": [
+    "*.{js,ts,tsx}": [
       "prettier --write",
       "eslint --fix --max-warnings=0"
-    ]
+    ],
+    "*.{json,md,yml,yaml}": "prettier --write"
   }
 }
