@@ -37,20 +37,20 @@ A single change an Event or Pirate Encounter makes to the Ship, the Balance, the
 _Avoid_: Effect, consequence, result
 
 **Ship**:
-The Captain's single merchant vessel. It has a class, condition, speed, defense and one Hold. The Captain owns one Ship at a time and may change its class.
+The Captain's single merchant vessel. It has a Vessel Class, condition, speed, defense and one Hold. The Captain owns one Ship at a time and may change its Vessel Class.
 _Avoid_: Vessel, boat
+
+**Vessel Class**:
+A kind of Ship, such as a Coastal Junk, with its own base speed, defense and capacity and its own upgrade ladders.
+_Avoid_: Ship type, model, hull
 
 **Hold**:
 The cargo carried aboard the Ship: how much of each good is aboard, and how much room the Ship has. Goods are tracked as amounts per good, not as individual purchases.
 _Avoid_: Inventory, storage, cargo bay
 
 **Picul**:
-The unit for both goods and Hold capacity, about 60 kg (one porter's load). A Ship's capacity is how many picul it can carry.
-_Avoid_: Tons burden, storage units, units of storage
-
-**Bulkiness**:
-How much Hold capacity one picul of a good takes up. Most goods take exactly one picul of capacity; bulky goods take more.
-_Avoid_: Volume, size
+The unit for both goods and Hold capacity, about 60 kg (one porter's load). A Ship's capacity is how many picul it can carry, and one picul of any Good takes one picul of capacity.
+_Avoid_: Tons burden, storage units, units of storage, bulkiness
 
 **Overloaded**:
 A Hold carrying more than the Ship's capacity, within a limited extra margin. An Overloaded Ship sails slower, flees pirates less easily, and suffers more from storms and cargo shifting.
@@ -67,6 +67,28 @@ _Avoid_: Guards, escorts
 **Upkeep**:
 The daily cost of keeping the Guard Fleet. While the Captain is in Overdraft, Upkeep goes unpaid and the fleet fights at reduced strength; unpaid days are forgiven, not billed later.
 _Avoid_: Maintenance, fleet fee
+
+### World
+
+**Good**:
+A commodity traded between Ports, such as Tea or Porcelain, with its own base price, volatility and seasonal swings.
+_Avoid_: Item, product, commodity, merchandise
+
+**Port**:
+A harbor where the Captain trades and repairs. Each Port has a market size and may be a Trading Hub or produce some Goods.
+_Avoid_: City, harbor, location
+
+**Sea Route**:
+The distance in nautical miles between two Ports, the same in both directions.
+_Avoid_: Path, lane, distance matrix
+
+**Trading Hub**:
+A Port whose busy market keeps prices slightly lower for every Good.
+_Avoid_: Hub, entrepôt
+
+**Produced Good**:
+A Good a Port makes locally, so it sells there below its usual price.
+_Avoid_: Specialty, local good, export
 
 ### Money
 
