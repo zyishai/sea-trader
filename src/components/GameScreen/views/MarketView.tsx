@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Text } from "ink";
+import { useNavigation } from "../Navigation.js";
 import { GameContext } from "../../GameContext.js";
 import { MarketContext } from "../MarketContext.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
@@ -48,7 +49,7 @@ export function MarketView() {
 }
 
 function MarketOverview() {
-  const actor = GameContext.useActorRef();
+  const { navigate } = useNavigation();
   const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
   const { merchantTip } = GameContext.useSelector((snapshot) => marketView(snapshot.context));
   const market = MarketContext.useActorRef();
@@ -89,7 +90,7 @@ function MarketOverview() {
           message="Actions:"
           actions={availableActions.map((action, index) => ({ ...action, key: String(index + 1) }))}
           onSelect={onSelectAction}
-          onCancel={() => actor.send({ type: "CANCEL" })}
+          onCancel={() => navigate("menu")}
           backMessage="Press [Esc] to leave market"
         />
       ) : (
@@ -97,7 +98,7 @@ function MarketOverview() {
           message="Actions:"
           actions={availableActions}
           onSelect={onSelectAction}
-          onCancel={() => actor.send({ type: "CANCEL" })}
+          onCancel={() => navigate("menu")}
           backMessage="Press [Esc] to leave market"
         />
       )}

@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Text } from "ink";
+import { useNavigation } from "../Navigation.js";
 import { GameContext } from "../../GameContext.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
 import { ActionPrompt as ActionPromptArrows } from "../../prompts/arrows/ActionPrompt.js";
@@ -11,12 +12,14 @@ import { travelOptions } from "../../../store/views/travel.js";
 
 export function PortView() {
   const actor = GameContext.useActorRef();
+  const { navigate } = useNavigation();
   const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
   const destinations = GameContext.useSelector((snapshot) => travelOptions(snapshot.context));
 
   const availableActions = destinations.map(({ port }) => ({ label: port, value: port }));
   const handleSelectPort = (value: string) => {
     actor.send({ type: "TRAVEL_TO", destination: value as Port });
+    navigate("menu");
   };
 
   return (
@@ -43,14 +46,14 @@ export function PortView() {
           message="Where should we sail to, Captain?"
           actions={availableActions.map((action, index) => ({ ...action, key: String(index + 1) }))}
           onSelect={handleSelectPort}
-          onCancel={() => actor.send({ type: "CANCEL" })}
+          onCancel={() => navigate("menu")}
         />
       ) : (
         <ActionPromptArrows
           message="Where should we sail to, Captain?"
           actions={availableActions}
           onSelect={handleSelectPort}
-          onCancel={() => actor.send({ type: "CANCEL" })}
+          onCancel={() => navigate("menu")}
         />
       )}
     </Box>

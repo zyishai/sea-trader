@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Text } from "ink";
+import { useNavigation } from "../Navigation.js";
 import { GameContext } from "../../GameContext.js";
 import { ShipyardContext } from "../ShipyardContext.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
@@ -68,7 +69,7 @@ export function ShipyardView() {
 }
 
 function ShipyardOverview() {
-  const actor = GameContext.useActorRef();
+  const { navigate } = useNavigation();
   const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
   const { repair } = useShipyardView();
   const shipyard = ShipyardContext.useActorRef();
@@ -107,7 +108,7 @@ function ShipyardOverview() {
         .filter((action) => !action.disabled)
         .map((action, index) => ({ ...action, key: String(index + 1) }))}
       onSelect={onSelectAction}
-      onCancel={() => actor.send({ type: "CANCEL" })}
+      onCancel={() => navigate("menu")}
       backMessage="Press [Esc] to leave shipyard"
     />
   ) : (
@@ -115,7 +116,7 @@ function ShipyardOverview() {
       message="Actions:"
       actions={availableActions}
       onSelect={onSelectAction}
-      onCancel={() => actor.send({ type: "CANCEL" })}
+      onCancel={() => navigate("menu")}
       backMessage="Press [Esc] to leave shipyard"
     />
   );

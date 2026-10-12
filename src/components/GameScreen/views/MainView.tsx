@@ -9,12 +9,13 @@ import { ConfirmPrompt as ConfirmPromptKeyboard } from "../../prompts/keyboard/C
 import { ConfirmPrompt as ConfirmPromptArrows } from "../../prompts/arrows/ConfirmPrompt.js";
 import { menuMachine } from "../../../store/ui/menu.js";
 import { mainMenuView } from "../../../store/views/main-menu.js";
+import { useNavigation } from "../Navigation.js";
 
 export function MainView() {
-  const actor = GameContext.useActorRef();
   const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
   const { canRetire, canDeclareBankruptcy } = GameContext.useSelector((snapshot) => mainMenuView(snapshot.context));
   const [snapshot, send] = useMachine(menuMachine);
+  const { navigate } = useNavigation();
 
   const availableActions = [
     { label: "Go to Port", value: "go_to_port" },
@@ -26,15 +27,15 @@ export function MainView() {
   const handleSelectAction = (value: string) => {
     switch (value) {
       case "go_to_port": {
-        actor.send({ type: "GO_TO_PORT" });
+        navigate("port");
         break;
       }
       case "visit_market": {
-        actor.send({ type: "GO_TO_MARKET" });
+        navigate("market");
         break;
       }
       case "visit_shipyard": {
-        actor.send({ type: "GO_TO_SHIPYARD" });
+        navigate("shipyard");
         break;
       }
       case "retire": {

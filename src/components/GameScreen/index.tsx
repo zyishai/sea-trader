@@ -6,6 +6,8 @@ import { CargoOfferView, MainView, PortView, MarketView, ShipyardView, PiratesVi
 import { ActionPrompt as ActionPromptKeyboard } from "../prompts/keyboard/ActionPrompt.js";
 import { ActionPrompt as ActionPromptArrows } from "../prompts/arrows/ActionPrompt.js";
 import { StatusBar } from "./StatusBar.js";
+import { NavigationProvider, useNavigation } from "./Navigation.js";
+import { gamePhase } from "../../store/views/phase.js";
 import { Badge } from "@inkjs/ui";
 import { MarketContext } from "./MarketContext.js";
 import { ShipyardContext } from "./ShipyardContext.js";
@@ -38,15 +40,24 @@ export function Layout({ children }: React.PropsWithChildren) {
 }
 
 export function GameScreen() {
-  return <Layout>{getCurrentView()}</Layout>;
+  return (
+    <NavigationProvider>
+      <Layout>
+        <CurrentView />
+      </Layout>
+    </NavigationProvider>
+  );
 }
 
-function getCurrentView() {
-  const machine = GameContext.useSelector((snapshot) => snapshot);
-  const hasMessages = machine.context.messages && machine.context.messages.length > 0;
-  const hasInteractiveEvent = machine.matches({ gameScreen: { at_port: { eventOccurred: "multi_choice" } } });
-  const piratesEncountered = machine.matches({ gameScreen: { at_port: "piratesEncountered" } });
-  const hasCargoOffer = machine.matches({ gameScreen: { at_port: "cargoOffer" } });
+function CurrentView() {
+  const phase = GameContext.useSelector(gamePhase);
+  const hasMessages = GameContext.useSelector((snapshot) => snapshot.context.messages.length > 0);
+  const hasInteractiveEvent = GameContext.useSelector(
+    (snapshot) => gamePhase(snapshot) === "event" && snapshot.matches({ atSea: { event: "multi_choice" } }),
+  );
+  const { screen } = useNavigation();
+  const piratesEncountered = phase === "encounter";
+  const hasCargoOffer = phase === "cargoOffer";
 
   if (hasMessages) {
     return <Messages />;
@@ -64,15 +75,15 @@ function getCurrentView() {
     return <CargoOfferView />;
   }
 
-  if (machine.matches({ gameScreen: "menu" })) {
+  if (screen === "menu") {
     return <MainView />;
   }
 
-  if (machine.matches({ gameScreen: "at_port" })) {
+  if (screen === "port") {
     return <PortView />;
   }
 
-  if (machine.matches({ gameScreen: "at_market" })) {
+  if (screen === "market") {
     return (
       <MarketContext.Provider>
         <MarketView />
@@ -80,7 +91,7 @@ function getCurrentView() {
     );
   }
 
-  if (machine.matches({ gameScreen: "at_shipyard" })) {
+  if (screen === "shipyard") {
     return (
       <ShipyardContext.Provider>
         <ShipyardView />

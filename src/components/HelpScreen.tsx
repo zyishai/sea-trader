@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Box, DOMElement, measureElement, Text, useInput } from "ink";
-import { GameContext } from "./GameContext.js";
 import BigText from "ink-big-text";
 import { OrderedList, UnorderedList } from "@inkjs/ui";
 import { useAnchorToTop } from "./Viewport.js";
 import { displayMonetaryValue, joinWords } from "../store/format.js";
 import { helpView } from "../store/views/help.js";
 
-export function HelpScreen() {
-  const actor = GameContext.useActorRef();
+export function HelpScreen({ onClose }: { onClose: () => void }) {
   const { portCount, goods, startingBalance, voyageLength } = helpView();
   const [ref, setRef] = useState<DOMElement | null>(null);
   const [width, setWidth] = useState(0);
@@ -23,7 +21,7 @@ export function HelpScreen() {
 
   useInput((input, key) => {
     if (input.toUpperCase() === "H") {
-      actor.send({ type: "HIDE_HELP" });
+      onClose();
     } else if (key.escape) {
       process.exit();
     }

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { GameContext } from "./GameContext.js";
 import { Badge } from "@inkjs/ui";
 
-export function StartScreen() {
+export function StartScreen({ onShowHelp }: { onShowHelp: () => void }) {
   const actor = GameContext.useActorRef();
   const [ref, setRef] = useState<DOMElement | null>(null);
   const [width, setWidth] = useState(0);
@@ -23,7 +23,7 @@ export function StartScreen() {
     if (key.return) {
       actor.send({ type: "START_GAME", settings: { extendedGame, disableAnimations, controls } });
     } else if (input.toUpperCase() === "H") {
-      actor.send({ type: "SHOW_HELP" });
+      onShowHelp();
     } else if (input.toUpperCase() === "M") {
       setExtendedGame((eg) => !eg);
     } else if (input.toUpperCase() === "A") {

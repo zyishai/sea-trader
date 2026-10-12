@@ -75,505 +75,350 @@ export const gameMachine = setup({
     }),
   },
 }).createMachine({
-  initial: "introScreen",
+  initial: "idle",
   context: ({ input }) => initialContext(input.rng),
+  on: {
+    MSG_ACK: { actions: { type: "acknoledgeMessage" } },
+  },
   states: {
-    introScreen: {
+    idle: {
       on: {
         START_GAME: {
-          target: "gameScreen",
+          target: "inPort",
           actions: assign(({ context, event }) => initialContext(context.rng, event.settings)),
         },
-        SHOW_HELP: { target: "helpScreen" },
       },
     },
-    gameScreen: {
-      initial: "menu",
-      states: {
-        menu: {
-          id: "mainMenu",
-          on: {
-            GO_TO_PORT: [
-              {
-                meta: {
-                  description: "Check the player can travel (or explore)",
-                },
-                guard: ({ context }) => context.day >= GOAL_DAYS && !context.extendedGame,
-                actions: {
-                  type: "displayMessages",
-                  params: [`You've finished your ${GOAL_DAYS} days voyage.`],
-                },
-              },
-              { target: "at_port" },
-            ],
-            GO_TO_MARKET: { target: "at_market" },
-            GO_TO_SHIPYARD: { target: "at_shipyard" },
+    inPort: {
+      id: "inPort",
+      on: {
+        PURCHASE: [
+          {
+            meta: {
+              description: "Check that player has enough cash",
+            },
+            guard: ({ context, event }) => !canAfford(context, calculatePrice({ ...context, ...event })),
+            actions: {
+              type: "displayMessages",
+              params: ({ context, event }) => [
+                `Captain, you don't have enough money. You need ${displayMonetaryValue(calculatePrice({ ...context, ...event }))} to purchase ${event.quantity} picul of ${event.good.toLowerCase()}`,
+              ],
+            },
           },
-        },
-        at_port: {
-          initial: "menu",
-          states: {
-            menu: {
-              on: {
-                TRAVEL_TO: [
-                  {
-                    guard: ({ context }) => getShipStatus(context.ship.health) === "Wreckage",
-                    actions: {
-                      type: "displayMessages",
-                      params: ["Our ship is a wreckage, Captain.", "We can't travel until we repair it."],
-                    },
-                  },
-                  {
-                    target: "checkPiratesEncounter",
-                    actions: assign(({ event, context }) => ({
-                      destination: event.destination,
-                      currentEvent: checkForEvent(context)?.id,
-                    })),
-                  },
+          {
+            meta: {
+              description: "Check that player has enough cargo space",
+            },
+            guard: ({ context, event }) => fitsAboard(context.ship.hold, { overload: true }) < event.quantity,
+            actions: {
+              type: "displayMessages",
+              params: ({ context, event }) => [
+                `Captain, we don't have room in the hold for ${event.quantity} picul of ${event.good.toLowerCase()}.`,
+                `We have room for ${freeSpace(context.ship.hold)} more picul (${marginLeft(context.ship.hold)} if we overload).`,
+              ],
+            },
+          },
+          {
+            actions: enqueueActions(({ enqueue, context, event }) => {
+              const cost = calculatePrice({ ...context, ...event });
+              const { hold, becameOverloaded } = load(context.ship.hold, event.good, event.quantity);
+
+              enqueue.assign({ ship: { ...context.ship, hold }, balance: context.balance - cost });
+              enqueue({
+                type: "displayMessages",
+                params: [
+                  `Purchased ${event.quantity} picul of ${event.good} for ${displayMonetaryValue(cost)}.`,
+                  `We have room for ${freeSpace(hold)} more picul, Captain.`,
                 ],
-                CANCEL: { target: "#mainMenu" },
+              });
+              if (becameOverloaded) {
+                enqueue({ type: "displayMessages", params: OVERLOADED_MESSAGES });
+              }
+            }),
+          },
+        ],
+        SELL: [
+          {
+            meta: {
+              description: "Check that player has enough to sell",
+            },
+            guard: ({ context, event }) => amountOf(context.ship.hold, event.good) < event.quantity,
+            actions: {
+              type: "displayMessages",
+              params: ({ event }) => [`Captain, we don't have enough ${event.good.toLowerCase()} in our hold.`],
+            },
+          },
+          {
+            actions: [
+              assign(({ context, event }) => ({
+                ship: { ...context.ship, hold: unload(context.ship.hold, event.good, event.quantity).hold },
+                balance: context.balance + calculatePrice({ ...context, ...event }),
+              })),
+              {
+                type: "displayMessages",
+                params: ({ context, event }) => [
+                  `Sold ${event.quantity} picul of ${event.good} for ${displayMonetaryValue(
+                    calculatePrice({
+                      ...context,
+                      ...event,
+                    }),
+                  )}.`,
+                  `We have room for ${freeSpace(context.ship.hold)} more picul, Captain.`,
+                ],
               },
+            ],
+          },
+        ],
+        REPAIR: [
+          {
+            meta: {
+              description: "Check that player's ship is damaged",
             },
-            checkPiratesEncounter: {
-              always: [
-                {
-                  guard: ({ context }) => context.rng.chance(calculatePirateEncounterChance(context)),
-                  target: "piratesEncountered",
-                },
-                { target: "checkEvent" },
-              ],
+            guard: ({ context }) => context.ship.health === 100,
+            actions: { type: "displayMessages", params: ["Captain, your ship is already in perfect condition"] },
+          },
+          {
+            meta: {
+              description: "Check the player has enough cash",
             },
-            piratesEncountered: {
-              on: {
-                PIRATES_ENCOUNTER_FIGHT: {
-                  actions: assign(({ context }) => applyEventResult(context, fightPirates(context))),
-                  target: "traveling",
-                },
-                PIRATES_ENCOUNTER_FLEE: {
-                  actions: assign(({ context }) => applyEventResult(context, fleePirates(context))),
-                  target: "traveling",
-                },
-                PIRATES_ENCOUNTER_OFFER: {
-                  actions: assign(({ context }) => applyEventResult(context, bribePirates(context))),
-                  target: "traveling",
-                },
-              },
+            guard: ({ context, event }) => !canAfford(context, event.cash),
+            actions: {
+              type: "displayMessages",
+              params: ["Captain, we don't have enough cash to pay for this repair"],
             },
-            checkEvent: {
-              always: [
-                { guard: ({ context }) => !!context.currentEvent, target: "eventOccurred" },
-                { target: "traveling" },
-              ],
-            },
-            eventOccurred: {
-              initial: "determine_type",
-              states: {
-                determine_type: {
-                  always: [
-                    {
-                      guard: ({ context }) => !!currentEventOf(context)?.choices,
-                      target: "multi_choice",
-                    },
-                    {
-                      guard: ({ context }) => !!currentEventOf(context)?.effect,
-                      target: "no_choice",
-                    },
-                  ],
-                },
-                no_choice: {
-                  entry: [{ type: "displayMessages", params: ({ context }) => [currentEventOf(context)!.message] }],
-                  on: {
-                    MSG_ACK: {
-                      actions: [
-                        { type: "acknoledgeMessage" },
-                        assign(({ context }) => {
-                          const effect = currentEventOf(context)!.effect;
-                          return effect ? applyEventResult(context, effect(context)) : {};
-                        }),
-                      ],
-                      target: "#checkCargoOffer",
-                    },
-                  },
-                },
-                multi_choice: {
-                  on: {
-                    RESOLVE_EVENT: {
-                      actions: [
-                        assign(({ context, event }) => {
-                          const choice = currentEventOf(context)!.choices?.find(
-                            (choice) => choice.key === event.choice,
-                          );
-                          return choice ? applyEventResult(context, choice.effect(context)) : {};
-                        }),
-                      ],
-                      target: "#checkCargoOffer",
-                    },
-                  },
+          },
+          {
+            actions: [
+              {
+                type: "displayMessages",
+                params: ({ context, event }) => {
+                  const damageToRepair = Math.min(
+                    /* ship's damage */ 100 - context.ship.health,
+                    calculateRepairForCost(event.cash, context),
+                  );
+                  return [`Captain, they repaired ${damageToRepair} damage to our ship.`];
                 },
               },
-            },
-            checkCargoOffer: {
-              id: "checkCargoOffer",
-              always: [
-                { guard: ({ context }) => !context.cargoOffer, target: "traveling" },
-                {
-                  guard: ({ context }) =>
-                    needsCaptainsChoice(context.ship.hold, context.cargoOffer!, context.prices[context.currentPort]),
-                  target: "cargoOffer",
-                },
-                { actions: { type: "takeCargoOffer", params: { overload: false } }, target: "traveling" },
-              ],
-            },
-            cargoOffer: {
-              on: {
-                TAKE_CARGO: {
-                  actions: { type: "takeCargoOffer", params: ({ event }) => ({ overload: event.overload }) },
-                  target: "traveling",
-                },
-              },
-            },
-            traveling: {
-              id: "traveling",
-              entry: assign(({ context }) => {
-                const destination = context.destination ?? context.currentPort;
-                const travelTime = context.destination ? calculateTravelTime(context.destination, context) : 1;
-                const { context: arrived, notices } = advanceDays(
-                  context,
-                  Math.max(1, travelTime + (context.delayDays ?? 0)),
+              assign(({ context, event }) => {
+                const damageToRepair = Math.min(
+                  /* ship's damage */ 100 - context.ship.health,
+                  calculateRepairForCost(event.cash, context),
                 );
+                const cost = calculateCostForRepair(damageToRepair, context);
                 return {
-                  ...arrived,
-                  currentPort: destination,
-                  destination: undefined,
-                  currentEvent: undefined,
-                  delayDays: undefined,
-                  messages: [...arrived.messages, [`Arrived at ${destination}`, ...notices]],
+                  balance: context.balance - cost,
+                  ship: {
+                    ...context.ship,
+                    health: context.ship.health + damageToRepair,
+                  },
                 };
               }),
-              always: [{ target: "#mainMenu" }],
+            ],
+          },
+        ],
+        UPGRADE_SHIP: [
+          {
+            meta: {
+              description: "Check the player has enough cash",
+            },
+            guard: ({ context, event }) => !canAffordUpgrade(event.upgradeType, context),
+            actions: [{ type: "displayMessages", params: ["Captain, we don't have enough money for this upgrade."] }],
+          },
+          {
+            actions: [
+              assign(({ context, event }) => {
+                const upgrade = nextUpgrade(context.ship, event.upgradeType);
+
+                if (!upgrade) return context;
+
+                const messages = [`Captain, they've upgraded our ship's ${event.upgradeType}!`];
+
+                if (upgrade.reputation) {
+                  messages.push(`Your ship improvements have earned you ${upgrade.reputation} reputation points!`);
+                }
+
+                return {
+                  ship: upgradeShip(context.ship, event.upgradeType),
+                  balance: context.balance - upgrade.cost,
+                  messages: [...context.messages, messages],
+                  reputation: Math.min(100, context.reputation + (upgrade.reputation ?? 0)),
+                };
+              }),
+            ],
+          },
+        ],
+        HIRE_PERMANENT_GUARDS: [
+          {
+            meta: {
+              description: "Check the player's fleet is not at maximum capacity",
+            },
+            guard: ({ context }) => context.guardFleet.ships >= MAX_GUARD_SHIPS,
+            actions: {
+              type: "displayMessages",
+              params: [`Captain, our fleet is at maximum capacity (${MAX_GUARD_SHIPS} ships)`],
             },
           },
-        },
-        at_market: {
-          on: {
-            PURCHASE: [
-              {
-                meta: {
-                  description: "Check that player has enough cash",
-                },
-                guard: ({ context, event }) => !canAfford(context, calculatePrice({ ...context, ...event })),
-                actions: {
-                  type: "displayMessages",
-                  params: ({ context, event }) => [
-                    `Captain, you don't have enough money. You need ${displayMonetaryValue(calculatePrice({ ...context, ...event }))} to purchase ${event.quantity} picul of ${event.good.toLowerCase()}`,
-                  ],
-                },
-              },
-              {
-                meta: {
-                  description: "Check that player has enough cargo space",
-                },
-                guard: ({ context, event }) => fitsAboard(context.ship.hold, { overload: true }) < event.quantity,
-                actions: {
-                  type: "displayMessages",
-                  params: ({ context, event }) => [
-                    `Captain, we don't have room in the hold for ${event.quantity} picul of ${event.good.toLowerCase()}.`,
-                    `We have room for ${freeSpace(context.ship.hold)} more picul (${marginLeft(context.ship.hold)} if we overload).`,
-                  ],
-                },
-              },
-              {
-                actions: enqueueActions(({ enqueue, context, event }) => {
-                  const cost = calculatePrice({ ...context, ...event });
-                  const { hold, becameOverloaded } = load(context.ship.hold, event.good, event.quantity);
-
-                  enqueue.assign({ ship: { ...context.ship, hold }, balance: context.balance - cost });
-                  enqueue({
-                    type: "displayMessages",
-                    params: [
-                      `Purchased ${event.quantity} picul of ${event.good} for ${displayMonetaryValue(cost)}.`,
-                      `We have room for ${freeSpace(hold)} more picul, Captain.`,
-                    ],
-                  });
-                  if (becameOverloaded) {
-                    enqueue({ type: "displayMessages", params: OVERLOADED_MESSAGES });
-                  }
-                }),
-              },
-            ],
-            SELL: [
-              {
-                meta: {
-                  description: "Check that player has enough to sell",
-                },
-                guard: ({ context, event }) => amountOf(context.ship.hold, event.good) < event.quantity,
-                actions: {
-                  type: "displayMessages",
-                  params: ({ event }) => [`Captain, we don't have enough ${event.good.toLowerCase()} in our hold.`],
-                },
-              },
-              {
-                actions: [
-                  assign(({ context, event }) => ({
-                    ship: { ...context.ship, hold: unload(context.ship.hold, event.good, event.quantity).hold },
-                    balance: context.balance + calculatePrice({ ...context, ...event }),
-                  })),
-                  {
-                    type: "displayMessages",
-                    params: ({ context, event }) => [
-                      `Sold ${event.quantity} picul of ${event.good} for ${displayMonetaryValue(
-                        calculatePrice({
-                          ...context,
-                          ...event,
-                        }),
-                      )}.`,
-                      `We have room for ${freeSpace(context.ship.hold)} more picul, Captain.`,
-                    ],
-                  },
-                ],
-              },
-            ],
-            CANCEL: { target: "#mainMenu" },
+          {
+            meta: {
+              description: "Check the player doesn't hire more guards than his maximum fleet capacity",
+            },
+            guard: ({ context, event }) => {
+              const totalShips = context.guardFleet.ships + event.amount;
+              return totalShips > MAX_GUARD_SHIPS;
+            },
+            actions: {
+              type: "displayMessages",
+              params: [`Captain, we cannot hire that many ships. Maximum fleet size is ${MAX_GUARD_SHIPS} ships.`],
+            },
           },
-        },
-        at_shipyard: {
-          on: {
-            REPAIR: [
-              {
-                meta: {
-                  description: "Check that player's ship is damaged",
-                },
-                guard: ({ context }) => context.ship.health === 100,
-                actions: { type: "displayMessages", params: ["Captain, your ship is already in perfect condition"] },
+          {
+            meta: {
+              description: "Check the player has enough cash",
+            },
+            guard: ({ context, event }) => {
+              const cost = calculateGuardShipCost(context, event.amount);
+              return !canAfford(context, cost);
+            },
+            actions: {
+              type: "displayMessages",
+              params: ({ context, event }) => {
+                const cost = calculateGuardShipCost(context, event.amount);
+                return [
+                  `Captain, we don't have enough money. Need ${displayMonetaryValue(cost)} to hire ${event.amount} ships.`,
+                ];
               },
-              {
-                meta: {
-                  description: "Check the player has enough cash",
-                },
-                guard: ({ context, event }) => !canAfford(context, event.cash),
-                actions: {
-                  type: "displayMessages",
-                  params: ["Captain, we don't have enough cash to pay for this repair"],
-                },
-              },
-              {
-                actions: [
-                  {
-                    type: "displayMessages",
-                    params: ({ context, event }) => {
-                      const damageToRepair = Math.min(
-                        /* ship's damage */ 100 - context.ship.health,
-                        calculateRepairForCost(event.cash, context),
-                      );
-                      return [`Captain, they repaired ${damageToRepair} damage to our ship.`];
-                    },
-                  },
-                  assign(({ context, event }) => {
-                    const damageToRepair = Math.min(
-                      /* ship's damage */ 100 - context.ship.health,
-                      calculateRepairForCost(event.cash, context),
-                    );
-                    const cost = calculateCostForRepair(damageToRepair, context);
-                    return {
-                      balance: context.balance - cost,
-                      ship: {
-                        ...context.ship,
-                        health: context.ship.health + damageToRepair,
-                      },
-                    };
-                  }),
-                ],
-              },
-            ],
-            UPGRADE_SHIP: [
-              {
-                meta: {
-                  description: "Check the player has enough cash",
-                },
-                guard: ({ context, event }) => !canAffordUpgrade(event.upgradeType, context),
-                actions: [
-                  { type: "displayMessages", params: ["Captain, we don't have enough money for this upgrade."] },
-                ],
-              },
-              {
-                actions: [
-                  assign(({ context, event }) => {
-                    const upgrade = nextUpgrade(context.ship, event.upgradeType);
-
-                    if (!upgrade) return context;
-
-                    const messages = [`Captain, they've upgraded our ship's ${event.upgradeType}!`];
-
-                    if (upgrade.reputation) {
-                      messages.push(`Your ship improvements have earned you ${upgrade.reputation} reputation points!`);
-                    }
-
-                    return {
-                      ship: upgradeShip(context.ship, event.upgradeType),
-                      balance: context.balance - upgrade.cost,
-                      messages: [...context.messages, messages],
-                      reputation: Math.min(100, context.reputation + (upgrade.reputation ?? 0)),
-                    };
-                  }),
-                ],
-              },
-            ],
-            HIRE_PERMANENT_GUARDS: [
-              {
-                meta: {
-                  description: "Check the player's fleet is not at maximum capacity",
-                },
-                guard: ({ context }) => context.guardFleet.ships >= MAX_GUARD_SHIPS,
-                actions: {
-                  type: "displayMessages",
-                  params: [`Captain, our fleet is at maximum capacity (${MAX_GUARD_SHIPS} ships)`],
-                },
-              },
-              {
-                meta: {
-                  description: "Check the player doesn't hire more guards than his maximum fleet capacity",
-                },
-                guard: ({ context, event }) => {
-                  const totalShips = context.guardFleet.ships + event.amount;
-                  return totalShips > MAX_GUARD_SHIPS;
-                },
-                actions: {
-                  type: "displayMessages",
-                  params: [`Captain, we cannot hire that many ships. Maximum fleet size is ${MAX_GUARD_SHIPS} ships.`],
-                },
-              },
-              {
-                meta: {
-                  description: "Check the player has enough cash",
-                },
-                guard: ({ context, event }) => {
-                  const cost = calculateGuardShipCost(context, event.amount);
-                  return !canAfford(context, cost);
-                },
-                actions: {
-                  type: "displayMessages",
-                  params: ({ context, event }) => {
-                    const cost = calculateGuardShipCost(context, event.amount);
-                    return [
-                      `Captain, we don't have enough money. Need ${displayMonetaryValue(cost)} to hire ${event.amount} ships.`,
-                    ];
-                  },
-                },
-              },
-              {
-                actions: [
-                  assign(({ context, event }) => {
-                    const cost = calculateGuardShipCost(context, event.amount);
-                    return {
-                      guardFleet: {
-                        ...context.guardFleet,
-                        ships: context.guardFleet.ships + event.amount,
-                      },
-                      balance: context.balance - cost,
-                      reputation: Math.min(100, context.reputation + event.amount),
-                    };
-                  }),
-                  {
-                    type: "displayMessages",
-                    params: ({ event }) => [`Captain, we hired ${event.amount} permanent guard ships`],
-                  },
-                ],
-              },
-            ],
-            UPGRADE_GUARDS: [
-              {
-                meta: {
-                  description: "Check the player has guard ships",
-                },
-                guard: ({ context }) => context.guardFleet.ships === 0,
-                actions: {
-                  type: "displayMessages",
-                  params: ["Captain, we don't have any guard ships to upgrade."],
-                },
-              },
-              {
-                meta: {
-                  description: "Check the fleet can upgrade",
-                },
-                guard: ({ context }) => context.guardFleet.quality >= MAX_GUARD_QUALITY,
-                actions: {
-                  type: "displayMessages",
-                  params: ["Captain, our fleet is already at maximum quality."],
-                },
-              },
-              {
-                meta: {
-                  description: "Check the player has enough cash",
-                },
-                guard: ({ context }) => {
-                  const cost = calculateFleetUpgradeCost(context);
-                  return !canAfford(context, cost);
-                },
-                actions: {
-                  type: "displayMessages",
-                  params: ({ context }) => {
-                    const cost = calculateFleetUpgradeCost(context);
-                    return [
-                      `Captain, we don't have enough money. We need ${displayMonetaryValue(cost)} to upgrade our fleet.`,
-                    ];
-                  },
-                },
-                target: "menu",
-              },
-              {
-                actions: [
-                  assign(({ context }) => {
-                    const cost = calculateFleetUpgradeCost(context);
-                    return {
-                      guardFleet: {
-                        ...context.guardFleet,
-                        quality: context.guardFleet.quality + 1,
-                      },
-                      balance: context.balance - cost,
-                    };
-                  }),
-                  {
-                    type: "displayMessages",
-                    params: ({ context }) => [
-                      `Captain, our fleet upgraded to quality level ${context.guardFleet.quality}!`,
-                    ],
-                  },
-                ],
-              },
-            ],
-            DISMISS_GUARDS: [
-              {
-                meta: {
-                  description: "Check the player has guard ships",
-                },
-                guard: ({ context }) => context.guardFleet.ships === 0,
-                actions: {
-                  type: "displayMessages",
-                  params: ["Captain, we don't have any guard ships to dismiss."],
-                },
-              },
-              {
-                actions: [
-                  assign(({ context, event }) => ({
-                    guardFleet: {
-                      ...context.guardFleet,
-                      ships: Math.max(0, context.guardFleet.ships - event.amount),
-                    },
-                    reputation: Math.max(0, context.reputation - event.amount * 2),
-                  })),
-                  {
-                    type: "displayMessages",
-                    params: ({ event }) => [`We've dismissed ${event.amount} guard ships, Captain.`],
-                  },
-                ],
-              },
-            ],
-            CANCEL: { target: "#mainMenu" },
+            },
           },
-        },
-      },
-      on: {
-        MSG_ACK: { actions: { type: "acknoledgeMessage" } },
+          {
+            actions: [
+              assign(({ context, event }) => {
+                const cost = calculateGuardShipCost(context, event.amount);
+                return {
+                  guardFleet: {
+                    ...context.guardFleet,
+                    ships: context.guardFleet.ships + event.amount,
+                  },
+                  balance: context.balance - cost,
+                  reputation: Math.min(100, context.reputation + event.amount),
+                };
+              }),
+              {
+                type: "displayMessages",
+                params: ({ event }) => [`Captain, we hired ${event.amount} permanent guard ships`],
+              },
+            ],
+          },
+        ],
+        UPGRADE_GUARDS: [
+          {
+            meta: {
+              description: "Check the player has guard ships",
+            },
+            guard: ({ context }) => context.guardFleet.ships === 0,
+            actions: {
+              type: "displayMessages",
+              params: ["Captain, we don't have any guard ships to upgrade."],
+            },
+          },
+          {
+            meta: {
+              description: "Check the fleet can upgrade",
+            },
+            guard: ({ context }) => context.guardFleet.quality >= MAX_GUARD_QUALITY,
+            actions: {
+              type: "displayMessages",
+              params: ["Captain, our fleet is already at maximum quality."],
+            },
+          },
+          {
+            meta: {
+              description: "Check the player has enough cash",
+            },
+            guard: ({ context }) => {
+              const cost = calculateFleetUpgradeCost(context);
+              return !canAfford(context, cost);
+            },
+            actions: {
+              type: "displayMessages",
+              params: ({ context }) => {
+                const cost = calculateFleetUpgradeCost(context);
+                return [
+                  `Captain, we don't have enough money. We need ${displayMonetaryValue(cost)} to upgrade our fleet.`,
+                ];
+              },
+            },
+          },
+          {
+            actions: [
+              assign(({ context }) => {
+                const cost = calculateFleetUpgradeCost(context);
+                return {
+                  guardFleet: {
+                    ...context.guardFleet,
+                    quality: context.guardFleet.quality + 1,
+                  },
+                  balance: context.balance - cost,
+                };
+              }),
+              {
+                type: "displayMessages",
+                params: ({ context }) => [
+                  `Captain, our fleet upgraded to quality level ${context.guardFleet.quality}!`,
+                ],
+              },
+            ],
+          },
+        ],
+        DISMISS_GUARDS: [
+          {
+            meta: {
+              description: "Check the player has guard ships",
+            },
+            guard: ({ context }) => context.guardFleet.ships === 0,
+            actions: {
+              type: "displayMessages",
+              params: ["Captain, we don't have any guard ships to dismiss."],
+            },
+          },
+          {
+            actions: [
+              assign(({ context, event }) => ({
+                guardFleet: {
+                  ...context.guardFleet,
+                  ships: Math.max(0, context.guardFleet.ships - event.amount),
+                },
+                reputation: Math.max(0, context.reputation - event.amount * 2),
+              })),
+              {
+                type: "displayMessages",
+                params: ({ event }) => [`We've dismissed ${event.amount} guard ships, Captain.`],
+              },
+            ],
+          },
+        ],
+        TRAVEL_TO: [
+          {
+            guard: ({ context }) => context.day >= GOAL_DAYS && !context.extendedGame,
+            actions: {
+              type: "displayMessages",
+              params: [`You've finished your ${GOAL_DAYS} days voyage.`],
+            },
+          },
+          {
+            guard: ({ context }) => getShipStatus(context.ship.health) === "Wreckage",
+            actions: {
+              type: "displayMessages",
+              params: ["Our ship is a wreckage, Captain.", "We can't travel until we repair it."],
+            },
+          },
+          {
+            target: "#atSea",
+            actions: assign(({ event, context }) => ({
+              destination: event.destination,
+              currentEvent: checkForEvent(context)?.id,
+            })),
+          },
+        ],
         DECLARE_BANKRUPTCY: [
           {
             meta: {
@@ -581,9 +426,8 @@ export const gameMachine = setup({
             },
             guard: ({ context }) => !isInOverdraft(context),
             actions: { type: "displayMessages", params: ["You're not bankrupt!"] },
-            target: "#mainMenu",
           },
-          { actions: assign({ voyageEnd: "declaredBankrupt" }), target: "scoringScreen" },
+          { actions: assign({ voyageEnd: "declaredBankrupt" }), target: "#ended" },
         ],
         RETIRE: [
           {
@@ -592,9 +436,8 @@ export const gameMachine = setup({
             },
             guard: ({ context }) => !canRetire(context),
             actions: { type: "displayMessages", params: ["You haven't finished your voyage yet!"] },
-            target: "#mainMenu",
           },
-          { actions: assign({ voyageEnd: "retired" }), target: "scoringScreen" },
+          { actions: assign({ voyageEnd: "retired" }), target: "#ended" },
         ],
       },
       always: [
@@ -614,7 +457,7 @@ export const gameMachine = setup({
               ],
             },
           ],
-          target: "scoringScreen",
+          target: "#ended",
         },
         // Check if the player is bankrupt
         {
@@ -626,7 +469,7 @@ export const gameMachine = setup({
               params: ["Captain, we have gone bankrupt! The creditors have seized our assets."],
             },
           ],
-          target: "scoringScreen",
+          target: "#ended",
         },
         // If the player is in overdraft and his debt is greater than -$1000, sell his fleet
         {
@@ -678,14 +521,129 @@ export const gameMachine = setup({
         },
       ],
     },
-    scoringScreen: {
-      on: {
-        RESTART_GAME: { target: "introScreen" },
+    atSea: {
+      id: "atSea",
+      initial: "checkPirates",
+      states: {
+        checkPirates: {
+          always: [
+            {
+              guard: ({ context }) => context.rng.chance(calculatePirateEncounterChance(context)),
+              target: "encounter",
+            },
+            { target: "checkEvent" },
+          ],
+        },
+        encounter: {
+          on: {
+            PIRATES_ENCOUNTER_FIGHT: {
+              actions: assign(({ context }) => applyEventResult(context, fightPirates(context))),
+              target: "arriving",
+            },
+            PIRATES_ENCOUNTER_FLEE: {
+              actions: assign(({ context }) => applyEventResult(context, fleePirates(context))),
+              target: "arriving",
+            },
+            PIRATES_ENCOUNTER_OFFER: {
+              actions: assign(({ context }) => applyEventResult(context, bribePirates(context))),
+              target: "arriving",
+            },
+          },
+        },
+        checkEvent: {
+          always: [{ guard: ({ context }) => !!context.currentEvent, target: "event" }, { target: "arriving" }],
+        },
+        event: {
+          initial: "determine_type",
+          states: {
+            determine_type: {
+              always: [
+                {
+                  guard: ({ context }) => !!currentEventOf(context)?.choices,
+                  target: "multi_choice",
+                },
+                {
+                  guard: ({ context }) => !!currentEventOf(context)?.effect,
+                  target: "no_choice",
+                },
+              ],
+            },
+            no_choice: {
+              entry: [{ type: "displayMessages", params: ({ context }) => [currentEventOf(context)!.message] }],
+              on: {
+                MSG_ACK: {
+                  actions: [
+                    { type: "acknoledgeMessage" },
+                    assign(({ context }) => {
+                      const effect = currentEventOf(context)!.effect;
+                      return effect ? applyEventResult(context, effect(context)) : {};
+                    }),
+                  ],
+                  target: "#checkCargoOffer",
+                },
+              },
+            },
+            multi_choice: {
+              on: {
+                RESOLVE_EVENT: {
+                  actions: [
+                    assign(({ context, event }) => {
+                      const choice = currentEventOf(context)!.choices?.find((choice) => choice.key === event.choice);
+                      return choice ? applyEventResult(context, choice.effect(context)) : {};
+                    }),
+                  ],
+                  target: "#checkCargoOffer",
+                },
+              },
+            },
+          },
+        },
+        checkCargoOffer: {
+          id: "checkCargoOffer",
+          always: [
+            { guard: ({ context }) => !context.cargoOffer, target: "arriving" },
+            {
+              guard: ({ context }) =>
+                needsCaptainsChoice(context.ship.hold, context.cargoOffer!, context.prices[context.currentPort]),
+              target: "cargoOffer",
+            },
+            { actions: { type: "takeCargoOffer", params: { overload: false } }, target: "arriving" },
+          ],
+        },
+        cargoOffer: {
+          on: {
+            TAKE_CARGO: {
+              actions: { type: "takeCargoOffer", params: ({ event }) => ({ overload: event.overload }) },
+              target: "arriving",
+            },
+          },
+        },
+        arriving: {
+          id: "arriving",
+          entry: assign(({ context }) => {
+            const destination = context.destination ?? context.currentPort;
+            const travelTime = context.destination ? calculateTravelTime(context.destination, context) : 1;
+            const { context: arrived, notices } = advanceDays(
+              context,
+              Math.max(1, travelTime + (context.delayDays ?? 0)),
+            );
+            return {
+              ...arrived,
+              currentPort: destination,
+              destination: undefined,
+              currentEvent: undefined,
+              delayDays: undefined,
+              messages: [...arrived.messages, [`Arrived at ${destination}`, ...notices]],
+            };
+          }),
+          always: [{ target: "#inPort" }],
+        },
       },
     },
-    helpScreen: {
+    ended: {
+      id: "ended",
       on: {
-        HIDE_HELP: { target: "introScreen" },
+        RESTART_GAME: { target: "idle" },
       },
     },
   },
