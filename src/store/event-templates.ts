@@ -1,6 +1,7 @@
 import { CargoOffer } from "./cargo-offer.js";
 import { currentSeason } from "./clock.js";
-import { BASE_SHIP_SPEED, GOAL_DAYS, goods, ports } from "./constants.js";
+import { BASE_SHIP_SPEED, GOAL_DAYS, ports } from "./constants.js";
+import { goods } from "./catalog/goods.js";
 import { goodsAboard, isOverloaded, spaceUsed } from "./hold.js";
 import { outcome, result } from "./outcomes.js";
 import { Context, EventTemplate, Good, Port } from "./types.js";

@@ -1,6 +1,5 @@
-import { EventType, Good, MarketSize, Port, PortSpecialization, Season, TrendStrength } from "./types.js";
+import { EventType, MarketSize, Port, PortSpecialization, Season, TrendStrength } from "./types.js";
 
-export const goods = ["Wheat", "Tea", "Spices", "Opium", "Porcelain"] as const;
 export const ports = ["Hong Kong", "Shanghai", "Nagasaki", "Singapore", "Manila"] as const;
 export const seasons = ["Spring", "Summer", "Autumn", "Winter"] as const;
 export const seasonEventEffects: Record<Season, Partial<Record<EventType, number>>> = {
@@ -30,13 +29,6 @@ export const distanceMatrix: Record<Port, Record<Port, number>> = {
   Singapore: { "Hong Kong": 1460, Shanghai: 2279, Nagasaki: 2561, Singapore: 0, Manila: 1308 },
   Manila: { "Hong Kong": 706, Shanghai: 1307, Nagasaki: 1668, Singapore: 1308, Manila: 0 },
 } as const;
-export const goodsInfo: { name: Good; basePrice: number; volatility: number }[] = [
-  { name: "Wheat", basePrice: 100, volatility: 0.35 },
-  { name: "Tea", basePrice: 400, volatility: 0.45 },
-  { name: "Spices", basePrice: 800, volatility: 0.55 },
-  { name: "Opium", basePrice: 2000, volatility: 0.65 },
-  { name: "Porcelain", basePrice: 300, volatility: 0.4 },
-] as const;
 
 // Gameplay
 export const GOAL_DAYS = 200;
@@ -88,12 +80,6 @@ export const TREND_STRENGTH_FACTORS: Record<TrendStrength, { up: number; down: n
   weak: { up: 1.15, down: 0.85 },
   moderate: { up: 1.35, down: 0.65 },
   strong: { up: 1.6, down: 0.4 },
-};
-export const SEASONAL_EFFECTS: Record<Season, Partial<Record<Good, number>>> = {
-  Spring: { Tea: 1.4, Spices: 1.25, Wheat: 0.7 },
-  Summer: { Porcelain: 1.5, Spices: 1.3, Tea: 0.7 },
-  Autumn: { Opium: 1.35, Porcelain: 0.7 },
-  Winter: { Tea: 1.45, Spices: 0.65 },
 };
 export const PORT_SPECIALIZATIONS: Record<Port, PortSpecialization> = {
   "Hong Kong": {

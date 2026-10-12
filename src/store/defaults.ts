@@ -1,16 +1,9 @@
-import {
-  BASE_BALANCE,
-  BASE_SHIP_CAPACITY,
-  BASE_SHIP_DEFENSE,
-  BASE_SHIP_SPEED,
-  goods,
-  ports,
-  seasons,
-} from "./constants.js";
+import { BASE_BALANCE, BASE_SHIP_CAPACITY, BASE_SHIP_DEFENSE, BASE_SHIP_SPEED, ports, seasons } from "./constants.js";
 import { Context, GameSettings, Good, Port, PriceHistory, Range } from "./types.js";
 import { generatePrices, generateTrends } from "./utils.js";
 import { Rng } from "./rng.js";
 import { emptyHold } from "./hold.js";
+import { goods } from "./catalog/goods.js";
 
 export const initialContext = (rng: Rng, settings?: GameSettings) => {
   const { extendedGame = false, disableAnimations = false, controls = "keyboard" } = settings || {};

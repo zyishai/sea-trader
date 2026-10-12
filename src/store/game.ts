@@ -3,6 +3,7 @@ import { initialContext } from "./defaults.js";
 import { Context } from "./types.js";
 import { GameEvents } from "./events.js";
 import { Rng } from "./rng.js";
+import { goods } from "./catalog/goods.js";
 import { applyEventResult } from "./outcomes.js";
 import { bribePirates, fightPirates, fleePirates } from "./pirates.js";
 import { advanceDays, canRetire } from "./clock.js";
@@ -29,7 +30,6 @@ import {
   BANKRUPTCY_THRESHOLD,
   GOAL_DAYS,
   MAX_DAILY_OVERDRAFT,
-  goods,
   MAX_GUARD_QUALITY,
   MAX_GUARD_SHIPS,
   OVERDRAFT_TRADING_LIMIT,

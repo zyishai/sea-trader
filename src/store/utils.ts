@@ -8,8 +8,6 @@ import {
   distanceMatrix,
   EXTENDED_GAME_PENALTY,
   GOAL_DAYS,
-  goods,
-  goodsInfo,
   MAINTENANCE_COST_PER_SHIP,
   MARKET_SIZE_FACTORS,
   MAX_SHIP_DEFENSE,
@@ -17,7 +15,6 @@ import {
   PORT_SPECIALIZATIONS,
   ports,
   SEASON_LENGTH,
-  SEASONAL_EFFECTS,
   seasonEventEffects,
   SPEED_UPGRADES,
   TREND_DIRECTION,
@@ -41,6 +38,7 @@ import {
   UpgradeType,
 } from "./types.js";
 import { Rng } from "./rng.js";
+import { goodCatalog, goods, seasonalPriceFactor } from "./catalog/goods.js";
 import { eventTemplates } from "./event-templates.js";
 import { currentSeason, daysUntilNextSeason } from "./clock.js";
 import { canAfford, isInOverdraft, netWorth } from "./treasury.js";
@@ -240,7 +238,7 @@ export const getTrendFactor = (trendInfo: TrendInfo, rng: Rng) => {
   return baseFactor * (1 + (rng.float() - 0.5) * maxVariation);
 };
 export const getSeasonalFactor = (season: Season, good: Good, rng: Rng) => {
-  const baseFactor = SEASONAL_EFFECTS[season][good] ?? 1;
+  const baseFactor = seasonalPriceFactor(good, season);
   return baseFactor * (1 + (rng.float() - 0.5) * 0.1); // ±5% variation
 };
 export const getSpecialtyFactor = (port: Port, good: Good) => {
@@ -255,15 +253,16 @@ export const generatePrices = (trends: Record<Port, Record<Good, TrendInfo>>, se
   ports.reduce(
     (accPorts, port) => ({
       ...accPorts,
-      [port]: goodsInfo.reduce((accGoods, good) => {
-        const trendFactor = getTrendFactor(trends[port][good.name], rng);
-        const seasonalFactor = getSeasonalFactor(season, good.name, rng);
-        const specialtyFactor = getSpecialtyFactor(port, good.name);
-        const randomFactor = 1 + (rng.float() - 0.5) * 2 * good.volatility;
+      [port]: goods.reduce((accGoods, good) => {
+        const { basePrice, volatility } = goodCatalog[good];
+        const trendFactor = getTrendFactor(trends[port][good], rng);
+        const seasonalFactor = getSeasonalFactor(season, good, rng);
+        const specialtyFactor = getSpecialtyFactor(port, good);
+        const randomFactor = 1 + (rng.float() - 0.5) * 2 * volatility;
 
         return {
           ...accGoods,
-          [good.name]: Math.round(good.basePrice * trendFactor * specialtyFactor * seasonalFactor * randomFactor),
+          [good]: Math.round(basePrice * trendFactor * specialtyFactor * seasonalFactor * randomFactor),
         };
       }, {}),
     }),
@@ -415,9 +414,9 @@ export const generateAllTips = (context: Context): MerchantTip[] => {
       }
 
       // Check for seasonal price effect
-      const seasonalEffect = SEASONAL_EFFECTS[currentSeason(context)][good];
+      const seasonalEffect = seasonalPriceFactor(good, currentSeason(context));
       const daysUntilSeasonEnd = daysUntilNextSeason(context.day);
-      if (seasonalEffect) {
+      if (seasonalEffect !== 1) {
         tips.push({
           priority: Math.round(Math.abs(1 - seasonalEffect) * 15 + 85 + (1 - daysUntilSeasonEnd / SEASON_LENGTH) * 7),
           message:

@@ -1,4 +1,5 @@
-import { goods, goodsInfo, ports, seasons, TREND_DIRECTION, TREND_STRENGTH } from "./constants.js";
+import { ports, seasons, TREND_DIRECTION, TREND_STRENGTH } from "./constants.js";
+import type { Good } from "./catalog/goods.js";
 import { Rng } from "./rng.js";
 import { Hold } from "./hold.js";
 import { CargoOffer } from "./cargo-offer.js";
@@ -33,7 +34,7 @@ export type ShipStatus = "Perfect" | "Minor damages" | "Major damages" | "Wrecka
 export type FleetQuality = "Basic" | "Trained" | "Elite";
 
 // Inventory & Market
-export type Good = (typeof goods)[number];
+export type { Good };
 export type Port = (typeof ports)[number];
 export type MarketSize = "Small" | "Medium" | "Large";
 export type PortSpecialization = {
@@ -51,7 +52,6 @@ export type TrendInfo = {
   reliability: number; // 0-100, affects price prediction accuracy
 };
 export type Season = (typeof seasons)[number];
-export type GoodInfo = (typeof goodsInfo)[number];
 
 // Intelligence
 export type PriceHistory = {
