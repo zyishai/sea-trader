@@ -2,26 +2,20 @@ import React from "react";
 import { Box, Text } from "ink";
 import { GameContext } from "../../GameContext.js";
 import { Port } from "../../../store/types.js";
-import { ports } from "../../../store/constants.js";
-import { calculateTravelTime, calculateDailyMaintenanceCost, displayMonetaryValue } from "../../../store/utils.js";
+import { displayMonetaryValue } from "../../../store/utils.js";
+import { travelOptions } from "../../../store/views/travel.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
 import { ActionPrompt as ActionPromptArrows } from "../../prompts/arrows/ActionPrompt.js";
 import { Table } from "../Table.js";
 import { ViewTitle } from "../ViewTitle.js";
-import assert from "node:assert";
 
 export function PortView() {
   const actor = GameContext.useActorRef();
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const hasFleet = context.guardFleet.ships > 0;
-  const controls = context.settings.controls;
+  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const destinations = GameContext.useSelector((snapshot) => travelOptions(snapshot.context));
 
-  const availableActions = context.availablePorts.map((port) => ({
-    label: port,
-    value: port,
-  }));
+  const availableActions = destinations.map(({ port }) => ({ label: port, value: port }));
   const handleSelectPort = (value: string) => {
-    assert(ports.includes(value as Port), "Invalid port");
     actor.send({ type: "TRAVEL_TO", destination: value as Port });
   };
 
@@ -34,16 +28,12 @@ export function PortView() {
         <Box flexDirection="column" paddingLeft={3}>
           <Table
             gap={2}
-            rows={context.availablePorts.map((port) => {
-              const travelTime = calculateTravelTime(port, context);
-              const dailyCost = calculateDailyMaintenanceCost(context);
-              const maintenanceCost = dailyCost * travelTime;
-              return [
-                `- ${port}`,
-                `Travel: ${travelTime} days`,
-                hasFleet ? `Maintenance: ${displayMonetaryValue(maintenanceCost)}` : "",
-              ];
-            })}
+            rows={destinations.map(({ port, days, upkeep, arrivalDay, endsVoyage }) => [
+              `- ${port}`,
+              `${days} day${days !== 1 ? "s" : ""}`,
+              `Arrive on day ${arrivalDay}${endsVoyage ? " (last day)" : ""}`,
+              upkeep > 0 ? `Upkeep: ${displayMonetaryValue(upkeep)}` : "",
+            ])}
           />
         </Box>
       </Box>

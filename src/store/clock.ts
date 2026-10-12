@@ -7,7 +7,7 @@ const seasonOn = (startingSeason: Context["startingSeason"], day: number) =>
   seasons[(seasons.indexOf(startingSeason) + Math.floor((day - 1) / SEASON_LENGTH)) % seasons.length]!;
 const isPriceUpdateDay = (day: number) => day > 1 && (day - 1) % PRICE_UPDATE_INTERVAL === 0;
 const isSeasonChangeDay = (day: number) => day > 1 && (day - 1) % SEASON_LENGTH === 0;
-const lastDay = (context: Pick<Context, "extendedGame">) => (context.extendedGame ? Infinity : GOAL_DAYS);
+export const lastDay = (context: Pick<Context, "extendedGame">) => (context.extendedGame ? Infinity : GOAL_DAYS);
 
 export const currentSeason = (context: Pick<Context, "startingSeason" | "day">) =>
   seasonOn(context.startingSeason, context.day);
