@@ -3,6 +3,7 @@ import { initialContext } from "./defaults.js";
 import { Context, Good } from "./types.js";
 import { GameEvents } from "./events.js";
 import { Rng } from "./rng.js";
+import { applyEventResult } from "./outcomes.js";
 import { advanceDays, canRetire } from "./clock.js";
 import { canAfford, cashOnHand, fleetSaleValue, isBankrupt, isInOverdraft, netWorth } from "./treasury.js";
 import { needsCaptainsChoice, takeCargoOffer } from "./cargo-offer.js";
@@ -423,7 +424,10 @@ export const gameMachine = setup({
                     MSG_ACK: {
                       actions: [
                         { type: "acknoledgeMessage" },
-                        assign(({ context }) => currentEventOf(context)!.effect?.(context) ?? {}),
+                        assign(({ context }) => {
+                          const effect = currentEventOf(context)!.effect;
+                          return effect ? applyEventResult(context, effect(context)) : {};
+                        }),
                       ],
                       target: "#checkCargoOffer",
                     },
@@ -437,7 +441,7 @@ export const gameMachine = setup({
                           const choice = currentEventOf(context)!.choices?.find(
                             (choice) => choice.key === event.choice,
                           );
-                          return choice?.effect(context) ?? {};
+                          return choice ? applyEventResult(context, choice.effect(context)) : {};
                         }),
                       ],
                       target: "#checkCargoOffer",

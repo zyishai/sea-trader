@@ -2,6 +2,7 @@ import { goods, goodsInfo, ports, seasons, TREND_DIRECTION, TREND_STRENGTH } fro
 import { Rng } from "./rng.js";
 import { Hold } from "./hold.js";
 import { CargoOffer } from "./cargo-offer.js";
+import { EventResult } from "./outcomes.js";
 
 export type GameSettings = {
   extendedGame?: boolean;
@@ -15,7 +16,7 @@ export type EventSeverity = "minor" | "moderate" | "major";
 export type EventChoice = {
   label: string;
   key: string;
-  effect: (context: Context) => Partial<Context>;
+  effect: (context: Context) => EventResult;
 };
 export type EventTemplate = {
   id: string;
@@ -23,7 +24,7 @@ export type EventTemplate = {
   severity: EventSeverity;
   baseChance: number | ((context: Context) => number);
   message: string;
-  effect?: (context: Context) => Partial<Context>;
+  effect?: (context: Context) => EventResult;
   choices?: EventChoice[];
 };
 

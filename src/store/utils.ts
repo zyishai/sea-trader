@@ -6,7 +6,6 @@ import {
   DAMAGE_REPAIR_COST_PER_UNIT,
   DEFENSE_UPGRADES,
   distanceMatrix,
-  eventTemplates,
   EXTENDED_GAME_PENALTY,
   GOAL_DAYS,
   goods,
@@ -44,6 +43,7 @@ import {
   UpgradeType,
 } from "./types.js";
 import { Rng } from "./rng.js";
+import { eventTemplates } from "./event-templates.js";
 import { currentSeason, daysUntilNextSeason } from "./clock.js";
 import { canAfford, isInOverdraft, netWorth } from "./treasury.js";
 import { goodsAboard, overloadLevel, value } from "./hold.js";

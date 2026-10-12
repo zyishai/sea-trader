@@ -340,4 +340,32 @@ describe("events", () => {
     expect(after.day).toBe(before.day + calculateTravelTime("Shanghai", before) + 3);
     expect(after.delayDays).toBeUndefined();
   });
+
+  it("tells the story and reports each Outcome", () => {
+    const game = duringStorm();
+    const before = game.getSnapshot().context;
+
+    game.send({ type: "RESOLVE_EVENT", choice: "B" });
+
+    expect(game.getSnapshot().context.ship.health).toBe(before.ship.health - 20);
+    expect(messagesOf(game)).toEqual(
+      expect.arrayContaining([
+        "We weathered the storm, but it battered the ship.",
+        "Our ship took 20 damage.",
+        "We lost 1 day.",
+      ]),
+    );
+  });
+
+  it("applies an Event without choices once the Captain reads it", () => {
+    const game = gameAt({ gameScreen: { at_port: { eventOccurred: "no_choice" } } }, () => ({
+      currentEvent: "light-breeze",
+      destination: "Shanghai",
+      messages: [["A light breeze speeds up your journey."]],
+    }));
+
+    game.send({ type: "MSG_ACK" });
+
+    expect(messagesOf(game)).toContain("We saved a day.");
+  });
 });

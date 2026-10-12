@@ -130,6 +130,15 @@ const applyOne = (context: Context, outcome: Outcome): Applied => {
   }
 };
 
+export const applyEventResult = (context: Context, { story, outcomes }: EventResult): Context => {
+  const applied = applyOutcomes(context, outcomes);
+  const lines = [...story, ...applied.report];
+  return {
+    ...applied.context,
+    messages: lines.length > 0 ? [...applied.context.messages, lines] : applied.context.messages,
+  };
+};
+
 export const applyOutcomes = (context: Context, outcomes: Outcome[]): Applied =>
   outcomes.reduce<Applied>(
     (applied, next) => {
