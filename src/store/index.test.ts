@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createGame, gamePhase, GamePlugin, seededRng, voyageResult } from "./index.js";
+import { createGame, gamePhase, GamePlugin, issueCommand, seededRng, voyageResult } from "./index.js";
 
 const recorder = () => {
   const log = { notices: 0, refused: [] as string[], phases: [] as string[] };
@@ -38,5 +38,22 @@ describe("the game on its own", () => {
     expect(log.phases.at(-1)).toBe("ended");
     expect(log.notices).toBeGreaterThan(0);
     expect(log.refused).toEqual([]);
+  });
+});
+
+describe("issuing a command", () => {
+  it("returns whether the game accepted it, and why not", () => {
+    const game = createGame({ rng: seededRng(3) });
+    game.send({ type: "START_GAME" });
+
+    expect(issueCommand(game, { type: "PURCHASE", good: "Wheat", quantity: 1 })).toEqual({
+      command: "PURCHASE",
+      accepted: true,
+      reason: undefined,
+    });
+    expect(issueCommand(game, { type: "SELL", good: "Opium", quantity: 1 })).toMatchObject({
+      accepted: false,
+      reason: "notEnoughCargo",
+    });
   });
 });

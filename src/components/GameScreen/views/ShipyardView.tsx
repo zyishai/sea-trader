@@ -2,6 +2,7 @@ import { usePreferences } from "../../Preferences.js";
 import React from "react";
 import { Box, Text } from "ink";
 import { useNavigation } from "../Navigation.js";
+import { issueCommand } from "../../../store/plugin.js";
 import { GameContext } from "../../GameContext.js";
 import { ShipyardContext } from "../ShipyardContext.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
@@ -139,8 +140,9 @@ function RepairShip() {
   const onSubmit = (values: Record<string, string>) => {
     const { amount = "" } = values;
 
-    actor.send({ type: "REPAIR", cash: +amount });
-    shipyard.send({ type: "COMMIT" });
+    if (issueCommand(actor, { type: "REPAIR", cash: +amount })?.accepted) {
+      shipyard.send({ type: "COMMIT" });
+    }
   };
 
   return (
@@ -307,8 +309,9 @@ function FleetHire() {
   const onSubmit = (values: Record<string, string>) => {
     const { quantity = "" } = values;
 
-    actor.send({ type: "HIRE_PERMANENT_GUARDS", amount: +quantity });
-    shipyard.send({ type: "COMMIT" });
+    if (issueCommand(actor, { type: "HIRE_PERMANENT_GUARDS", amount: +quantity })?.accepted) {
+      shipyard.send({ type: "COMMIT" });
+    }
   };
 
   return (
@@ -352,8 +355,9 @@ function FleetUpgrade() {
   const { fleet } = useShipyardView();
 
   const onUpgradeFleet = () => {
-    actor.send({ type: "UPGRADE_GUARDS" });
-    shipyard.send({ type: "COMMIT" });
+    if (issueCommand(actor, { type: "UPGRADE_GUARDS" })?.accepted) {
+      shipyard.send({ type: "COMMIT" });
+    }
   };
 
   return (
@@ -391,8 +395,9 @@ function FleetDismiss() {
   const onSubmit = (values: Record<string, string>) => {
     const { ships = "" } = values;
 
-    actor.send({ type: "DISMISS_GUARDS", amount: +ships });
-    shipyard.send({ type: "COMMIT" });
+    if (issueCommand(actor, { type: "DISMISS_GUARDS", amount: +ships })?.accepted) {
+      shipyard.send({ type: "COMMIT" });
+    }
   };
 
   return controls === "keyboard" ? (

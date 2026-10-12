@@ -1,30 +1,23 @@
-import React, { createContext, useContext, useState } from "react";
+import { createActorContext } from "@xstate/react";
+import React from "react";
+import { navigationMachine, PortScreen } from "../flows/navigation.js";
 
-export type PortScreen = "menu" | "port" | "market" | "shipyard";
-
-type Navigation = {
-  screen: PortScreen;
-  navigate: (screen: PortScreen) => void;
-  noticesSeen: number;
-  markNoticeSeen: () => void;
-};
-
-const NavigationContext = createContext<Navigation>({
-  screen: "menu",
-  navigate: () => {},
-  noticesSeen: 0,
-  markNoticeSeen: () => {},
-});
+const NavigationContext = createActorContext(navigationMachine);
 
 export function NavigationProvider({ children }: React.PropsWithChildren) {
-  const [screen, navigate] = useState<PortScreen>("menu");
-  const [noticesSeen, setNoticesSeen] = useState(0);
-  const markNoticeSeen = () => setNoticesSeen((seen) => seen + 1);
-  return (
-    <NavigationContext.Provider value={{ screen, navigate, noticesSeen, markNoticeSeen }}>
-      {children}
-    </NavigationContext.Provider>
-  );
+  return <NavigationContext.Provider>{children}</NavigationContext.Provider>;
 }
 
-export const useNavigation = () => useContext(NavigationContext);
+export const useNavigation = () => {
+  const navigation = NavigationContext.useActorRef();
+  const screen = NavigationContext.useSelector((snapshot) => snapshot.value);
+  const { noticesSeen, visit } = NavigationContext.useSelector((snapshot) => snapshot.context);
+
+  return {
+    screen,
+    visit,
+    noticesSeen,
+    navigate: (to: PortScreen) => navigation.send(to === "menu" ? { type: "BACK" } : { type: "OPEN", screen: to }),
+    markNoticeSeen: () => navigation.send({ type: "NOTICE_SEEN" }),
+  };
+};

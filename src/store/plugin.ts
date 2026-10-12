@@ -26,3 +26,13 @@ export const connectPlugin = (game: ActorRefFrom<typeof gameMachine>, plugin: Ga
   ];
   return () => subscriptions.forEach((subscription) => subscription.unsubscribe());
 };
+
+export const issueCommand = (game: ActorRefFrom<typeof gameMachine>, command: GameCommand) => {
+  let report: CommandReport | undefined;
+  const subscription = game.on("commandResult", ({ command, accepted, reason }) => {
+    report = { command, accepted, reason };
+  });
+  game.send(command);
+  subscription.unsubscribe();
+  return report;
+};

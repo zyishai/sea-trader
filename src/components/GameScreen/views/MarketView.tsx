@@ -2,6 +2,7 @@ import { usePreferences } from "../../Preferences.js";
 import React from "react";
 import { Box, Text } from "ink";
 import { useNavigation } from "../Navigation.js";
+import { issueCommand } from "../../../store/plugin.js";
 import { GameContext } from "../../GameContext.js";
 import { MarketContext } from "../MarketContext.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
@@ -163,11 +164,13 @@ function SelectQuantity({ action }: { action: "buy" | "sell" }) {
     const { quantity = "" } = values;
 
     if (action === "buy") {
-      actor.send({ type: "PURCHASE", good: marketContext.good!, quantity: +quantity });
-      market.send({ type: "COMMIT" });
+      if (issueCommand(actor, { type: "PURCHASE", good: marketContext.good!, quantity: +quantity })?.accepted) {
+        market.send({ type: "COMMIT" });
+      }
     } else {
-      actor.send({ type: "SELL", good: marketContext.good!, quantity: +quantity });
-      market.send({ type: "COMMIT" });
+      if (issueCommand(actor, { type: "SELL", good: marketContext.good!, quantity: +quantity })?.accepted) {
+        market.send({ type: "COMMIT" });
+      }
     }
   };
 

@@ -1,6 +1,6 @@
 export { createGame } from "./create-game.js";
 export { gameMachine } from "./game.js";
-export { connectPlugin } from "./plugin.js";
+export { connectPlugin, issueCommand } from "./plugin.js";
 export type { CommandReport, GameEmitted, GamePlugin } from "./plugin.js";
 export type { GameCommand, RejectionReason } from "./commands/index.js";
 export type { Context, GameSettings } from "./context.js";

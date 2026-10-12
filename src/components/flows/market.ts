@@ -1,5 +1,5 @@
 import { assign, setup } from "xstate";
-import { Good } from "../catalog/goods.js";
+import { Good } from "../../store/catalog/goods.js";
 
 export const marketMachine = setup({
   types: {

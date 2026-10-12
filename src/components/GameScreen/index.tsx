@@ -44,9 +44,21 @@ export function GameScreen() {
   return (
     <NavigationProvider>
       <Layout>
-        <CurrentView />
+        <ScreenFlows>
+          <CurrentView />
+        </ScreenFlows>
       </Layout>
     </NavigationProvider>
+  );
+}
+
+// Keeps each screen's flow alive while Notices show, and starts it fresh on every visit
+function ScreenFlows({ children }: React.PropsWithChildren) {
+  const { visit } = useNavigation();
+  return (
+    <MarketContext.Provider key={`market-${visit}`}>
+      <ShipyardContext.Provider key={`shipyard-${visit}`}>{children}</ShipyardContext.Provider>
+    </MarketContext.Provider>
   );
 }
 
@@ -83,19 +95,11 @@ function CurrentView() {
   }
 
   if (screen === "market") {
-    return (
-      <MarketContext.Provider>
-        <MarketView />
-      </MarketContext.Provider>
-    );
+    return <MarketView />;
   }
 
   if (screen === "shipyard") {
-    return (
-      <ShipyardContext.Provider>
-        <ShipyardView />
-      </ShipyardContext.Provider>
-    );
+    return <ShipyardView />;
   }
 
   return null;
