@@ -3,6 +3,7 @@ import { initialContext } from "./defaults.js";
 import { Context, Good } from "./types.js";
 import { GameEvents } from "./events.js";
 import { Rng } from "./rng.js";
+import { spendingPower } from "./treasury.js";
 import { needsCaptainsChoice, takeCargoOffer } from "./cargo-offer.js";
 import {
   amountOf,
@@ -498,9 +499,7 @@ export const gameMachine = setup({
                 meta: {
                   description: "Check that player has enough cash",
                 },
-                guard: ({ context, event }) =>
-                  calculatePrice({ ...context, ...event }) >
-                  context.balance + (context.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0),
+                guard: ({ context, event }) => calculatePrice({ ...context, ...event }) > spendingPower(context),
                 actions: {
                   type: "displayMessages",
                   params: ({ context, event }) => [
@@ -588,8 +587,7 @@ export const gameMachine = setup({
                 meta: {
                   description: "Check the player has enough cash",
                 },
-                guard: ({ context, event }) =>
-                  context.balance + (context.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0) < event.cash,
+                guard: ({ context, event }) => spendingPower(context) < event.cash,
                 actions: {
                   type: "displayMessages",
                   params: ["Captain, we don't have enough cash to pay for this repair"],
@@ -695,7 +693,7 @@ export const gameMachine = setup({
                 },
                 guard: ({ context, event }) => {
                   const cost = calculateGuardShipCost(context, event.amount);
-                  return context.balance + (context.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0) < cost;
+                  return spendingPower(context) < cost;
                 },
                 actions: {
                   type: "displayMessages",

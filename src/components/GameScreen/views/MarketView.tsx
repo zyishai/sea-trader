@@ -1,9 +1,8 @@
 import React from "react";
 import { Box, Text } from "ink";
 import { GameContext } from "../../GameContext.js";
-import { displayMonetaryValue, getMerchantTip } from "../../../store/utils.js";
-import { amountOf, freeSpace, spaceUsed } from "../../../store/hold.js";
-import { OVERDRAFT_TRADING_LIMIT, ports } from "../../../store/constants.js";
+import { displayMonetaryValue } from "../../../store/utils.js";
+import { marketView } from "../../../store/views/market.js";
 import { Good } from "../../../store/types.js";
 import { MarketContext } from "../MarketContext.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
@@ -12,12 +11,10 @@ import { InputPrompt as InputPromptKeyboard } from "../../prompts/keyboard/Input
 import { InputPrompt as InputPromptArrows } from "../../prompts/arrows/InputPrompt.js";
 import { Table } from "../Table.js";
 import { ViewTitle } from "../ViewTitle.js";
-import { assert } from "node:console";
 
 export function MarketView() {
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const view = GameContext.useSelector((snapshot) => marketView(snapshot.context));
   const snapshot = MarketContext.useSelector((snapshot) => snapshot);
-  const availableGoods = context.availableGoods;
 
   return (
     <Box flexDirection="column" gap={1} width="100%">
@@ -27,19 +24,15 @@ export function MarketView() {
         <Box justifyContent="space-between" columnGap={2} flexWrap="wrap">
           <Text underline>Price List</Text>
           <Text>
-            Cargo Hold: {spaceUsed(context.ship.hold)}/{context.ship.hold.capacity} (Available:{" "}
-            {freeSpace(context.ship.hold)})
+            Cargo Hold: {view.hold.used}/{view.hold.capacity} (Available: {view.hold.free})
           </Text>
         </Box>
         <Table
           gap={2}
-          align={["left", ...availableGoods.map(() => "right" as const)]}
-          header={["", ...availableGoods]}
-          rows={ports.map((port) => [
-            port,
-            ...availableGoods.map((good) => displayMonetaryValue(context.prices[port][good])),
-          ])}
-          footer={["In Hold", ...availableGoods.map((good) => amountOf(context.ship.hold, good))]}
+          align={["left", ...view.goods.map(() => "right" as const)]}
+          header={["", ...view.goods.map(({ good }) => good)]}
+          rows={view.priceList.map(({ port, prices }) => [port, ...prices.map(displayMonetaryValue)])}
+          footer={["In Hold", ...view.goods.map(({ inHold }) => inHold)]}
         />
       </Box>
 
@@ -56,11 +49,9 @@ export function MarketView() {
 
 function MarketOverview() {
   const actor = GameContext.useActorRef();
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const { merchantTip } = GameContext.useSelector((snapshot) => marketView(snapshot.context));
   const market = MarketContext.useActorRef();
-
-  const merchantTip = getMerchantTip(context);
-  const controls = context.settings.controls;
 
   const availableActions = [
     { label: "Buy Goods", value: "buy_goods" },
@@ -126,15 +117,11 @@ function BuyMarket() {
 
 function PickGood({ action }: { action: "buy" | "sell" }) {
   const market = MarketContext.useActorRef();
-  const gameContext = GameContext.useSelector((snapshot) => snapshot.context);
-  const controls = gameContext.settings.controls;
+  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const { goods } = GameContext.useSelector((snapshot) => marketView(snapshot.context));
 
-  const availableActions = gameContext.availableGoods.map((good) => ({
-    label: good,
-    value: good,
-  }));
+  const availableActions = goods.map(({ good }) => ({ label: good, value: good }));
   const onSelectGood = (value: string) => {
-    assert(gameContext.availableGoods.includes(value as Good));
     market.send({ type: "PICK_GOOD", good: value as Good });
   };
 
@@ -160,15 +147,9 @@ function SelectQuantity({ action }: { action: "buy" | "sell" }) {
   const market = MarketContext.useActorRef();
   const marketSnapshot = MarketContext.useSelector((snapshot) => snapshot);
   const marketContext = marketSnapshot.context;
-  const gameContext = GameContext.useSelector((snapshot) => snapshot.context);
-  const controls = gameContext.settings.controls;
-  const affordance = Math.max(
-    0,
-    Math.floor(
-      (gameContext.balance + (gameContext.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0)) /
-        gameContext.prices[gameContext.currentPort][marketContext.good!],
-    ),
-  );
+  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const { goods } = GameContext.useSelector((snapshot) => marketView(snapshot.context));
+  const maxBuy = goods.find(({ good }) => good === marketContext.good)?.maxBuy;
 
   const onValidateQuantity = (value: string) => {
     const quantity = +value;
@@ -190,9 +171,10 @@ function SelectQuantity({ action }: { action: "buy" | "sell" }) {
 
   return !marketContext.good ? null : (
     <Box flexDirection="column" gap={1}>
-      {action === "buy" ? (
+      {action === "buy" && maxBuy ? (
         <Text>
-          You can afford {affordance} picul{affordance !== 1 ? "s" : ""}.
+          We can buy up to {maxBuy.withinCapacity} picul
+          {maxBuy.withOverload > maxBuy.withinCapacity ? ` (${maxBuy.withOverload} if we overload)` : ""}, Captain.
         </Text>
       ) : null}
 
