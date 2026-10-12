@@ -53,7 +53,7 @@ export type Context = {
 
   // Misc
   announcedOverdraft: boolean;
-  messages: string[][];
+  notices: string[][];
 
   // Settings
   extendedGame: boolean;
@@ -104,7 +104,7 @@ export const initialContext = (rng: Rng, settings?: GameSettings) => {
       typicalRanges: emptyTypicalRanges,
     },
     announcedOverdraft: false,
-    messages: [],
+    notices: [],
     extendedGame,
     settings: {
       disableAnimations,

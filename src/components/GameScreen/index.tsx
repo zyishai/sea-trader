@@ -51,11 +51,9 @@ export function GameScreen() {
 
 function CurrentView() {
   const phase = GameContext.useSelector(gamePhase);
-  const hasMessages = GameContext.useSelector((snapshot) => snapshot.context.messages.length > 0);
-  const hasInteractiveEvent = GameContext.useSelector(
-    (snapshot) => gamePhase(snapshot) === "event" && snapshot.matches({ atSea: { event: "multi_choice" } }),
-  );
-  const { screen } = useNavigation();
+  const { screen, noticesSeen } = useNavigation();
+  const hasMessages = GameContext.useSelector((snapshot) => snapshot.context.notices.length > noticesSeen);
+  const hasInteractiveEvent = phase === "event";
   const piratesEncountered = phase === "encounter";
   const hasCargoOffer = phase === "cargoOffer";
 
@@ -103,24 +101,30 @@ function CurrentView() {
 }
 
 function Messages() {
-  const messages = GameContext.useSelector((snapshot) => snapshot.context.messages);
+  const { noticesSeen } = useNavigation();
+  const notice = GameContext.useSelector((snapshot) => snapshot.context.notices[noticesSeen]);
 
-  if (messages.length === 0) return null;
+  if (!notice) return null;
 
   return (
-    <Box flexDirection="column" gap={1}>
+    <Box key={noticesSeen} flexDirection="column" gap={1}>
       <Badge color="blueBright">Message</Badge>
-      {messages[0]?.reduceRight((el, message) => <Typed text={message}>{el}</Typed>, <ContinueMessage />)}
+      {notice.reduceRight<React.ReactNode>(
+        (el, line) => (
+          <Typed text={line}>{el}</Typed>
+        ),
+        <ContinueMessage />,
+      )}
     </Box>
   );
 }
 
 function ContinueMessage() {
-  const actor = GameContext.useActorRef();
+  const { markNoticeSeen } = useNavigation();
 
   useInput((input) => {
     if (input === " ") {
-      actor.send({ type: "MSG_ACK" });
+      markNoticeSeen();
     }
   });
 

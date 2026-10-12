@@ -24,7 +24,10 @@ const gameAt = (value: StateValue, patch: (context: Context) => Partial<Context>
 
 const atMarket = (patch: (context: Context) => Partial<Context> = () => ({})) => gameAt("inPort", patch);
 
-const messagesOf = (actor: ReturnType<typeof startGame>) => actor.getSnapshot().context.messages.flat();
+const messagesOf = (actor: ReturnType<typeof startGame>) => actor.getSnapshot().context.notices.flat();
+
+// An unhandled command makes the machine re-run its eventless checks
+const settle = (actor: ReturnType<typeof startGame>) => actor.send({ type: "RESTART_GAME" });
 
 describe("game start", () => {
   it("opens with the same prices and season for the same seed", () => {
@@ -220,7 +223,7 @@ describe("cargo offer", () => {
 describe("money", () => {
   const atMenu = (patch: (context: Context) => Partial<Context>, rng?: Rng) => {
     const game = gameAt("inPort", patch, rng);
-    game.send({ type: "MSG_ACK" });
+    settle(game);
     return game;
   };
 
@@ -258,7 +261,7 @@ describe("money", () => {
 describe("overdraft notices", () => {
   const atMenu = (patch: (context: Context) => Partial<Context>) => {
     const game = gameAt("inPort", patch);
-    game.send({ type: "MSG_ACK" });
+    settle(game);
     return game;
   };
 
@@ -325,14 +328,14 @@ describe("voyage end", () => {
 
   it("goes bankrupt when the Overdraft passes the limit", () => {
     const game = atMenu(() => ({ balance: -4001, announcedOverdraft: true }));
-    game.send({ type: "MSG_ACK" });
+    settle(game);
 
     expect(voyageResult(game.getSnapshot().context)).toMatchObject({ end: "bankrupt", score: 0 });
   });
 
   it("is shipwrecked when the wreck can't be repaired", () => {
     const game = atMenu((context) => ({ balance: 0, ship: { ...context.ship, health: 10 } }));
-    game.send({ type: "MSG_ACK" });
+    settle(game);
 
     expect(voyageResult(game.getSnapshot().context).end).toBe("shipwrecked");
   });
@@ -385,16 +388,15 @@ describe("events", () => {
     );
   });
 
-  it("applies an Event without choices once the Captain reads it", () => {
-    const game = gameAt({ atSea: { event: "no_choice" } }, () => ({
-      currentEvent: "light-breeze",
-      destination: "Shanghai",
-      messages: [["A light breeze speeds up your journey."]],
-    }));
+  it("applies an Event without choices straight away", () => {
+    const game = gameAt({ atSea: "checkEvent" }, () => ({ currentEvent: "light-breeze", destination: "Shanghai" }));
 
-    game.send({ type: "MSG_ACK" });
+    settle(game);
 
-    expect(messagesOf(game)).toContain("We saved a day.");
+    expect(messagesOf(game)).toEqual(
+      expect.arrayContaining(["A light breeze speeds up our journey.", "We saved a day."]),
+    );
+    expect(gamePhase(game.getSnapshot())).toBe("inPort");
   });
 });
 
@@ -447,5 +449,19 @@ describe("game phases", () => {
 
     game.send({ type: "RESTART_GAME" });
     expect(gamePhase(game.getSnapshot())).toBe("idle");
+  });
+});
+
+describe("notices", () => {
+  it("keeps every Notice in a log and emits each one", () => {
+    const game = atMarket();
+    const emitted: string[][] = [];
+    game.on("notice", ({ lines }) => emitted.push(lines));
+
+    game.send({ type: "PURCHASE", good: "Wheat", quantity: 1 });
+    game.send({ type: "PURCHASE", good: "Wheat", quantity: 1 });
+
+    expect(game.getSnapshot().context.notices).toHaveLength(2);
+    expect(emitted).toEqual(game.getSnapshot().context.notices);
   });
 });

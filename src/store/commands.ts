@@ -20,5 +20,4 @@ export type GameEvents =
   | { type: "DISMISS_GUARDS"; amount: number }
   | { type: "RETIRE" }
   | { type: "DECLARE_BANKRUPTCY" }
-  | { type: "MSG_ACK" }
   | { type: "RESTART_GAME" };

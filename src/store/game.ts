@@ -7,7 +7,7 @@ import { GOAL_DAYS, advanceDays, canRetire } from "./clock.js";
 import { GameEvents } from "./commands.js";
 import { Context, initialContext } from "./context.js";
 import { checkForEvent, eventById } from "./events/chance.js";
-import { applyEventResult } from "./events/outcomes.js";
+import { EventResult, applyEventResult, result } from "./events/outcomes.js";
 import { bribePirates, fightPirates, fleePirates } from "./events/pirates.js";
 import { MAX_GUARD_QUALITY, MAX_GUARD_SHIPS, calculateFleetUpgradeCost, calculateGuardShipCost } from "./fleet.js";
 import { displayMonetaryValue, joinWords } from "./format.js";
@@ -30,7 +30,7 @@ import {
 
 const currentEventOf = (context: Context) => (context.currentEvent ? eventById(context.currentEvent) : undefined);
 
-const OVERLOADED_MESSAGES = [
+const OVERLOADED_NOTICE = [
   "Our ship is overloaded, Captain!",
   "This will reduce our speed and increase risk of damage to our ship.",
 ];
@@ -39,13 +39,20 @@ export const gameMachine = setup({
   types: {
     context: {} as Context,
     events: {} as GameEvents,
+    emitted: {} as { type: "notice"; lines: string[] },
     input: {} as { rng: Rng },
   },
   actions: {
-    displayMessages: assign(({ context }, messages: string[]) => ({
-      messages: [...context.messages, messages].filter((msgs) => msgs.length > 0),
-    })),
-    acknoledgeMessage: assign(({ context }) => ({ messages: context.messages.slice(1) })),
+    notify: enqueueActions(({ context, enqueue }, lines: string[]) => {
+      if (lines.length === 0) return;
+      enqueue.assign({ notices: [...context.notices, lines] });
+      enqueue.emit({ type: "notice", lines });
+    }),
+    applyResult: enqueueActions(({ context, enqueue }, eventResult: EventResult) => {
+      const { context: next, notice } = applyEventResult(context, eventResult);
+      enqueue.assign(notice.length > 0 ? { ...next, notices: [...next.notices, notice] } : next);
+      if (notice.length > 0) enqueue.emit({ type: "notice", lines: notice });
+    }),
     takeCargoOffer: enqueueActions(({ context, enqueue }, { overload }: { overload: boolean }) => {
       const { hold, taken, leftBehind } = takeCargoOffer(
         context.ship.hold,
@@ -53,10 +60,10 @@ export const gameMachine = setup({
         context.prices[context.currentPort],
         { overload },
       );
-      const loadedMessage = `We loaded ${joinWords(taken.map(([good, picul]) => `${picul} picul of ${good}`))} into the hold.`;
+      const loadedLine = `We loaded ${joinWords(taken.map(([good, picul]) => `${picul} picul of ${good}`))} into the hold.`;
 
-      const outcomeMessages = [
-        taken.length > 0 ? loadedMessage : "",
+      const outcomeLines = [
+        taken.length > 0 ? loadedLine : "",
         leftBehind > 0
           ? taken.length > 0
             ? `We left ${leftBehind} picul behind.`
@@ -65,21 +72,18 @@ export const gameMachine = setup({
       ].filter(Boolean);
       const becameOverloaded = !isOverloaded(context.ship.hold) && isOverloaded(hold);
 
+      const notices = [outcomeLines, becameOverloaded ? OVERLOADED_NOTICE : []].filter((lines) => lines.length > 0);
       enqueue.assign({
         ship: { ...context.ship, hold },
         cargoOffer: undefined,
-        messages: [...context.messages, outcomeMessages, becameOverloaded ? OVERLOADED_MESSAGES : []].filter(
-          (messages) => messages.length > 0,
-        ),
+        notices: [...context.notices, ...notices],
       });
+      notices.forEach((lines) => enqueue.emit({ type: "notice", lines }));
     }),
   },
 }).createMachine({
   initial: "idle",
   context: ({ input }) => initialContext(input.rng),
-  on: {
-    MSG_ACK: { actions: { type: "acknoledgeMessage" } },
-  },
   states: {
     idle: {
       on: {
@@ -99,7 +103,7 @@ export const gameMachine = setup({
             },
             guard: ({ context, event }) => !canAfford(context, calculatePrice({ ...context, ...event })),
             actions: {
-              type: "displayMessages",
+              type: "notify",
               params: ({ context, event }) => [
                 `Captain, you don't have enough money. You need ${displayMonetaryValue(calculatePrice({ ...context, ...event }))} to purchase ${event.quantity} picul of ${event.good.toLowerCase()}`,
               ],
@@ -111,7 +115,7 @@ export const gameMachine = setup({
             },
             guard: ({ context, event }) => fitsAboard(context.ship.hold, { overload: true }) < event.quantity,
             actions: {
-              type: "displayMessages",
+              type: "notify",
               params: ({ context, event }) => [
                 `Captain, we don't have room in the hold for ${event.quantity} picul of ${event.good.toLowerCase()}.`,
                 `We have room for ${freeSpace(context.ship.hold)} more picul (${marginLeft(context.ship.hold)} if we overload).`,
@@ -125,14 +129,14 @@ export const gameMachine = setup({
 
               enqueue.assign({ ship: { ...context.ship, hold }, balance: context.balance - cost });
               enqueue({
-                type: "displayMessages",
+                type: "notify",
                 params: [
                   `Purchased ${event.quantity} picul of ${event.good} for ${displayMonetaryValue(cost)}.`,
                   `We have room for ${freeSpace(hold)} more picul, Captain.`,
                 ],
               });
               if (becameOverloaded) {
-                enqueue({ type: "displayMessages", params: OVERLOADED_MESSAGES });
+                enqueue({ type: "notify", params: OVERLOADED_NOTICE });
               }
             }),
           },
@@ -144,7 +148,7 @@ export const gameMachine = setup({
             },
             guard: ({ context, event }) => amountOf(context.ship.hold, event.good) < event.quantity,
             actions: {
-              type: "displayMessages",
+              type: "notify",
               params: ({ event }) => [`Captain, we don't have enough ${event.good.toLowerCase()} in our hold.`],
             },
           },
@@ -155,7 +159,7 @@ export const gameMachine = setup({
                 balance: context.balance + calculatePrice({ ...context, ...event }),
               })),
               {
-                type: "displayMessages",
+                type: "notify",
                 params: ({ context, event }) => [
                   `Sold ${event.quantity} picul of ${event.good} for ${displayMonetaryValue(
                     calculatePrice({
@@ -175,7 +179,7 @@ export const gameMachine = setup({
               description: "Check that player's ship is damaged",
             },
             guard: ({ context }) => context.ship.health === 100,
-            actions: { type: "displayMessages", params: ["Captain, your ship is already in perfect condition"] },
+            actions: { type: "notify", params: ["Captain, your ship is already in perfect condition"] },
           },
           {
             meta: {
@@ -183,14 +187,14 @@ export const gameMachine = setup({
             },
             guard: ({ context, event }) => !canAfford(context, event.cash),
             actions: {
-              type: "displayMessages",
+              type: "notify",
               params: ["Captain, we don't have enough cash to pay for this repair"],
             },
           },
           {
             actions: [
               {
-                type: "displayMessages",
+                type: "notify",
                 params: ({ context, event }) => {
                   const damageToRepair = Math.min(
                     /* ship's damage */ 100 - context.ship.health,
@@ -222,29 +226,28 @@ export const gameMachine = setup({
               description: "Check the player has enough cash",
             },
             guard: ({ context, event }) => !canAffordUpgrade(event.upgradeType, context),
-            actions: [{ type: "displayMessages", params: ["Captain, we don't have enough money for this upgrade."] }],
+            actions: [{ type: "notify", params: ["Captain, we don't have enough money for this upgrade."] }],
           },
           {
-            actions: [
-              assign(({ context, event }) => {
-                const upgrade = nextUpgrade(context.ship, event.upgradeType);
+            actions: enqueueActions(({ context, event, enqueue }) => {
+              const upgrade = nextUpgrade(context.ship, event.upgradeType);
+              if (!upgrade) return;
 
-                if (!upgrade) return context;
-
-                const messages = [`Captain, they've upgraded our ship's ${event.upgradeType}!`];
-
-                if (upgrade.reputation) {
-                  messages.push(`Your ship improvements have earned you ${upgrade.reputation} reputation points!`);
-                }
-
-                return {
-                  ship: upgradeShip(context.ship, event.upgradeType),
-                  balance: context.balance - upgrade.cost,
-                  messages: [...context.messages, messages],
-                  reputation: Math.min(100, context.reputation + (upgrade.reputation ?? 0)),
-                };
-              }),
-            ],
+              enqueue.assign({
+                ship: upgradeShip(context.ship, event.upgradeType),
+                balance: context.balance - upgrade.cost,
+                reputation: Math.min(100, context.reputation + (upgrade.reputation ?? 0)),
+              });
+              enqueue({
+                type: "notify",
+                params: [
+                  `Captain, they've upgraded our ship's ${event.upgradeType}!`,
+                  ...(upgrade.reputation
+                    ? [`Your ship improvements have earned you ${upgrade.reputation} reputation points!`]
+                    : []),
+                ],
+              });
+            }),
           },
         ],
         HIRE_PERMANENT_GUARDS: [
@@ -254,7 +257,7 @@ export const gameMachine = setup({
             },
             guard: ({ context }) => context.guardFleet.ships >= MAX_GUARD_SHIPS,
             actions: {
-              type: "displayMessages",
+              type: "notify",
               params: [`Captain, our fleet is at maximum capacity (${MAX_GUARD_SHIPS} ships)`],
             },
           },
@@ -267,7 +270,7 @@ export const gameMachine = setup({
               return totalShips > MAX_GUARD_SHIPS;
             },
             actions: {
-              type: "displayMessages",
+              type: "notify",
               params: [`Captain, we cannot hire that many ships. Maximum fleet size is ${MAX_GUARD_SHIPS} ships.`],
             },
           },
@@ -280,7 +283,7 @@ export const gameMachine = setup({
               return !canAfford(context, cost);
             },
             actions: {
-              type: "displayMessages",
+              type: "notify",
               params: ({ context, event }) => {
                 const cost = calculateGuardShipCost(context, event.amount);
                 return [
@@ -303,7 +306,7 @@ export const gameMachine = setup({
                 };
               }),
               {
-                type: "displayMessages",
+                type: "notify",
                 params: ({ event }) => [`Captain, we hired ${event.amount} permanent guard ships`],
               },
             ],
@@ -316,7 +319,7 @@ export const gameMachine = setup({
             },
             guard: ({ context }) => context.guardFleet.ships === 0,
             actions: {
-              type: "displayMessages",
+              type: "notify",
               params: ["Captain, we don't have any guard ships to upgrade."],
             },
           },
@@ -326,7 +329,7 @@ export const gameMachine = setup({
             },
             guard: ({ context }) => context.guardFleet.quality >= MAX_GUARD_QUALITY,
             actions: {
-              type: "displayMessages",
+              type: "notify",
               params: ["Captain, our fleet is already at maximum quality."],
             },
           },
@@ -339,7 +342,7 @@ export const gameMachine = setup({
               return !canAfford(context, cost);
             },
             actions: {
-              type: "displayMessages",
+              type: "notify",
               params: ({ context }) => {
                 const cost = calculateFleetUpgradeCost(context);
                 return [
@@ -361,7 +364,7 @@ export const gameMachine = setup({
                 };
               }),
               {
-                type: "displayMessages",
+                type: "notify",
                 params: ({ context }) => [
                   `Captain, our fleet upgraded to quality level ${context.guardFleet.quality}!`,
                 ],
@@ -376,7 +379,7 @@ export const gameMachine = setup({
             },
             guard: ({ context }) => context.guardFleet.ships === 0,
             actions: {
-              type: "displayMessages",
+              type: "notify",
               params: ["Captain, we don't have any guard ships to dismiss."],
             },
           },
@@ -390,7 +393,7 @@ export const gameMachine = setup({
                 reputation: Math.max(0, context.reputation - event.amount * 2),
               })),
               {
-                type: "displayMessages",
+                type: "notify",
                 params: ({ event }) => [`We've dismissed ${event.amount} guard ships, Captain.`],
               },
             ],
@@ -400,14 +403,14 @@ export const gameMachine = setup({
           {
             guard: ({ context }) => context.day >= GOAL_DAYS && !context.extendedGame,
             actions: {
-              type: "displayMessages",
+              type: "notify",
               params: [`You've finished your ${GOAL_DAYS} days voyage.`],
             },
           },
           {
             guard: ({ context }) => getShipStatus(context.ship.health) === "Wreckage",
             actions: {
-              type: "displayMessages",
+              type: "notify",
               params: ["Our ship is a wreckage, Captain.", "We can't travel until we repair it."],
             },
           },
@@ -425,7 +428,7 @@ export const gameMachine = setup({
               description: "Check if the player is actually bankrupt",
             },
             guard: ({ context }) => !isInOverdraft(context),
-            actions: { type: "displayMessages", params: ["You're not bankrupt!"] },
+            actions: { type: "notify", params: ["You're not bankrupt!"] },
           },
           { actions: assign({ voyageEnd: "declaredBankrupt" }), target: "#ended" },
         ],
@@ -435,7 +438,7 @@ export const gameMachine = setup({
               description: "Make sure the player can retire",
             },
             guard: ({ context }) => !canRetire(context),
-            actions: { type: "displayMessages", params: ["You haven't finished your voyage yet!"] },
+            actions: { type: "notify", params: ["You haven't finished your voyage yet!"] },
           },
           { actions: assign({ voyageEnd: "retired" }), target: "#ended" },
         ],
@@ -450,7 +453,7 @@ export const gameMachine = setup({
           actions: [
             assign({ voyageEnd: "shipwrecked" }),
             {
-              type: "displayMessages",
+              type: "notify",
               params: [
                 "Captain, our ship is in wreckage condition and we don't have enough money to repair it.",
                 "You've lost the game.",
@@ -465,7 +468,7 @@ export const gameMachine = setup({
           actions: [
             assign({ voyageEnd: "bankrupt" }),
             {
-              type: "displayMessages",
+              type: "notify",
               params: ["Captain, we have gone bankrupt! The creditors have seized our assets."],
             },
           ],
@@ -484,7 +487,7 @@ export const gameMachine = setup({
               reputation: Math.max(0, context.reputation - 10),
             })),
             {
-              type: "displayMessages",
+              type: "notify",
               params: [
                 "In a desperate attempt to pay your debts, you've sold your entire fleet.",
                 "Your reputation has suffered significantly.",
@@ -498,7 +501,7 @@ export const gameMachine = setup({
           actions: [
             assign({ announcedOverdraft: true }),
             {
-              type: "displayMessages",
+              type: "notify",
               params: ({ context }) =>
                 [
                   "Captain, we're in debt with the moneylenders.",
@@ -516,7 +519,7 @@ export const gameMachine = setup({
           guard: ({ context }) => !isInOverdraft(context) && context.announcedOverdraft,
           actions: [
             assign({ announcedOverdraft: false }),
-            { type: "displayMessages", params: ["We're no longer in overdraft, Captain!"] },
+            { type: "notify", params: ["We're no longer in overdraft, Captain!"] },
           ],
         },
       ],
@@ -537,15 +540,15 @@ export const gameMachine = setup({
         encounter: {
           on: {
             PIRATES_ENCOUNTER_FIGHT: {
-              actions: assign(({ context }) => applyEventResult(context, fightPirates(context))),
+              actions: { type: "applyResult", params: ({ context }) => fightPirates(context) },
               target: "arriving",
             },
             PIRATES_ENCOUNTER_FLEE: {
-              actions: assign(({ context }) => applyEventResult(context, fleePirates(context))),
+              actions: { type: "applyResult", params: ({ context }) => fleePirates(context) },
               target: "arriving",
             },
             PIRATES_ENCOUNTER_OFFER: {
-              actions: assign(({ context }) => applyEventResult(context, bribePirates(context))),
+              actions: { type: "applyResult", params: ({ context }) => bribePirates(context) },
               target: "arriving",
             },
           },
@@ -569,29 +572,22 @@ export const gameMachine = setup({
               ],
             },
             no_choice: {
-              entry: [{ type: "displayMessages", params: ({ context }) => [currentEventOf(context)!.message] }],
-              on: {
-                MSG_ACK: {
-                  actions: [
-                    { type: "acknoledgeMessage" },
-                    assign(({ context }) => {
-                      const effect = currentEventOf(context)!.effect;
-                      return effect ? applyEventResult(context, effect(context)) : {};
-                    }),
-                  ],
-                  target: "#checkCargoOffer",
-                },
-              },
+              entry: [
+                { type: "notify", params: ({ context }) => [currentEventOf(context)!.message] },
+                { type: "applyResult", params: ({ context }) => currentEventOf(context)!.effect!(context) },
+              ],
+              always: [{ target: "#checkCargoOffer" }],
             },
             multi_choice: {
               on: {
                 RESOLVE_EVENT: {
-                  actions: [
-                    assign(({ context, event }) => {
-                      const choice = currentEventOf(context)!.choices?.find((choice) => choice.key === event.choice);
-                      return choice ? applyEventResult(context, choice.effect(context)) : {};
-                    }),
-                  ],
+                  actions: {
+                    type: "applyResult",
+                    params: ({ context, event }) =>
+                      currentEventOf(context)!
+                        .choices?.find((choice) => choice.key === event.choice)
+                        ?.effect(context) ?? result([]),
+                  },
                   target: "#checkCargoOffer",
                 },
               },
@@ -620,21 +616,21 @@ export const gameMachine = setup({
         },
         arriving: {
           id: "arriving",
-          entry: assign(({ context }) => {
+          entry: enqueueActions(({ context, enqueue }) => {
             const destination = context.destination ?? context.currentPort;
             const travelTime = context.destination ? calculateTravelTime(context.destination, context) : 1;
             const { context: arrived, notices } = advanceDays(
               context,
               Math.max(1, travelTime + (context.delayDays ?? 0)),
             );
-            return {
+            enqueue.assign({
               ...arrived,
               currentPort: destination,
               destination: undefined,
               currentEvent: undefined,
               delayDays: undefined,
-              messages: [...arrived.messages, [`Arrived at ${destination}`, ...notices]],
-            };
+            });
+            enqueue({ type: "notify", params: [`Arrived at ${destination}`, ...notices] });
           }),
           always: [{ target: "#inPort" }],
         },
