@@ -27,3 +27,5 @@ Smarter Cargo, Fairer Money and Clearer Voyages
 - After buying or selling you stay on the goods list instead of jumping back to the market menu, and a refused order keeps you on its prompt so you can try again
 - Fractional or empty quantities are refused with a clear message
 - Not affording a guard fleet upgrade no longer throws you out of the shipyard, and fully upgraded ship parts say so instead of "not enough money"
+- If you're left with no cargo and too little money to buy anything, you can now declare bankruptcy instead of being stuck, and the shipyard warns you before an upgrade or repair that would leave you that way
+- The help screen and README now explain the goal, scoring, money rules, and controls, and several misleading tips are corrected
