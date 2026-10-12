@@ -35,3 +35,29 @@ _Avoid_: Loot, windfall, found goods
 **Guard Fleet**:
 Escort ships the Captain hires to fight pirates. They carry no cargo.
 _Avoid_: Guards, escorts
+
+**Upkeep**:
+The daily cost of keeping the Guard Fleet. While the Captain is in Overdraft, Upkeep goes unpaid and the fleet fights at reduced strength; unpaid days are forgiven, not billed later.
+_Avoid_: Maintenance, fleet fee
+
+### Money
+
+**Balance**:
+The Captain's money. It goes negative when the Captain owes the Moneylenders.
+_Avoid_: Cash, funds, wallet
+
+**Overdraft**:
+A negative Balance owed to the Moneylenders, charged daily interest. The Captain falls into Overdraft through charges, never by buying: purchases are paid only from a positive Balance.
+_Avoid_: Debt, credit, negative balance
+
+**Moneylenders**:
+Who the Captain owes while in Overdraft.
+_Avoid_: Bank, creditors, lenders
+
+**Net Worth**:
+The Balance plus the value of the Hold's cargo at the current port's prices.
+_Avoid_: Net cash, wealth, assets
+
+**Voyage End**:
+How a voyage finished: **Retired** after the voyage days, **Bankrupt** when the Overdraft passed the limit, **Declared Bankrupt** when the Captain gave up while in Overdraft, or **Shipwrecked** when the Ship was a wreck the Captain couldn't afford to repair.
+_Avoid_: Game over, outcome
