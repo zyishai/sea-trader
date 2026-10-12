@@ -8,6 +8,22 @@ A turn-based trading game set among the 19th-century Far East treaty ports: the 
 The player.
 _Avoid_: User, trader
 
+**Voyage**:
+The Captain's whole trading run, counted in days. A classic Voyage ends on day 200; an extended Voyage continues past it with a score penalty.
+_Avoid_: Game, run, campaign
+
+**Season**:
+One of four 30-day periods (Spring, Summer, Autumn, Winter) that shift prices and event chances. The Voyage starts in a random Season and moves to the next every 30 days.
+_Avoid_: Quarter, period
+
+**Price Update**:
+The moment every 14 days when trends move and prices change at every port.
+_Avoid_: Market refresh, tick
+
+**Delay**:
+Days an event costs the Captain on top of the passage itself, such as sheltering from a storm.
+_Avoid_: Lost time, wait
+
 **Ship**:
 The Captain's single merchant vessel. It has a class, condition, speed, defense and one Hold. The Captain owns one Ship at a time and may change its class.
 _Avoid_: Vessel, boat
