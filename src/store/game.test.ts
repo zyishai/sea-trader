@@ -73,7 +73,7 @@ describe("market", () => {
   });
 
   it("doesn't buy on credit while in Overdraft", () => {
-    const game = atMarket(() => ({ balance: -10, inOverdraft: true }));
+    const game = atMarket(() => ({ balance: -10, announcedOverdraft: true }));
 
     game.send({ type: "PURCHASE", good: "Wheat", quantity: 1 });
 
@@ -195,9 +195,9 @@ describe("money", () => {
   it("forgives Guard Fleet Upkeep while in Overdraft", () => {
     const game = atMenu((context) => ({
       balance: -100,
-      inOverdraft: true,
+      announcedOverdraft: true,
       day: 10,
-      lastOverdraftChargeDay: 10,
+      lastInterestDay: 10,
       guardFleet: { ...context.guardFleet, ships: 2, lastMaintenanceDay: 1 },
     }));
 
@@ -206,7 +206,7 @@ describe("money", () => {
   });
 
   it("charges Overdraft interest for every day that passed", () => {
-    const game = atMenu(() => ({ balance: -1000, inOverdraft: true, day: 13, lastOverdraftChargeDay: 10 }));
+    const game = atMenu(() => ({ balance: -1000, announcedOverdraft: true, day: 13, lastInterestDay: 10 }));
 
     expect(game.getSnapshot().context.balance).toBe(-1093);
   });
@@ -214,8 +214,8 @@ describe("money", () => {
   it("sells the Guard Fleet at a loss when the Overdraft grows too deep", () => {
     const game = atMenu((context) => ({
       balance: -2500,
-      inOverdraft: true,
-      lastOverdraftChargeDay: context.day,
+      announcedOverdraft: true,
+      lastInterestDay: context.day,
       guardFleet: { ...context.guardFleet, ships: 2, quality: 1, lastMaintenanceDay: context.day },
     }));
 
@@ -224,11 +224,41 @@ describe("money", () => {
   });
 });
 
+describe("overdraft notices", () => {
+  const atMenu = (patch: (context: Context) => Partial<Context>) => {
+    const game = gameAt({ gameScreen: "menu" }, (context) => ({ lastInterestDay: context.day, ...patch(context) }));
+    game.send({ type: "MSG_ACK" });
+    return game;
+  };
+
+  it("announces falling into Overdraft once", () => {
+    const game = gameAt({ gameScreen: "menu" }, (context) => ({ balance: -50, lastInterestDay: context.day }));
+    game.send({ type: "GO_TO_MARKET" });
+    game.send({ type: "CANCEL" });
+
+    expect(
+      messagesOf(game).filter((message) => message === "Captain, we're in debt with the moneylenders."),
+    ).toHaveLength(1);
+  });
+
+  it("announces leaving Overdraft", () => {
+    const game = atMenu(() => ({ balance: 10, announcedOverdraft: true }));
+
+    expect(messagesOf(game)).toContain("We're no longer in overdraft, Captain!");
+  });
+
+  it("doesn't charge interest for days spent out of Overdraft", () => {
+    const game = atMenu(() => ({ balance: 500, day: 50, lastInterestDay: 1 }));
+
+    expect(game.getSnapshot().context.lastInterestDay).toBe(50);
+  });
+});
+
 describe("bribing pirates", () => {
   it("has nothing to offer while in Overdraft", () => {
     const game = gameAt({ gameScreen: { at_port: "piratesEncountered" } }, () => ({
       balance: -500,
-      inOverdraft: true,
+      announcedOverdraft: true,
     }));
 
     game.send({ type: "PIRATES_ENCOUNTER_OFFER" });

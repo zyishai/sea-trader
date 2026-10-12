@@ -3,7 +3,7 @@ import { initialContext } from "./defaults.js";
 import { Context, Good } from "./types.js";
 import { GameEvents } from "./events.js";
 import { Rng } from "./rng.js";
-import { accrueInterest, canAfford, cashOnHand, fleetSaleValue, upkeepDue } from "./treasury.js";
+import { accrueInterest, canAfford, cashOnHand, fleetSaleValue, isInOverdraft, upkeepDue } from "./treasury.js";
 import { needsCaptainsChoice, takeCargoOffer } from "./cargo-offer.js";
 import {
   amountOf,
@@ -891,21 +891,19 @@ export const gameMachine = setup({
             },
           ],
         },
-        // Charge interest if the player is in overdraft
+        // Charge Overdraft interest for the days that passed
         {
-          guard: ({ context }) => context.inOverdraft && context.day > context.lastOverdraftChargeDay,
-          actions: [
-            assign(({ context }) => ({
-              balance: accrueInterest(context.balance, context.day - context.lastOverdraftChargeDay),
-              lastOverdraftChargeDay: context.day,
-            })),
-          ],
+          guard: ({ context }) => context.day > context.lastInterestDay,
+          actions: assign(({ context }) => ({
+            balance: accrueInterest(context.balance, context.day - context.lastInterestDay),
+            lastInterestDay: context.day,
+          })),
         },
         // Notify the player if they're in overdraft
         {
-          guard: ({ context }) => context.balance < 0 && !context.inOverdraft,
+          guard: ({ context }) => isInOverdraft(context) && !context.announcedOverdraft,
           actions: [
-            assign({ inOverdraft: true }),
+            assign({ announcedOverdraft: true }),
             {
               type: "displayMessages",
               params: ({ context }) =>
@@ -922,9 +920,9 @@ export const gameMachine = setup({
         },
         // Notify the player if they're no longer in overdraft
         {
-          guard: ({ context }) => context.inOverdraft && context.balance >= 0,
+          guard: ({ context }) => !isInOverdraft(context) && context.announcedOverdraft,
           actions: [
-            assign({ inOverdraft: false }),
+            assign({ announcedOverdraft: false }),
             { type: "displayMessages", params: ["We're no longer in overdraft, Captain!"] },
           ],
         },

@@ -4,6 +4,7 @@ import { calculateDailyMaintenanceCost, calculateGuardShipCost } from "./utils.j
 
 type Money = Pick<Context, "balance">;
 
+export const isInOverdraft = ({ balance }: Money) => balance < 0;
 export const cashOnHand = ({ balance }: Money) => Math.max(0, balance);
 export const canAfford = (money: Money, cost: number) => cashOnHand(money) >= cost;
 export const affordableUnits = (money: Money, unitPrice: number) => Math.floor(cashOnHand(money) / unitPrice);

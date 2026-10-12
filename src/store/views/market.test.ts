@@ -31,7 +31,7 @@ describe("market view", () => {
   });
 
   it("offers nothing to buy while in Overdraft", () => {
-    const wheat = goodIn(marketView(marketContext({ balance: -500, inOverdraft: true })), "Wheat");
+    const wheat = goodIn(marketView(marketContext({ balance: -500 })), "Wheat");
 
     expect(wheat.maxBuy).toEqual({ withinCapacity: 0, withOverload: 0 });
   });

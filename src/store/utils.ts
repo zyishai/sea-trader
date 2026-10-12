@@ -45,7 +45,7 @@ import {
   UpgradeType,
 } from "./types.js";
 import { Rng } from "./rng.js";
-import { canAfford } from "./treasury.js";
+import { canAfford, isInOverdraft } from "./treasury.js";
 import { goodsAboard, overloadLevel, value } from "./hold.js";
 
 // ~~ PORT ~~
@@ -62,7 +62,7 @@ export const calculateGuardEffectiveness = (context: Context) => {
   const qualityBonus = (context.guardFleet.quality - 1) * 0.1;
   const fleetBonus = Math.min(0.3, context.guardFleet.ships * 0.05);
   const defenseBonus = Math.min(0.2, context.ship.defense / MAX_SHIP_DEFENSE);
-  const overdraftPenalty = context.inOverdraft ? 0.5 : 1; // Apply penalty if in overdraft
+  const overdraftPenalty = isInOverdraft(context) ? 0.5 : 1;
   return Math.min(0.9, (baseEffectiveness + qualityBonus + fleetBonus + defenseBonus) * overdraftPenalty);
 };
 export const calculateEventChance = (template: EventTemplate, context: Context) => {

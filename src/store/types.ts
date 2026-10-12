@@ -119,8 +119,8 @@ export type Context = {
   };
 
   // Misc
-  inOverdraft: boolean;
-  lastOverdraftChargeDay: number;
+  announcedOverdraft: boolean;
+  lastInterestDay: number;
   messages: string[][];
   canRetire: boolean;
 
