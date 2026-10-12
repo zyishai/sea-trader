@@ -3,7 +3,7 @@ import { initialContext } from "./defaults.js";
 import { Context, Good } from "./types.js";
 import { GameEvents } from "./events.js";
 import { Rng } from "./rng.js";
-import { canAfford } from "./treasury.js";
+import { accrueInterest, canAfford, cashOnHand, fleetSaleValue, upkeepDue } from "./treasury.js";
 import { needsCaptainsChoice, takeCargoOffer } from "./cargo-offer.js";
 import {
   amountOf,
@@ -20,7 +20,6 @@ import {
 } from "./hold.js";
 import {
   calculateCostForRepair,
-  calculateDailyMaintenanceCost,
   calculateGuardEffectiveness,
   calculateGuardShipCost,
   calculatePirateEncounterChance,
@@ -42,11 +41,8 @@ import {
 } from "./utils.js";
 import {
   BANKRUPTCY_THRESHOLD,
-  BASE_GUARD_COST,
-  BASE_INTEREST_RATE,
   GOAL_DAYS,
   goods,
-  MAX_DAILY_OVERDRAFT,
   MAX_GUARD_QUALITY,
   MAX_GUARD_SHIPS,
   OVERDRAFT_TRADING_LIMIT,
@@ -347,9 +343,9 @@ export const gameMachine = setup({
                 },
                 PIRATES_ENCOUNTER_OFFER: {
                   actions: enqueueActions(({ enqueue, context }) => {
-                    const bribeCost = Math.round(context.balance * 0.15);
-                    const actualBribe = context.rng.int(0, context.balance);
-                    const success = actualBribe >= bribeCost;
+                    const cash = cashOnHand(context);
+                    const bribeCost = Math.round(cash * 0.15);
+                    const success = cash > 0 && context.rng.int(0, cash) >= bribeCost;
 
                     if (success) {
                       enqueue({
@@ -368,7 +364,9 @@ export const gameMachine = setup({
                       const { shipDamage, shipsLost, remainingFleetDamage } = distributeFleetDamage(damage, context);
 
                       const messages = [
-                        "Captain, we couldn't afford to bribe the pirates!",
+                        cash > 0
+                          ? "Captain, we couldn't afford to bribe the pirates!"
+                          : "We have nothing to offer them, Captain!",
                         "They attacked us in anger!",
                         `We took ${shipDamage} damage.`,
                         `Lost ${Math.min(5, context.reputation)} reputation points.`,
@@ -855,25 +853,13 @@ export const gameMachine = setup({
           },
           target: "scoringScreen",
         },
-        // Pay for fleet maintenance if the player has any guard ships and it's time to do so and the player is not in debt
+        // Pay the Guard Fleet's Upkeep, which is forgiven while in Overdraft
         {
-          guard: ({ context }) =>
-            context.guardFleet.ships > 0 && context.day > context.guardFleet.lastMaintenanceDay && !context.inOverdraft,
-          actions: [
-            assign(({ context }) => {
-              const daysPassed = context.day - context.guardFleet.lastMaintenanceDay;
-              const dailyCost = calculateDailyMaintenanceCost(context);
-              const totalCost = daysPassed * dailyCost;
-
-              return {
-                balance: context.balance - totalCost,
-                guardFleet: {
-                  ...context.guardFleet,
-                  lastMaintenanceDay: context.day,
-                },
-              };
-            }),
-          ],
+          guard: ({ context }) => context.guardFleet.ships > 0 && context.day > context.guardFleet.lastMaintenanceDay,
+          actions: assign(({ context }) => ({
+            balance: context.balance - upkeepDue(context),
+            guardFleet: { ...context.guardFleet, lastMaintenanceDay: context.day },
+          })),
         },
         // Check if the player is bankrupt
         {
@@ -889,7 +875,7 @@ export const gameMachine = setup({
           guard: ({ context }) => context.balance < -OVERDRAFT_TRADING_LIMIT && context.guardFleet.ships > 0,
           actions: [
             assign(({ context }) => ({
-              balance: context.balance + context.guardFleet.ships * BASE_GUARD_COST * 1.5,
+              balance: context.balance + fleetSaleValue(context),
               guardFleet: {
                 ...context.guardFleet,
                 ships: 0,
@@ -910,13 +896,7 @@ export const gameMachine = setup({
           guard: ({ context }) => context.inOverdraft && context.day > context.lastOverdraftChargeDay,
           actions: [
             assign(({ context }) => ({
-              // 3% daily interest or $25 per day, whichever is less
-              balance: Math.max(
-                Math.floor(
-                  context.balance * Math.pow(1 + BASE_INTEREST_RATE, context.day - context.lastOverdraftChargeDay),
-                ),
-                context.balance - MAX_DAILY_OVERDRAFT,
-              ),
+              balance: accrueInterest(context.balance, context.day - context.lastOverdraftChargeDay),
               lastOverdraftChargeDay: context.day,
             })),
           ],

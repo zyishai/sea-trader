@@ -126,7 +126,7 @@ export const getNextSeason = (season: Season) => {
 };
 
 // -~ GUARD FLEET ~-
-export const calculateGuardShipCost = (context: Context, amount: number) => {
+export const calculateGuardShipCost = (context: Pick<Context, "guardFleet">, amount: number) => {
   const basePrice = BASE_GUARD_COST;
   const fleetSizeFactor = 1 + context.guardFleet.ships * 0.15;
   const qualityFactor = 1 + (context.guardFleet.quality - 1) * 0.25;
@@ -138,7 +138,7 @@ export const calculateFleetUpgradeCost = (context: Context) => {
   const qualityFactor = 1 + context.guardFleet.quality * 0.5;
   return Math.round(baseUpgradeCost * fleetSizeFactor * qualityFactor);
 };
-export const calculateDailyMaintenanceCost = (context: Context) =>
+export const calculateDailyMaintenanceCost = (context: Pick<Context, "guardFleet">) =>
   context.guardFleet.ships * MAINTENANCE_COST_PER_SHIP * context.guardFleet.quality;
 export const distributeFleetDamage = (damage: number, context: Context) => {
   if (context.guardFleet.ships === 0) {

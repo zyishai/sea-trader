@@ -184,3 +184,56 @@ describe("cargo offer", () => {
     expect(amountOf(game.getSnapshot().context.ship.hold, "Tea")).toBe(0);
   });
 });
+
+describe("money", () => {
+  const atMenu = (patch: (context: Context) => Partial<Context>, rng?: Rng) => {
+    const game = gameAt({ gameScreen: "menu" }, patch, rng);
+    game.send({ type: "MSG_ACK" });
+    return game;
+  };
+
+  it("forgives Guard Fleet Upkeep while in Overdraft", () => {
+    const game = atMenu((context) => ({
+      balance: -100,
+      inOverdraft: true,
+      day: 10,
+      lastOverdraftChargeDay: 10,
+      guardFleet: { ...context.guardFleet, ships: 2, lastMaintenanceDay: 1 },
+    }));
+
+    expect(game.getSnapshot().context.balance).toBe(-100);
+    expect(game.getSnapshot().context.guardFleet.lastMaintenanceDay).toBe(10);
+  });
+
+  it("charges Overdraft interest for every day that passed", () => {
+    const game = atMenu(() => ({ balance: -1000, inOverdraft: true, day: 13, lastOverdraftChargeDay: 10 }));
+
+    expect(game.getSnapshot().context.balance).toBe(-1093);
+  });
+
+  it("sells the Guard Fleet at a loss when the Overdraft grows too deep", () => {
+    const game = atMenu((context) => ({
+      balance: -2500,
+      inOverdraft: true,
+      lastOverdraftChargeDay: context.day,
+      guardFleet: { ...context.guardFleet, ships: 2, quality: 1, lastMaintenanceDay: context.day },
+    }));
+
+    expect(game.getSnapshot().context.guardFleet.ships).toBe(0);
+    expect(game.getSnapshot().context.balance).toBe(-1460);
+  });
+});
+
+describe("bribing pirates", () => {
+  it("has nothing to offer while in Overdraft", () => {
+    const game = gameAt({ gameScreen: { at_port: "piratesEncountered" } }, () => ({
+      balance: -500,
+      inOverdraft: true,
+    }));
+
+    game.send({ type: "PIRATES_ENCOUNTER_OFFER" });
+
+    expect(game.getSnapshot().context.balance).toBeLessThanOrEqual(-500);
+    expect(messagesOf(game)).toContain("We have nothing to offer them, Captain!");
+  });
+});
