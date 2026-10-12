@@ -21,7 +21,7 @@ The moment every 14 days when trends move and prices change at every port.
 _Avoid_: Market refresh, tick
 
 **Delay**:
-Days an event costs the Captain on top of the passage itself, such as sheltering from a storm.
+Days an event adds to the passage, such as sheltering from a storm. A favourable wind gives a negative Delay, though a passage always takes at least one day.
 _Avoid_: Lost time, wait
 
 **Ship**:

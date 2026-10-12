@@ -469,12 +469,16 @@ export const gameMachine = setup({
               entry: assign(({ context }) => {
                 const destination = context.destination ?? context.currentPort;
                 const travelTime = context.destination ? calculateTravelTime(context.destination, context) : 1;
-                const { context: arrived, notices } = advanceDays(context, travelTime);
+                const { context: arrived, notices } = advanceDays(
+                  context,
+                  Math.max(1, travelTime + (context.delayDays ?? 0)),
+                );
                 return {
                   ...arrived,
                   currentPort: destination,
                   destination: undefined,
                   currentEvent: undefined,
+                  delayDays: undefined,
                   messages: [...arrived.messages, [`Arrived at ${destination}`, ...notices]],
                 };
               }),

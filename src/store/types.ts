@@ -86,6 +86,7 @@ export type Context = {
   destination?: Port;
   currentEvent?: EventTemplate;
   cargoOffer?: CargoOffer;
+  delayDays?: number;
   voyageEnd?: VoyageEnd;
 
   // Market context

@@ -86,7 +86,7 @@ const weatherEvents: EventTemplate[] = [
           const harborFee = Math.round(200 * (1 + context.day / GOAL_DAYS));
           return {
             balance: context.balance - harborFee,
-            day: context.day + 2,
+            delayDays: 2,
             messages: [
               ...context.messages,
               [`Paid ${displayMonetaryValue(harborFee)} for safe harbor and waited out the storm.`],
@@ -98,7 +98,7 @@ const weatherEvents: EventTemplate[] = [
         label: "Take a long detour",
         key: "D",
         effect: (context) => ({
-          day: context.day + 4,
+          delayDays: 4,
           messages: [...context.messages, ["We avoided the storm but lost significant time navigating around it."]],
         }),
       },
@@ -109,9 +109,7 @@ const weatherEvents: EventTemplate[] = [
     severity: "minor",
     baseChance: (context) => Math.min(0.3, 0.2 + (context.ship.speed - BASE_SHIP_SPEED) * 0.02),
     message: "A light breeze speeds up your journey",
-    effect: (context) => ({
-      day: Math.max(1, context.day - 1),
-    }),
+    effect: () => ({ delayDays: -1 }),
   },
   {
     type: "weather",
@@ -132,7 +130,7 @@ const weatherEvents: EventTemplate[] = [
               ...context.ship,
               health: Math.max(0, context.ship.health - damage),
             },
-            day: context.day + 1,
+            delayDays: 1,
             messages: [...context.messages, ["We weathered the storm but took some damage."]],
           };
         },
@@ -141,7 +139,7 @@ const weatherEvents: EventTemplate[] = [
         label: "Take a detour",
         key: "D",
         effect: (context) => ({
-          day: context.day + 3,
+          delayDays: 3,
           messages: [...context.messages, ["We avoided the storm but lost valuable time."]],
         }),
       },
@@ -157,7 +155,7 @@ const weatherEvents: EventTemplate[] = [
         label: "Pay harbor fees ($200)",
         key: "P",
         effect: (context) => ({
-          day: context.day + 2,
+          delayDays: 2,
           balance: context.balance - 200,
           messages: [...context.messages, ["We paid harbor fees and weathered the storm safely."]],
         }),
@@ -229,7 +227,7 @@ const cargoEvents: EventTemplate[] = [
           const success = context.rng.chance(0.8);
           if (success) {
             return {
-              day: context.day + 1,
+              delayDays: 1,
               reputation: Math.min(100, context.reputation + 2),
               messages: [
                 ...context.messages,
@@ -246,7 +244,7 @@ const cargoEvents: EventTemplate[] = [
 
           return {
             ship: { ...context.ship, hold: newHold },
-            day: context.day + 1,
+            delayDays: 1,
             messages: [
               ...context.messages,
               ["Captain, we lost some cargo during redistribution despite our best efforts."],
@@ -555,7 +553,7 @@ const discoveryEvents: EventTemplate[] = [
 
             return {
               cargoOffer,
-              day: context.day + 1,
+              delayDays: 1,
               reputation: Math.min(100, context.reputation + 3),
               balance: context.balance + baseReward,
               messages: [
@@ -577,14 +575,14 @@ const discoveryEvents: EventTemplate[] = [
                 ...context.ship,
                 health: Math.max(0, context.ship.health - damage),
               },
-              day: context.day + 1,
+              delayDays: 1,
               messages: [...context.messages, [`Our ship struck a reef during exploration (${damage} damage).`]],
             };
           }
 
           // 20% chance of losing time and some crew morale (represented by reputation)
           return {
-            day: context.day + 2,
+            delayDays: 2,
             reputation: Math.max(0, context.reputation - 3),
             messages: [
               ...context.messages,
@@ -636,7 +634,7 @@ const discoveryEvents: EventTemplate[] = [
           }
 
           return {
-            day: context.day + 2,
+            delayDays: 2,
             messages: [...context.messages, ["The lead turned out to be a dead end, Captain."]],
           };
         },

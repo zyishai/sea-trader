@@ -6,6 +6,7 @@ import { createRng, Rng, seededRng } from "./rng.js";
 import { Context, EventTemplate } from "./types.js";
 import { cargoOfferView } from "./views/cargo-offer.js";
 import { voyageResult } from "./views/voyage-result.js";
+import { calculateTravelTime } from "./utils.js";
 
 const startGame = (rng: Rng = seededRng(42)) => {
   const actor = createActor(gameMachine, { input: { rng } }).start();
@@ -304,5 +305,28 @@ describe("voyage end", () => {
     game.send({ type: "MSG_ACK" });
 
     expect(voyageResult(game.getSnapshot().context).end).toBe("shipwrecked");
+  });
+});
+
+describe("event delays", () => {
+  it("adds an event's Delay to the passage", () => {
+    const sheltering: EventTemplate = {
+      type: "weather",
+      severity: "minor",
+      baseChance: 0,
+      message: "A storm approaches.",
+      choices: [{ label: "Shelter", key: "S", effect: () => ({ delayDays: 3 }) }],
+    };
+    const game = gameAt({ gameScreen: { at_port: { eventOccurred: "multi_choice" } } }, () => ({
+      currentEvent: sheltering,
+      destination: "Shanghai",
+    }));
+    const before = game.getSnapshot().context;
+
+    game.send({ type: "RESOLVE_EVENT", choice: "S" });
+
+    const after = game.getSnapshot().context;
+    expect(after.day).toBe(before.day + calculateTravelTime("Shanghai", before) + 3);
+    expect(after.delayDays).toBeUndefined();
   });
 });
