@@ -46,10 +46,12 @@ import {
   getNextSeason,
   updatePriceHistory,
   joinWords,
+  displayMonetaryValue,
 } from "./utils.js";
 import {
   BANKRUPTCY_THRESHOLD,
   GOAL_DAYS,
+  MAX_DAILY_OVERDRAFT,
   goods,
   MAX_GUARD_QUALITY,
   MAX_GUARD_SHIPS,
@@ -194,7 +196,10 @@ export const gameMachine = setup({
                       const potentialLoot = Math.max(500, Math.floor(baseLoot * factor));
                       const actualLoot = Math.min(15_000, potentialLoot);
 
-                      const messages = ["We drove them off, Captain!", `Found $${actualLoot} in their hold.`];
+                      const messages = [
+                        "We drove them off, Captain!",
+                        `Found ${displayMonetaryValue(actualLoot)} in their hold.`,
+                      ];
 
                       if (shipDamage > 0) {
                         messages.push(`Captain, our ship took ${shipDamage} damage in the battle!`);
@@ -359,7 +364,7 @@ export const gameMachine = setup({
                       enqueue({
                         type: "displayMessages",
                         params: [
-                          `Captain, we paid the pirates $${bribeCost} to let us pass freely.`,
+                          `Captain, we paid the pirates ${displayMonetaryValue(bribeCost)} to let us pass freely.`,
                           `Lost 1 reputation point.`,
                         ],
                       });
@@ -509,7 +514,7 @@ export const gameMachine = setup({
                 actions: {
                   type: "displayMessages",
                   params: ({ context, event }) => [
-                    `Captain, you don't have enough money. You need $${calculatePrice({ ...context, ...event })} to purchase ${event.quantity} picul of ${event.good.toLowerCase()}`,
+                    `Captain, you don't have enough money. You need ${displayMonetaryValue(calculatePrice({ ...context, ...event }))} to purchase ${event.quantity} picul of ${event.good.toLowerCase()}`,
                   ],
                 },
               },
@@ -536,7 +541,7 @@ export const gameMachine = setup({
                   enqueue({
                     type: "displayMessages",
                     params: [
-                      `Purchased ${event.quantity} picul of ${event.good} for $${cost}.`,
+                      `Purchased ${event.quantity} picul of ${event.good} for ${displayMonetaryValue(cost)}.`,
                       `We have room for ${freeSpace(hold)} more picul, Captain.`,
                     ],
                   });
@@ -566,10 +571,12 @@ export const gameMachine = setup({
                   {
                     type: "displayMessages",
                     params: ({ context, event }) => [
-                      `Sold ${event.quantity} picul of ${event.good} for $${calculatePrice({
-                        ...context,
-                        ...event,
-                      })}.`,
+                      `Sold ${event.quantity} picul of ${event.good} for ${displayMonetaryValue(
+                        calculatePrice({
+                          ...context,
+                          ...event,
+                        }),
+                      )}.`,
                       `We have room for ${freeSpace(context.ship.hold)} more picul, Captain.`,
                     ],
                   },
@@ -705,7 +712,9 @@ export const gameMachine = setup({
                   type: "displayMessages",
                   params: ({ context, event }) => {
                     const cost = calculateGuardShipCost(context, event.amount);
-                    return [`Captain, we don't have enough cash. Need $${cost} to hire ${event.amount} ships.`];
+                    return [
+                      `Captain, we don't have enough money. Need ${displayMonetaryValue(cost)} to hire ${event.amount} ships.`,
+                    ];
                   },
                 },
               },
@@ -763,7 +772,9 @@ export const gameMachine = setup({
                   type: "displayMessages",
                   params: ({ context }) => {
                     const cost = calculateFleetUpgradeCost(context);
-                    return [`Captain, we don't have enough cash. We need $${cost} to upgrade our fleet.`];
+                    return [
+                      `Captain, we don't have enough money. We need ${displayMonetaryValue(cost)} to upgrade our fleet.`,
+                    ];
                   },
                 },
                 target: "menu",
@@ -923,11 +934,11 @@ export const gameMachine = setup({
               params: ({ context }) =>
                 [
                   "Captain, we're in debt with the moneylenders.",
-                  "They're charging 3% daily interest.",
+                  `They're charging 3% interest a day, up to ${displayMonetaryValue(MAX_DAILY_OVERDRAFT)} a day.`,
                   context.guardFleet.ships > 0
                     ? `Since we can't pay fleet maintenance fee, our fleet effectiveness is reduced.`
                     : "",
-                  `If our debt exceed -$${Math.abs(BANKRUPTCY_THRESHOLD)} - we'll go bankrupt!`,
+                  `If our debt passes ${displayMonetaryValue(BANKRUPTCY_THRESHOLD)}, we'll go bankrupt!`,
                 ].filter(Boolean),
             },
           ],

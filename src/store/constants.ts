@@ -10,6 +10,7 @@ import {
 } from "./types.js";
 import { goodsAboard, isOverloaded, spaceUsed, unload, unloadWhere, withCapacity } from "./hold.js";
 import { CargoOffer } from "./cargo-offer.js";
+import { displayMonetaryValue } from "./utils.js";
 
 export const goods = ["Wheat", "Tea", "Spices", "Opium", "Porcelain"] as const;
 export const ports = ["Hong Kong", "Shanghai", "Nagasaki", "Singapore", "Manila"] as const;
@@ -85,7 +86,10 @@ const weatherEvents: EventTemplate[] = [
           return {
             balance: context.balance - harborFee,
             day: context.day + 2,
-            messages: [...context.messages, [`Paid $${harborFee} for safe harbor and waited out the storm.`]],
+            messages: [
+              ...context.messages,
+              [`Paid ${displayMonetaryValue(harborFee)} for safe harbor and waited out the storm.`],
+            ],
           };
         },
       },
@@ -532,7 +536,7 @@ const discoveryEvents: EventTemplate[] = [
         key: "E",
         effect: (context) => {
           const outcome = context.rng.float();
-          const baseReward = Math.max(500, context.balance * 0.15);
+          const baseReward = Math.round(Math.max(500, context.balance * 0.15));
 
           // 50% chance of finding goods
           if (outcome < 0.5) {
@@ -557,7 +561,7 @@ const discoveryEvents: EventTemplate[] = [
                 ...context.messages,
                 [
                   "A successful expedition, Captain!",
-                  `Found $${baseReward} in a buried chest.`,
+                  `Found ${displayMonetaryValue(baseReward)} in a buried chest.`,
                   ...discoveries.map((d) => `Found ${d}`),
                 ],
               ],
@@ -796,5 +800,5 @@ export const MAINTENANCE_COST_PER_SHIP = 25;
 export const BASE_BALANCE = 1500;
 export const BANKRUPTCY_THRESHOLD = -4000; // When debt exceeds this, player goes bankrupt
 export const OVERDRAFT_TRADING_LIMIT = 2000; // How much additional debt allowed for trading (if debt exceeds this - take desperate measures)
-export const MAX_DAILY_OVERDRAFT = 50; // Maximum daily interest rate
+export const MAX_DAILY_OVERDRAFT = 50; // Most interest charged in one day
 export const BASE_INTEREST_RATE = 0.03; // 3% daily interest
