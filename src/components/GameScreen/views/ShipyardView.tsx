@@ -1,19 +1,8 @@
 import React from "react";
 import { Box, Text } from "ink";
 import { GameContext } from "../../GameContext.js";
-import {
-  calculateDailyMaintenanceCost,
-  calculateFleetUpgradeCost,
-  calculateGuardShipCost,
-  displayMonetaryValue,
-  getFleetQuality,
-  getNextCapacityUpgrade,
-  getNextDefenseUpgrade,
-  getNextSpeedUpgrade,
-  getShipStatus,
-} from "../../../store/utils.js";
-import { spaceUsed } from "../../../store/hold.js";
-import { calculateCostForRepair } from "../../../store/utils.js";
+import { displayMonetaryValue } from "../../../store/utils.js";
+import { shipyardView, Unavailable } from "../../../store/views/shipyard.js";
 import { ShipyardContext } from "../ShipyardContext.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../../prompts/keyboard/ActionPrompt.js";
 import { ActionPrompt as ActionPromptArrows } from "../../prompts/arrows/ActionPrompt.js";
@@ -21,13 +10,18 @@ import { InputPrompt as InputPromptKeyboard } from "../../prompts/keyboard/Input
 import { InputPrompt as InputPromptArrows } from "../../prompts/arrows/InputPrompt.js";
 import { ConfirmPrompt as ConfirmPromptKeyboard } from "../../prompts/keyboard/ConfirmPrompt.js";
 import { ConfirmPrompt as ConfirmPromptArrows } from "../../prompts/arrows/ConfirmPrompt.js";
-import { MAX_GUARD_QUALITY, MAX_GUARD_SHIPS } from "../../../store/constants.js";
 import { Table } from "../Table.js";
 import { ViewTitle } from "../ViewTitle.js";
 
+const REASONS: Partial<Record<Unavailable, string>> = { notEnoughMoney: "not enough money" };
+
+const isOffered = ({ unavailable }: { unavailable?: Unavailable }) => !unavailable || unavailable in REASONS;
+const reasonFor = (unavailable?: Unavailable) => (unavailable ? REASONS[unavailable] : undefined);
+
+const useShipyardView = () => GameContext.useSelector((snapshot) => shipyardView(snapshot.context));
+
 export function ShipyardView() {
-  const gameContext = GameContext.useSelector((snapshot) => snapshot.context);
-  const hasFleet = gameContext.guardFleet.ships >= 1;
+  const { ship, fleet } = useShipyardView();
   const snapshot = ShipyardContext.useSelector((snapshot) => snapshot);
 
   return (
@@ -39,9 +33,9 @@ export function ShipyardView() {
         <Box flexDirection="column" paddingLeft={3}>
           <Table
             rows={[
-              ["- Capacity", `${spaceUsed(gameContext.ship.hold)} / ${gameContext.ship.hold.capacity} picul`],
-              ["- Speed", `${gameContext.ship.speed} knots`],
-              ["- Condition", `${getShipStatus(gameContext.ship.health)} (${gameContext.ship.health}%)`],
+              ["- Capacity", `${ship.spaceUsed} / ${ship.capacity} picul`],
+              ["- Speed", `${ship.speed} knots`],
+              ["- Condition", `${ship.condition} (${ship.health}%)`],
             ]}
           />
         </Box>
@@ -52,17 +46,9 @@ export function ShipyardView() {
         <Box flexDirection="column" paddingLeft={3}>
           <Table
             rows={[
-              ["- Fleet Size", `${gameContext.guardFleet.ships} ship${gameContext.guardFleet.ships !== 1 ? "s" : ""}`],
-              [
-                "- Fleet Quality",
-                hasFleet
-                  ? `${getFleetQuality(gameContext.guardFleet.quality)} (${gameContext.guardFleet.quality})`
-                  : "--",
-              ],
-              [
-                "- Daily Maintenance Cost",
-                hasFleet ? `${displayMonetaryValue(calculateDailyMaintenanceCost(gameContext))}` : "--",
-              ],
+              ["- Fleet Size", `${fleet.ships} ship${fleet.ships !== 1 ? "s" : ""}`],
+              ["- Fleet Quality", fleet.quality ? `${fleet.quality.name} (${fleet.quality.level})` : "--"],
+              ["- Daily Upkeep", fleet.quality ? displayMonetaryValue(fleet.dailyUpkeep) : "--"],
             ]}
           />
         </Box>
@@ -83,15 +69,18 @@ export function ShipyardView() {
 
 function ShipyardOverview() {
   const actor = GameContext.useActorRef();
-  const gameContext = GameContext.useSelector((snapshot) => snapshot.context);
-  const controls = gameContext.settings.controls;
+  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const { repair } = useShipyardView();
   const shipyard = ShipyardContext.useActorRef();
-
-  const needsRepair = gameContext.ship.health < 100;
 
   const availableActions = [
     { label: "Upgrade Your Ship", value: "upgrade_ship" },
-    { label: "Repair Damage", value: "repair_damage", disabled: !needsRepair },
+    {
+      label: "Repair Damage",
+      value: "repair_damage",
+      disabled: !isOffered(repair),
+      unavailableReason: reasonFor(repair.unavailable),
+    },
     { label: "Manage Guard Fleet", value: "manage_fleet" },
   ];
   const onSelectAction = (action: string) => {
@@ -134,11 +123,9 @@ function ShipyardOverview() {
 
 function RepairShip() {
   const actor = GameContext.useActorRef();
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const controls = context.settings.controls;
+  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const { repair } = useShipyardView();
   const shipyard = ShipyardContext.useActorRef();
-
-  const repairCost = calculateCostForRepair(100 - context.ship.health, context);
 
   const onValidateAmount = (value: string) => {
     const amount = +value;
@@ -157,8 +144,7 @@ function RepairShip() {
   return (
     <Box flexDirection="column" gap={1}>
       <Text>
-        Captain, our ship has taken some damage. To fully repair your ship will cost use{" "}
-        {displayMonetaryValue(repairCost)}.
+        Captain, our ship has taken some damage. A full repair will cost us {displayMonetaryValue(repair.fullCost)}.
       </Text>
       {controls === "keyboard" ? (
         <InputPromptKeyboard
@@ -194,30 +180,20 @@ function RepairShip() {
 function UpgradeShip() {
   const actor = GameContext.useActorRef();
   const shipyard = ShipyardContext.useActorRef();
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const controls = context.settings.controls;
+  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const { upgrades } = useShipyardView();
 
-  const nextSpeedUpgrade = getNextSpeedUpgrade(context.ship.speed);
-  const nextDefenseUpgrade = getNextDefenseUpgrade(context.ship.defense);
-  const nextCapacityUpgrade = getNextCapacityUpgrade(context.ship.hold.capacity);
-
-  const availableActions = [
-    {
-      label: `Increase Capacity - ${nextCapacityUpgrade?.capacity} picul ($${nextCapacityUpgrade?.cost})`,
-      value: "capacity",
-      disabled: !nextCapacityUpgrade,
-    },
-    {
-      label: `Improve Speed - ${nextSpeedUpgrade?.speed} Knots ($${nextSpeedUpgrade?.cost})`,
-      value: "speed",
-      disabled: !nextSpeedUpgrade,
-    },
-    {
-      label: `Enhance Defense - Level ${nextDefenseUpgrade?.defense} ($${nextDefenseUpgrade?.cost})`,
-      value: "defense",
-      disabled: !nextDefenseUpgrade,
-    },
-  ];
+  const labels = {
+    capacity: (next?: number) => `Increase Capacity to ${next} picul`,
+    speed: (next?: number) => `Improve Speed to ${next} knots`,
+    defense: (next?: number) => `Enhance Defense to level ${next}`,
+  };
+  const availableActions = upgrades.map((offer) => ({
+    label: `${labels[offer.type](offer.next)} (${displayMonetaryValue(offer.cost ?? 0)})`,
+    value: offer.type,
+    disabled: !isOffered(offer),
+    unavailableReason: reasonFor(offer.unavailable),
+  }));
   const onSelectAction = (action: string) => {
     switch (action) {
       case "capacity": {
@@ -255,20 +231,20 @@ function UpgradeShip() {
 }
 
 function ManageFleet() {
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
+  const { fleet } = useShipyardView();
   const shipyard = ShipyardContext.useActorRef();
   const shipyardSnapshot = ShipyardContext.useSelector((snapshot) => snapshot);
-  const controls = context.settings.controls;
+  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
 
   const availableActions = [
-    { label: "Hire Guard Ships", value: "hire", disabled: context.guardFleet.ships >= MAX_GUARD_SHIPS },
-    {
-      label: "Upgrade Fleet Quality",
-      value: "upgrade",
-      disabled: context.guardFleet.ships < 1 || context.guardFleet.quality >= MAX_GUARD_QUALITY,
-    },
-    { label: "Dismiss Guard Ships", value: "dismiss", disabled: context.guardFleet.ships < 1 },
-  ];
+    { label: "Hire Guard Ships", value: "hire", offer: fleet.hire },
+    { label: "Upgrade Fleet Quality", value: "upgrade", offer: fleet.upgrade },
+    { label: "Dismiss Guard Ships", value: "dismiss", offer: fleet.dismiss },
+  ].map(({ offer, ...action }) => ({
+    ...action,
+    disabled: !isOffered(offer),
+    unavailableReason: reasonFor(offer.unavailable),
+  }));
   const onSelectAction = (action: string) => {
     switch (action) {
       case "hire": {
@@ -316,8 +292,8 @@ function ManageFleet() {
 function FleetHire() {
   const actor = GameContext.useActorRef();
   const shipyard = ShipyardContext.useActorRef();
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const controls = context.settings.controls;
+  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const { fleet } = useShipyardView();
 
   const onValidateQuantity = (value: string) => {
     const quantity = +value;
@@ -335,7 +311,7 @@ function FleetHire() {
 
   return (
     <Box flexDirection="column" gap={1}>
-      <Text>Each guard ship costs {displayMonetaryValue(calculateGuardShipCost(context, 1))}.</Text>
+      <Text>Each guard ship costs {displayMonetaryValue(fleet.hire.costPerShip)}.</Text>
       {controls === "keyboard" ? (
         <InputPromptKeyboard
           steps={[
@@ -370,8 +346,8 @@ function FleetHire() {
 function FleetUpgrade() {
   const actor = GameContext.useActorRef();
   const shipyard = ShipyardContext.useActorRef();
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const controls = context.settings.controls;
+  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const { fleet } = useShipyardView();
 
   const onUpgradeFleet = () => {
     actor.send({ type: "UPGRADE_GUARDS" });
@@ -380,7 +356,7 @@ function FleetUpgrade() {
 
   return (
     <Box flexDirection="column" gap={1}>
-      <Text>Captain, upgrading your ship costs {displayMonetaryValue(calculateFleetUpgradeCost(context))}.</Text>
+      <Text>Captain, upgrading the fleet costs {displayMonetaryValue(fleet.upgrade.cost)}.</Text>
       {controls === "keyboard" ? (
         <ConfirmPromptKeyboard
           message="You sure you want to upgrade your fleet, Captain?"
@@ -401,8 +377,7 @@ function FleetUpgrade() {
 function FleetDismiss() {
   const actor = GameContext.useActorRef();
   const shipyard = ShipyardContext.useActorRef();
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const controls = context.settings.controls;
+  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
 
   const onValidate = (value: string) => {
     const ships = +value;

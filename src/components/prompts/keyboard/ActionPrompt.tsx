@@ -7,6 +7,7 @@ export interface Action {
   value: string;
   key: string;
   disabled?: boolean;
+  unavailableReason?: string;
 }
 
 interface ActionPromptProps {
@@ -34,11 +35,15 @@ export function ActionPrompt({ message, actions, onSelect, onCancel, backMessage
         setError(`This action is not available`);
         return;
       }
+      if (action.unavailableReason) {
+        setError(`We can't do that: ${action.unavailableReason}.`);
+        return;
+      }
       onSelect(action.value);
     } else {
       setError(
         `Invalid key. Available keys: ${actions
-          .filter((a) => !a.disabled)
+          .filter((a) => !a.disabled && !a.unavailableReason)
           .map((a) => a.key)
           .join(", ")}`,
       );
@@ -51,11 +56,17 @@ export function ActionPrompt({ message, actions, onSelect, onCancel, backMessage
       <Box flexDirection="column">
         {actions
           .filter((action) => !action.disabled)
-          .map(({ label, key }) => (
-            <Text key={key} color="whiteBright">
-              [{key}] {label}
-            </Text>
-          ))}
+          .map(({ label, key, unavailableReason }) =>
+            unavailableReason ? (
+              <Text key={key} dimColor>
+                [{key}] {label}: {unavailableReason}
+              </Text>
+            ) : (
+              <Text key={key} color="whiteBright">
+                [{key}] {label}
+              </Text>
+            ),
+          )}
       </Box>
       {error && <Text color="red">{error}</Text>}
       {onCancel && <Text dimColor>{backMessage ?? "Press [Esc] to go back"}</Text>}
