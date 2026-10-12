@@ -1,6 +1,5 @@
-import { EventType, MarketSize, Port, PortSpecialization, Season, TrendStrength } from "./types.js";
+import { EventType, Season, TrendStrength } from "./types.js";
 
-export const ports = ["Hong Kong", "Shanghai", "Nagasaki", "Singapore", "Manila"] as const;
 export const seasons = ["Spring", "Summer", "Autumn", "Winter"] as const;
 export const seasonEventEffects: Record<Season, Partial<Record<EventType, number>>> = {
   Spring: {
@@ -21,14 +20,6 @@ export const seasonEventEffects: Record<Season, Partial<Record<EventType, number
     cargo: 1.3,
   },
 };
-// Distances given in nautical miles (nmi)
-export const distanceMatrix: Record<Port, Record<Port, number>> = {
-  "Hong Kong": { "Hong Kong": 0, Shanghai: 819, Nagasaki: 1150, Singapore: 1460, Manila: 706 },
-  Shanghai: { "Hong Kong": 819, Shanghai: 0, Nagasaki: 480, Singapore: 2279, Manila: 1307 },
-  Nagasaki: { "Hong Kong": 1150, Shanghai: 480, Nagasaki: 0, Singapore: 2561, Manila: 1668 },
-  Singapore: { "Hong Kong": 1460, Shanghai: 2279, Nagasaki: 2561, Singapore: 0, Manila: 1308 },
-  Manila: { "Hong Kong": 706, Shanghai: 1307, Nagasaki: 1668, Singapore: 1308, Manila: 0 },
-} as const;
 
 // Gameplay
 export const GOAL_DAYS = 200;
@@ -80,43 +71,6 @@ export const TREND_STRENGTH_FACTORS: Record<TrendStrength, { up: number; down: n
   weak: { up: 1.15, down: 0.85 },
   moderate: { up: 1.35, down: 0.65 },
   strong: { up: 1.6, down: 0.4 },
-};
-export const PORT_SPECIALIZATIONS: Record<Port, PortSpecialization> = {
-  "Hong Kong": {
-    producedGoods: [],
-    tradingHub: true,
-    marketSize: "Large",
-    productionFactor: 0.8,
-  },
-  Shanghai: {
-    producedGoods: ["Tea", "Opium"],
-    tradingHub: false,
-    marketSize: "Large",
-    productionFactor: 0.7,
-  },
-  Nagasaki: {
-    producedGoods: ["Porcelain"],
-    tradingHub: false,
-    marketSize: "Medium",
-    productionFactor: 0.75,
-  },
-  Singapore: {
-    producedGoods: [],
-    tradingHub: true,
-    marketSize: "Medium",
-    productionFactor: 0.8,
-  },
-  Manila: {
-    producedGoods: ["Spices"],
-    tradingHub: false,
-    marketSize: "Small",
-    productionFactor: 0.75,
-  },
-};
-export const MARKET_SIZE_FACTORS: Record<MarketSize, number> = {
-  Small: 1.25, // Higher prices, more volatile
-  Medium: 1,
-  Large: 0.85, // Lower prices, more stable
 };
 
 // Guard Ships

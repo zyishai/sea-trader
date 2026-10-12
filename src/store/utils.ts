@@ -5,15 +5,11 @@ import {
   DAMAGE_PER_GUARD_SHIP,
   DAMAGE_REPAIR_COST_PER_UNIT,
   DEFENSE_UPGRADES,
-  distanceMatrix,
   EXTENDED_GAME_PENALTY,
   GOAL_DAYS,
   MAINTENANCE_COST_PER_SHIP,
-  MARKET_SIZE_FACTORS,
   MAX_SHIP_DEFENSE,
   OVERLOAD_SPEED_PENALTY,
-  PORT_SPECIALIZATIONS,
-  ports,
   SEASON_LENGTH,
   seasonEventEffects,
   SPEED_UPGRADES,
@@ -39,6 +35,8 @@ import {
 } from "./types.js";
 import { Rng } from "./rng.js";
 import { goodCatalog, goods, seasonalPriceFactor } from "./catalog/goods.js";
+import { MARKET_SIZE_FACTORS, portRecord, ports } from "./catalog/ports.js";
+import { distanceBetween } from "./catalog/sea-routes.js";
 import { eventTemplates } from "./event-templates.js";
 import { currentSeason, daysUntilNextSeason } from "./clock.js";
 import { canAfford, isInOverdraft, netWorth } from "./treasury.js";
@@ -104,7 +102,7 @@ export const checkForEvent = (context: Context) => {
 };
 export const calculateTravelTime = (to: Port, context: Context) => {
   const from = context.currentPort;
-  const distance = distanceMatrix[from][to];
+  const distance = distanceBetween(from, to);
 
   // At 8 knots, a ship travels ~192nmi per day
   // Adding 20% for port operations, weather delays, etc.
@@ -242,10 +240,10 @@ export const getSeasonalFactor = (season: Season, good: Good, rng: Rng) => {
   return baseFactor * (1 + (rng.float() - 0.5) * 0.1); // ±5% variation
 };
 export const getSpecialtyFactor = (port: Port, good: Good) => {
-  const portSpec = PORT_SPECIALIZATIONS[port];
-  const marketSizeFactor = MARKET_SIZE_FACTORS[portSpec.marketSize];
-  const productionFactor = portSpec.producedGoods.includes(good) ? portSpec.productionFactor : 1;
-  const tradingHubFactor = portSpec.tradingHub ? 0.95 : 1;
+  const { marketSize, produces, productionFactor: localFactor, tradingHub } = portRecord(port);
+  const marketSizeFactor = MARKET_SIZE_FACTORS[marketSize];
+  const productionFactor = produces.includes(good) ? localFactor : 1;
+  const tradingHubFactor = tradingHub ? 0.95 : 1;
 
   return marketSizeFactor * productionFactor * tradingHubFactor;
 };

@@ -1,4 +1,4 @@
-import { ports } from "../constants.js";
+import { ports } from "../catalog/ports.js";
 import { amountOf, fitsAboard, freeSpace, spaceUsed } from "../hold.js";
 import { affordableUnits } from "../treasury.js";
 import { Context } from "../types.js";

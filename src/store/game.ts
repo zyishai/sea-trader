@@ -4,6 +4,7 @@ import { Context } from "./types.js";
 import { GameEvents } from "./events.js";
 import { Rng } from "./rng.js";
 import { goods } from "./catalog/goods.js";
+import { ports } from "./catalog/ports.js";
 import { applyEventResult } from "./outcomes.js";
 import { bribePirates, fightPirates, fleePirates } from "./pirates.js";
 import { advanceDays, canRetire } from "./clock.js";
@@ -33,7 +34,6 @@ import {
   MAX_GUARD_QUALITY,
   MAX_GUARD_SHIPS,
   OVERDRAFT_TRADING_LIMIT,
-  ports,
 } from "./constants.js";
 // Lets tsc name xstate's guard types when emitting declarations for the machines
 import { type Guard } from "xstate/guards";

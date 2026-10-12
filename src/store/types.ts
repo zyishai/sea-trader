@@ -1,4 +1,5 @@
-import { ports, seasons, TREND_DIRECTION, TREND_STRENGTH } from "./constants.js";
+import { seasons, TREND_DIRECTION, TREND_STRENGTH } from "./constants.js";
+import type { MarketSize, Port } from "./catalog/ports.js";
 import type { Good } from "./catalog/goods.js";
 import { Rng } from "./rng.js";
 import { Hold } from "./hold.js";
@@ -35,14 +36,7 @@ export type FleetQuality = "Basic" | "Trained" | "Elite";
 
 // Inventory & Market
 export type { Good };
-export type Port = (typeof ports)[number];
-export type MarketSize = "Small" | "Medium" | "Large";
-export type PortSpecialization = {
-  producedGoods: Good[];
-  tradingHub: boolean;
-  marketSize: MarketSize;
-  productionFactor: number;
-};
+export type { MarketSize, Port };
 export type Trend = (typeof TREND_DIRECTION)[number];
 export type TrendStrength = (typeof TREND_STRENGTH)[number];
 export type TrendInfo = {
