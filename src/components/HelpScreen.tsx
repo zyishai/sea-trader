@@ -3,11 +3,13 @@ import { Box, DOMElement, measureElement, Text, useInput } from "ink";
 import { GameContext } from "./GameContext.js";
 import BigText from "ink-big-text";
 import { OrderedList, UnorderedList } from "@inkjs/ui";
-import { GOAL_DAYS } from "../store/constants.js";
+import { displayMonetaryValue, joinWords } from "../store/utils.js";
+import { helpView } from "../store/views/help.js";
 import { useAnchorToTop } from "./Viewport.js";
 
 export function HelpScreen() {
   const actor = GameContext.useActorRef();
+  const { portCount, goods, startingBalance, voyageLength } = helpView();
   const [ref, setRef] = useState<DOMElement | null>(null);
   const [width, setWidth] = useState(0);
   useAnchorToTop();
@@ -36,16 +38,17 @@ export function HelpScreen() {
       <Box flexDirection="column" width={width + 10} gap={1}>
         <Text>
           Sea Trader is a trading simulation set in 1850s Far East. As a merchant captain, you start with a small ship
-          and $1000. Your goal is to build a trading empire within {GOAL_DAYS} days.
+          and {displayMonetaryValue(startingBalance)}. Your goal is to build a trading empire within {voyageLength}{" "}
+          days.
         </Text>
 
         <Text bold>Game Modes:</Text>
         <OrderedList>
           <OrderedList.Item>
-            <Text>Classic Mode: Complete your journey in {GOAL_DAYS} days</Text>
+            <Text>Classic Mode: Complete your journey in {voyageLength} days</Text>
           </OrderedList.Item>
           <OrderedList.Item>
-            <Text>Extended Mode: Continue beyond {GOAL_DAYS} days with score penalties</Text>
+            <Text>Extended Mode: Continue beyond {voyageLength} days with score penalties</Text>
           </OrderedList.Item>
         </OrderedList>
 
@@ -56,8 +59,8 @@ export function HelpScreen() {
               <Text bold color="blue">
                 Trading:
               </Text>{" "}
-              Buy low, sell high between 5 major ports. Watch market trends! Goods and cargo space are measured in picul
-              (1 picul ≈ 60 kg, one porter&apos;s load).
+              Buy low, sell high in {joinWords(goods)} between {portCount} major ports. Watch market trends! Goods and
+              cargo space are measured in picul (1 picul ≈ 60 kg, one porter&apos;s load).
             </Text>
           </UnorderedList.Item>
           <UnorderedList.Item>
