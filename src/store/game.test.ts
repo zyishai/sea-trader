@@ -72,6 +72,15 @@ describe("market", () => {
     expect(game.getSnapshot().context.balance).toBe(1_000_000);
   });
 
+  it("doesn't buy on credit while in Overdraft", () => {
+    const game = atMarket(() => ({ balance: -10, inOverdraft: true }));
+
+    game.send({ type: "PURCHASE", good: "Wheat", quantity: 1 });
+
+    expect(amountOf(game.getSnapshot().context.ship.hold, "Wheat")).toBe(0);
+    expect(game.getSnapshot().context.balance).toBe(-10);
+  });
+
   it("sells goods from the Hold, but not more than is aboard", () => {
     const game = atMarket((context) => ({ ship: { ...context.ship, hold: load(emptyHold(100), "Tea", 10).hold } }));
     const before = game.getSnapshot().context;

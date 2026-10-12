@@ -1,6 +1,6 @@
 import { ports } from "../constants.js";
 import { amountOf, fitsAboard, freeSpace, spaceUsed } from "../hold.js";
-import { spendingPower } from "../treasury.js";
+import { affordableUnits } from "../treasury.js";
 import { Context } from "../types.js";
 import { getMerchantTip } from "../utils.js";
 
@@ -10,7 +10,7 @@ export const marketView = (context: Context) => {
 
   return {
     goods: context.availableGoods.map((good) => {
-      const affordable = Math.max(0, Math.floor(spendingPower(context) / prices[good]));
+      const affordable = affordableUnits(context, prices[good]);
       return {
         good,
         price: prices[good],

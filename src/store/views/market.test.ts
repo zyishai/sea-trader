@@ -30,10 +30,10 @@ describe("market view", () => {
     expect(goodIn(marketView(context), "Tea").maxBuy).toEqual({ withinCapacity: 10, withOverload: 30 });
   });
 
-  it("counts the moneylenders' credit when in overdraft", () => {
+  it("offers nothing to buy while in Overdraft", () => {
     const wheat = goodIn(marketView(marketContext({ balance: -500, inOverdraft: true })), "Wheat");
 
-    expect(wheat.maxBuy.withOverload).toBe(15);
+    expect(wheat.maxBuy).toEqual({ withinCapacity: 0, withOverload: 0 });
   });
 
   it("never offers to buy a negative amount", () => {

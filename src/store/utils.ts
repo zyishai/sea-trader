@@ -45,6 +45,7 @@ import {
   UpgradeType,
 } from "./types.js";
 import { Rng } from "./rng.js";
+import { canAfford } from "./treasury.js";
 import { goodsAboard, overloadLevel, value } from "./hold.js";
 
 // ~~ PORT ~~
@@ -579,7 +580,7 @@ export const getNextUpgrade = (type: UpgradeType, context: Context) => {
 export const canAffordUpgrade = (type: UpgradeType, context: Context) => {
   const nextUpgrade = getNextUpgrade(type, context);
 
-  return !!nextUpgrade && context.balance >= nextUpgrade.cost;
+  return !!nextUpgrade && canAfford(context, nextUpgrade.cost);
 };
 
 // !! SCORE !!

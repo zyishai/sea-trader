@@ -1,5 +1,8 @@
-import { OVERDRAFT_TRADING_LIMIT } from "./constants.js";
 import { Context } from "./types.js";
 
-export const spendingPower = (context: Context) =>
-  context.balance + (context.inOverdraft ? OVERDRAFT_TRADING_LIMIT : 0);
+type Money = Pick<Context, "balance">;
+
+const available = ({ balance }: Money) => Math.max(0, balance);
+
+export const canAfford = (money: Money, cost: number) => available(money) >= cost;
+export const affordableUnits = (money: Money, unitPrice: number) => Math.floor(available(money) / unitPrice);
