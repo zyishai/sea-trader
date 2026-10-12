@@ -20,3 +20,5 @@ Smarter Cargo, Fairer Money and Clearer Voyages
 - The status bar shows the day of your voyage (for example "Day 34 of 200") and the current season
 - Days lost to storms and other events now count toward price updates and season changes, and never carry a classic voyage past day 200
 - Long passages no longer skip a price update
+- Events and pirate encounters report exactly what happened to your ship, money, cargo, reputation and schedule, in the same words every time
+- Event messages read more clearly, with spelling fixes
