@@ -3,7 +3,8 @@ import { createActor, type StateValue } from "xstate";
 import { gameMachine } from "./game.js";
 import { amountOf, emptyHold, isOverloaded, load } from "./hold.js";
 import { createRng, Rng, seededRng } from "./rng.js";
-import { Context, EventTemplate } from "./types.js";
+import { Context } from "./types.js";
+import { eventView } from "./views/event.js";
 import { cargoOfferView } from "./views/cargo-offer.js";
 import { voyageResult } from "./views/voyage-result.js";
 import { calculateTravelTime } from "./utils.js";
@@ -114,42 +115,50 @@ describe("pirate encounter", () => {
 });
 
 describe("cargo offer", () => {
-  const findingEvent = (cargoOffer: Context["cargoOffer"]): EventTemplate => ({
-    type: "discovery",
-    severity: "minor",
-    baseChance: 0,
-    message: "Something floats by.",
-    choices: [{ label: "Haul it in", key: "H", effect: () => ({ cargoOffer }) }],
-  });
+  const hongKongPrices = { Wheat: 100, Tea: 400, Spices: 800, Opium: 2000, Porcelain: 300 };
+  const luckyRolls = createRng(() => 0.1);
 
-  const findGoods = (cargoOffer: Context["cargoOffer"], hold = emptyHold(100)) => {
-    const game = gameAt({ gameScreen: { at_port: { eventOccurred: "multi_choice" } } }, (context) => ({
-      ship: { ...context.ship, hold },
-      currentEvent: findingEvent(cargoOffer),
-      destination: "Shanghai",
-      prices: {
-        ...context.prices,
-        [context.currentPort]: { Wheat: 100, Tea: 400, Spices: 800, Opium: 2000, Porcelain: 300 },
-      },
-    }));
-    game.send({ type: "RESOLVE_EVENT", choice: "H" });
+  const exploreIsland = (hold = emptyHold(100)) => {
+    const game = gameAt(
+      { gameScreen: { at_port: { eventOccurred: "multi_choice" } } },
+      (context) => ({ ship: { ...context.ship, hold }, currentEvent: "uncharted-island", destination: "Shanghai" }),
+      luckyRolls,
+    );
+    game.send({ type: "RESOLVE_EVENT", choice: "E" });
     return game;
   };
 
-  it("loads an offer that fits without asking", () => {
-    const game = findGoods({ Tea: 30, Wheat: 20 });
+  const offered = (cargoOffer: Context["cargoOffer"]) =>
+    gameAt({ gameScreen: { at_port: "cargoOffer" } }, (context) => ({
+      ship: { ...context.ship, hold: emptyHold(100) },
+      cargoOffer,
+      destination: "Shanghai",
+      prices: { ...context.prices, [context.currentPort]: hongKongPrices },
+    }));
 
-    const { hold } = game.getSnapshot().context.ship;
-    expect(amountOf(hold, "Tea")).toBe(30);
-    expect(amountOf(hold, "Wheat")).toBe(20);
-    expect(game.getSnapshot().matches({ gameScreen: { at_port: "cargoOffer" } })).toBe(false);
+  const isAsking = (game: ReturnType<typeof startGame>) =>
+    game.getSnapshot().matches({ gameScreen: { at_port: "cargoOffer" } });
+
+  it("loads found goods that fit without asking", () => {
+    const game = exploreIsland();
+
+    expect(amountOf(game.getSnapshot().context.ship.hold, "Wheat")).toBe(20);
+    expect(isAsking(game)).toBe(false);
   });
 
-  it("asks the Captain when the offer doesn't fit", () => {
-    const game = findGoods({ Wheat: 60, Opium: 70 });
+  it("asks the Captain when found goods don't fit", () => {
+    expect(isAsking(exploreIsland(load(emptyHold(100), "Tea", 90).hold))).toBe(true);
+  });
 
-    expect(game.getSnapshot().matches({ gameScreen: { at_port: "cargoOffer" } })).toBe(true);
-    expect(cargoOfferView(game.getSnapshot().context)).toEqual({
+  it("doesn't ask when there is no room either way", () => {
+    const game = exploreIsland(load(emptyHold(100), "Tea", 120).hold);
+
+    expect(isAsking(game)).toBe(false);
+    expect(amountOf(game.getSnapshot().context.ship.hold, "Wheat")).toBe(0);
+  });
+
+  it("shows both choices with their amounts", () => {
+    expect(cargoOfferView(offered({ Wheat: 60, Opium: 70 }).getSnapshot().context)).toEqual({
       offered: 130,
       takeAll: { picul: 120, overloads: true },
       takeFitting: { picul: 100 },
@@ -157,7 +166,7 @@ describe("cargo offer", () => {
   });
 
   it("takes only what fits, most valuable goods first", () => {
-    const game = findGoods({ Wheat: 60, Opium: 70 });
+    const game = offered({ Wheat: 60, Opium: 70 });
 
     game.send({ type: "TAKE_CARGO", overload: false });
 
@@ -168,7 +177,7 @@ describe("cargo offer", () => {
   });
 
   it("takes as much as the Ship can carry, overloading it", () => {
-    const game = findGoods({ Wheat: 60, Opium: 70 });
+    const game = offered({ Wheat: 60, Opium: 70 });
 
     game.send({ type: "TAKE_CARGO", overload: true });
 
@@ -177,13 +186,6 @@ describe("cargo offer", () => {
     expect(amountOf(hold, "Wheat")).toBe(50);
     expect(isOverloaded(hold)).toBe(true);
     expect(game.getSnapshot().context.cargoOffer).toBeUndefined();
-  });
-
-  it("doesn't ask when there is no room either way", () => {
-    const game = findGoods({ Tea: 10 }, load(emptyHold(100), "Wheat", 120).hold);
-
-    expect(game.getSnapshot().matches({ gameScreen: { at_port: "cargoOffer" } })).toBe(false);
-    expect(amountOf(game.getSnapshot().context.ship.hold, "Tea")).toBe(0);
   });
 });
 
@@ -308,22 +310,31 @@ describe("voyage end", () => {
   });
 });
 
-describe("event delays", () => {
-  it("adds an event's Delay to the passage", () => {
-    const sheltering: EventTemplate = {
-      type: "weather",
-      severity: "minor",
-      baseChance: 0,
-      message: "A storm approaches.",
-      choices: [{ label: "Shelter", key: "S", effect: () => ({ delayDays: 3 }) }],
-    };
-    const game = gameAt({ gameScreen: { at_port: { eventOccurred: "multi_choice" } } }, () => ({
-      currentEvent: sheltering,
+describe("events", () => {
+  const duringStorm = () =>
+    gameAt({ gameScreen: { at_port: { eventOccurred: "multi_choice" } } }, () => ({
+      currentEvent: "storm",
       destination: "Shanghai",
     }));
+
+  it("keeps only the Event's id in game state", () => {
+    const { context } = duringStorm().getSnapshot();
+
+    expect(JSON.parse(JSON.stringify(context.currentEvent))).toBe("storm");
+    expect(eventView(context)).toEqual({
+      message: "A storm approaches our vessel, Captain. What's your course of action?",
+      choices: [
+        { label: "Brave the storm", key: "B" },
+        { label: "Take a detour", key: "D" },
+      ],
+    });
+  });
+
+  it("adds an Event's Delay to the passage", () => {
+    const game = duringStorm();
     const before = game.getSnapshot().context;
 
-    game.send({ type: "RESOLVE_EVENT", choice: "S" });
+    game.send({ type: "RESOLVE_EVENT", choice: "D" });
 
     const after = game.getSnapshot().context;
     expect(after.day).toBe(before.day + calculateTravelTime("Shanghai", before) + 3);

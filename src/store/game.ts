@@ -34,6 +34,7 @@ import {
   canAffordUpgrade,
   getNextUpgrade,
   joinWords,
+  eventById,
   displayMonetaryValue,
 } from "./utils.js";
 import {
@@ -47,6 +48,8 @@ import {
   ports,
 } from "./constants.js";
 import { type Guard } from "xstate/guards";
+
+const currentEventOf = (context: Context) => (context.currentEvent ? eventById(context.currentEvent) : undefined);
 
 const OVERLOADED_MESSAGES = [
   "Our ship is overloaded, Captain!",
@@ -146,7 +149,7 @@ export const gameMachine = setup({
                     target: "checkPiratesEncounter",
                     actions: assign(({ event, context }) => ({
                       destination: event.destination,
-                      currentEvent: checkForEvent(context),
+                      currentEvent: checkForEvent(context)?.id,
                     })),
                   },
                 ],
@@ -405,25 +408,22 @@ export const gameMachine = setup({
                 determine_type: {
                   always: [
                     {
-                      guard: ({ context }) => !!context.currentEvent?.choices,
+                      guard: ({ context }) => !!currentEventOf(context)?.choices,
                       target: "multi_choice",
                     },
                     {
-                      guard: ({ context }) => !!context.currentEvent?.effect,
+                      guard: ({ context }) => !!currentEventOf(context)?.effect,
                       target: "no_choice",
                     },
                   ],
                 },
                 no_choice: {
-                  entry: [{ type: "displayMessages", params: ({ context }) => [context.currentEvent!.message] }],
+                  entry: [{ type: "displayMessages", params: ({ context }) => [currentEventOf(context)!.message] }],
                   on: {
                     MSG_ACK: {
                       actions: [
                         { type: "acknoledgeMessage" },
-                        assign(
-                          ({ context }) =>
-                            context.currentEvent!.effect?.(context) ?? { currentPort: context.destination },
-                        ),
+                        assign(({ context }) => currentEventOf(context)!.effect?.(context) ?? {}),
                       ],
                       target: "#checkCargoOffer",
                     },
@@ -434,8 +434,10 @@ export const gameMachine = setup({
                     RESOLVE_EVENT: {
                       actions: [
                         assign(({ context, event }) => {
-                          const choice = context.currentEvent!.choices?.find((choice) => choice.key === event.choice);
-                          return choice?.effect(context) ?? { currentPort: context.destination };
+                          const choice = currentEventOf(context)!.choices?.find(
+                            (choice) => choice.key === event.choice,
+                          );
+                          return choice?.effect(context) ?? {};
                         }),
                       ],
                       target: "#checkCargoOffer",

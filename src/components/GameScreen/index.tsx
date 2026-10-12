@@ -6,6 +6,7 @@ import { CargoOfferView, MainView, PortView, MarketView, ShipyardView, PiratesVi
 import { ActionPrompt as ActionPromptKeyboard } from "../prompts/keyboard/ActionPrompt.js";
 import { ActionPrompt as ActionPromptArrows } from "../prompts/arrows/ActionPrompt.js";
 import { StatusBar } from "./StatusBar.js";
+import { eventView } from "../../store/views/event.js";
 import { Badge } from "@inkjs/ui";
 import { MarketContext } from "./MarketContext.js";
 import { ShipyardContext } from "./ShipyardContext.js";
@@ -117,13 +118,14 @@ function ContinueMessage() {
 
 function InteractiveEvent() {
   const actor = GameContext.useActorRef();
-  const context = GameContext.useSelector((snapshot) => snapshot.context);
-  const controls = context.settings.controls;
-  const event = context.currentEvent!;
+  const controls = GameContext.useSelector((snapshot) => snapshot.context.settings.controls);
+  const event = GameContext.useSelector((snapshot) => eventView(snapshot.context));
 
   const onPickChoice = (value: string) => {
     actor.send({ type: "RESOLVE_EVENT", choice: value });
   };
+
+  if (!event) return null;
 
   return (
     <Box flexDirection="column" gap={1}>
@@ -131,7 +133,7 @@ function InteractiveEvent() {
       {controls === "keyboard" ? (
         <ActionPromptKeyboard
           message={event.message}
-          actions={event.choices!.map((choice, index) => ({
+          actions={event.choices.map((choice, index) => ({
             label: choice.label,
             key: String(index + 1),
             value: choice.key,
@@ -141,7 +143,7 @@ function InteractiveEvent() {
       ) : (
         <ActionPromptArrows
           message={event.message}
-          actions={event.choices!.map((choice) => ({ label: choice.label, value: choice.key }))}
+          actions={event.choices.map((choice) => ({ label: choice.label, value: choice.key }))}
           onSelect={onPickChoice}
         />
       )}

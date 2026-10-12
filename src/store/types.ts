@@ -18,6 +18,7 @@ export type EventChoice = {
   effect: (context: Context) => Partial<Context>;
 };
 export type EventTemplate = {
+  id: string;
   type: EventType;
   severity: EventSeverity;
   baseChance: number | ((context: Context) => number);
@@ -83,7 +84,7 @@ export type Context = {
   // Port context
   availablePorts: readonly Port[];
   destination?: Port;
-  currentEvent?: EventTemplate;
+  currentEvent?: EventTemplate["id"];
   cargoOffer?: CargoOffer;
   delayDays?: number;
   voyageEnd?: VoyageEnd;

@@ -37,6 +37,7 @@ export const seasonEventEffects: Record<Season, Partial<Record<EventType, number
 };
 const weatherEvents: EventTemplate[] = [
   {
+    id: "winter-storm",
     type: "weather",
     severity: "major",
     baseChance: (context) => (currentSeason(context) === "Winter" ? 0.2 : 0.08),
@@ -105,6 +106,7 @@ const weatherEvents: EventTemplate[] = [
     ],
   },
   {
+    id: "light-breeze",
     type: "weather",
     severity: "minor",
     baseChance: (context) => Math.min(0.3, 0.2 + (context.ship.speed - BASE_SHIP_SPEED) * 0.02),
@@ -112,6 +114,7 @@ const weatherEvents: EventTemplate[] = [
     effect: () => ({ delayDays: -1 }),
   },
   {
+    id: "storm",
     type: "weather",
     severity: "moderate",
     baseChance: (context) => Math.min(0.25, 0.15 + (context.ship.speed - BASE_SHIP_SPEED) * 0.015),
@@ -146,6 +149,7 @@ const weatherEvents: EventTemplate[] = [
     ],
   },
   {
+    id: "typhoon",
     type: "weather",
     severity: "major",
     baseChance: 0.18,
@@ -184,6 +188,7 @@ const weatherEvents: EventTemplate[] = [
     ],
   },
   {
+    id: "heavy-seas",
     type: "weather",
     severity: "minor",
     baseChance: (context) => (isOverloaded(context.ship.hold) ? 0.35 : 0),
@@ -212,6 +217,7 @@ const weatherEvents: EventTemplate[] = [
 ];
 const cargoEvents: EventTemplate[] = [
   {
+    id: "cargo-shift",
     type: "cargo",
     severity: "minor",
     baseChance: (context) => {
@@ -287,6 +293,7 @@ const cargoEvents: EventTemplate[] = [
     ],
   },
   {
+    id: "expert-maintenance",
     type: "cargo",
     severity: "minor",
     baseChance: (context) => (context.ship.health > 80 ? 0.2 : 0),
@@ -308,6 +315,7 @@ const cargoEvents: EventTemplate[] = [
 ];
 const marketEvents: EventTemplate[] = [
   {
+    id: "tea-festival",
     type: "market",
     severity: "minor",
     baseChance: (context) =>
@@ -324,6 +332,7 @@ const marketEvents: EventTemplate[] = [
     }),
   },
   {
+    id: "nagasaki-regulations",
     type: "market",
     severity: "moderate",
     baseChance: (context) => (context.destination && context.destination === "Nagasaki" ? 0.15 : 0),
@@ -341,6 +350,7 @@ const marketEvents: EventTemplate[] = [
     }),
   },
   {
+    id: "trade-delegation",
     type: "market",
     severity: "major",
     baseChance: (context) =>
@@ -415,6 +425,7 @@ const marketEvents: EventTemplate[] = [
     ],
   },
   {
+    id: "merchant-rumours",
     type: "market",
     severity: "moderate",
     baseChance: (context) => (context.destination ? 0.15 : 0),
@@ -482,6 +493,7 @@ const marketEvents: EventTemplate[] = [
     ],
   },
   {
+    id: "trade-opportunity",
     type: "market",
     severity: "major",
     baseChance: (context) => (context.destination ? 0.08 : 0),
@@ -508,6 +520,7 @@ const marketEvents: EventTemplate[] = [
     },
   },
   {
+    id: "merchant-stockpile",
     type: "market",
     severity: "minor",
     baseChance: (context) => (context.destination === "Shanghai" ? 0.12 : 0),
@@ -525,6 +538,7 @@ const marketEvents: EventTemplate[] = [
 ];
 const discoveryEvents: EventTemplate[] = [
   {
+    id: "uncharted-island",
     type: "discovery",
     severity: "minor",
     baseChance: (context) => Math.min(0.15, 0.05 + (context.day / GOAL_DAYS) * 0.1),
@@ -601,6 +615,7 @@ const discoveryEvents: EventTemplate[] = [
     ],
   },
   {
+    id: "secret-route",
     type: "discovery",
     severity: "major",
     baseChance: (context) => (context.destination && context.reputation >= 75 ? 0.08 : 0),

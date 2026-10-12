@@ -95,6 +95,7 @@ export const calculateEventChance = (template: EventTemplate, context: Context) 
 
   return Math.min(chance, 1);
 };
+export const eventById = (id: EventTemplate["id"]) => eventTemplates.find((template) => template.id === id);
 export const checkForEvent = (context: Context) => {
   for (const template of eventTemplates) {
     const chance = calculateEventChance(template, context);
