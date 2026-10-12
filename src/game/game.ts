@@ -1,7 +1,5 @@
 import { assign, emit, enqueueActions, setup } from "xstate";
 
-// Lets tsc name xstate's guard types when emitting declarations for the machines
-import { type Guard } from "xstate/guards";
 import { needsCaptainsChoice, takeCargoOffer } from "./cargo-offer.js";
 import { GOAL_DAYS, advanceDays } from "./clock.js";
 import { CommandResult, GameCommand, accept } from "./commands/index.js";
