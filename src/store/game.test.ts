@@ -465,3 +465,55 @@ describe("notices", () => {
     expect(emitted).toEqual(game.getSnapshot().context.notices);
   });
 });
+
+describe("command results", () => {
+  const results = (game: ReturnType<typeof startGame>) => {
+    const seen: { command: string; accepted: boolean; reason?: string }[] = [];
+    game.on("commandResult", ({ command, accepted, reason }) => seen.push({ command, accepted, reason }));
+    return seen;
+  };
+
+  it("reports an accepted order", () => {
+    const game = atMarket();
+    const seen = results(game);
+
+    game.send({ type: "PURCHASE", good: "Wheat", quantity: 1 });
+
+    expect(seen).toEqual([{ command: "PURCHASE", accepted: true, reason: undefined }]);
+  });
+
+  it("reports why an order was refused", () => {
+    const game = atMarket(() => ({ balance: 10 }));
+    const seen = results(game);
+
+    game.send({ type: "PURCHASE", good: "Opium", quantity: 1 });
+
+    expect(seen).toEqual([{ command: "PURCHASE", accepted: false, reason: "notEnoughMoney" }]);
+  });
+
+  it("refuses fractional and empty quantities", () => {
+    const game = atMarket(() => ({ balance: 100_000 }));
+    const seen = results(game);
+
+    game.send({ type: "PURCHASE", good: "Wheat", quantity: 1.5 });
+    game.send({ type: "PURCHASE", good: "Wheat", quantity: 0 });
+
+    expect(seen.map(({ reason }) => reason)).toEqual(["invalidQuantity", "invalidQuantity"]);
+    expect(amountOf(game.getSnapshot().context.ship.hold, "Wheat")).toBe(0);
+  });
+
+  it("emits each phase the Voyage enters", () => {
+    const game = gameAt(
+      "inPort",
+      () => ({}),
+      createRng(() => 0.01),
+    );
+    const phases: string[] = [];
+    game.on("phaseChanged", ({ phase }) => phases.push(phase));
+
+    game.send({ type: "TRAVEL_TO", destination: "Manila" });
+    game.send({ type: "PIRATES_ENCOUNTER_FLEE" });
+
+    expect(phases).toEqual(["encounter", "inPort"]);
+  });
+});
