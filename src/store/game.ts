@@ -3,9 +3,7 @@ import { initialContext } from "./defaults.js";
 import { Context } from "./types.js";
 import { GameEvents } from "./events.js";
 import { Rng } from "./rng.js";
-import { goods } from "./catalog/goods.js";
 import { nextUpgrade, upgradeShip } from "./ship.js";
-import { ports } from "./catalog/ports.js";
 import { applyEventResult } from "./outcomes.js";
 import { bribePirates, fightPirates, fleePirates } from "./pirates.js";
 import { advanceDays, canRetire } from "./clock.js";
@@ -121,7 +119,6 @@ export const gameMachine = setup({
           },
         },
         at_port: {
-          entry: assign(({ context }) => ({ availablePorts: ports.filter((p) => p !== context.currentPort) })),
           initial: "menu",
           states: {
             menu: {
@@ -266,7 +263,6 @@ export const gameMachine = setup({
           },
         },
         at_market: {
-          entry: assign({ availableGoods: goods }),
           on: {
             PURCHASE: [
               {

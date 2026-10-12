@@ -77,7 +77,6 @@ export type Context = {
   startingSeason: Season;
 
   // Port context
-  availablePorts: readonly Port[];
   destination?: Port;
   currentEvent?: EventTemplate["id"];
   cargoOffer?: CargoOffer;
@@ -85,7 +84,6 @@ export type Context = {
   voyageEnd?: VoyageEnd;
 
   // Market context
-  availableGoods: readonly Good[];
   prices: Record<Port, Record<Good, number>>;
   trends: Record<Port, Record<Good, TrendInfo>>;
   marketIntelligence: {

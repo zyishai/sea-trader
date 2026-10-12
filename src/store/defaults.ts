@@ -35,8 +35,6 @@ export const initialContext = (rng: Rng, settings?: GameSettings) => {
     rng,
     currentPort: STARTING_PORT,
     startingSeason: season,
-    availablePorts: ports,
-    availableGoods: goods,
     day: 1,
     balance: BASE_BALANCE,
     guardFleet: {

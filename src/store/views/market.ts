@@ -1,3 +1,4 @@
+import { goods } from "../catalog/goods.js";
 import { ports } from "../catalog/ports.js";
 import { amountOf, fitsAboard, freeSpace, spaceUsed } from "../hold.js";
 import { affordableUnits } from "../treasury.js";
@@ -9,7 +10,7 @@ export const marketView = (context: Context) => {
   const prices = context.prices[context.currentPort];
 
   return {
-    goods: context.availableGoods.map((good) => {
+    goods: goods.map((good) => {
       const affordable = affordableUnits(context, prices[good]);
       return {
         good,
@@ -24,7 +25,7 @@ export const marketView = (context: Context) => {
     }),
     priceList: ports.map((port) => ({
       port,
-      prices: context.availableGoods.map((good) => context.prices[port][good]),
+      prices: goods.map((good) => context.prices[port][good]),
     })),
     hold: { used: spaceUsed(hold), capacity: hold.capacity, free: freeSpace(hold) },
     merchantTip: getMerchantTip(context),

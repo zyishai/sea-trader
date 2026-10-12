@@ -9,18 +9,23 @@ const atPort = (patch: (context: Context) => Partial<Context> = () => ({})): Con
   const context = initialContext(seededRng(1));
   return {
     ...context,
-    availablePorts: ["Shanghai", "Manila"],
     guardFleet: { ...context.guardFleet, ships: 2, quality: 1 },
     ...patch(context),
   };
 };
 
+const option = (context: Context, port: string) => travelOptions(context).find((choice) => choice.port === port)!;
+
 describe("travel options", () => {
+  it("offers every Port except the current one", () => {
+    expect(travelOptions(atPort()).map(({ port }) => port)).toEqual(["Shanghai", "Nagasaki", "Singapore", "Manila"]);
+  });
+
   it("lists each destination with its days at sea, Upkeep and arrival day", () => {
     const context = atPort();
     const days = calculateTravelTime("Shanghai", context);
 
-    expect(travelOptions(context)[0]).toEqual({
+    expect(option(context, "Shanghai")).toEqual({
       port: "Shanghai",
       days,
       upkeep: 50 * days,
@@ -30,10 +35,20 @@ describe("travel options", () => {
   });
 
   it("charges no Upkeep while in Overdraft", () => {
-    expect(travelOptions(atPort(() => ({ balance: -10 })))[0]!.upkeep).toBe(0);
+    expect(
+      option(
+        atPort(() => ({ balance: -10 })),
+        "Shanghai",
+      ).upkeep,
+    ).toBe(0);
   });
 
   it("flags a passage that runs past the last day of a classic Voyage", () => {
-    expect(travelOptions(atPort(() => ({ day: 199 })))[1]).toMatchObject({ arrivalDay: 200, endsVoyage: true });
+    expect(
+      option(
+        atPort(() => ({ day: 199 })),
+        "Manila",
+      ),
+    ).toMatchObject({ arrivalDay: 200, endsVoyage: true });
   });
 });
