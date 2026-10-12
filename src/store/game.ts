@@ -3,11 +3,13 @@ import { initialContext } from "./defaults.js";
 import { Context, Good } from "./types.js";
 import { GameEvents } from "./events.js";
 import { Rng } from "./rng.js";
+import { needsCaptainsChoice, takeCargoOffer } from "./cargo-offer.js";
 import {
   amountOf,
   fitsAboard,
   freeSpace,
   goodsAboard,
+  isOverloaded,
   load,
   marginLeft,
   overloadLevel,
@@ -35,6 +37,7 @@ import {
   updateTrends,
   getNextSeason,
   updatePriceHistory,
+  joinWords,
 } from "./utils.js";
 import {
   BANKRUPTCY_THRESHOLD,
@@ -52,6 +55,11 @@ import {
 } from "./constants.js";
 import { type Guard } from "xstate/guards";
 
+const OVERLOADED_MESSAGES = [
+  "Our ship is overloaded, Captain!",
+  "This will reduce our speed and increase risk of damage to our ship.",
+];
+
 export const gameMachine = setup({
   types: {
     context: {} as Context,
@@ -63,6 +71,33 @@ export const gameMachine = setup({
       messages: [...context.messages, messages].filter((msgs) => msgs.length > 0),
     })),
     acknoledgeMessage: assign(({ context }) => ({ messages: context.messages.slice(1) })),
+    takeCargoOffer: enqueueActions(({ context, enqueue }, { overload }: { overload: boolean }) => {
+      const { hold, taken, leftBehind } = takeCargoOffer(
+        context.ship.hold,
+        context.cargoOffer ?? {},
+        context.prices[context.currentPort],
+        { overload },
+      );
+      const loadedMessage = `We loaded ${joinWords(taken.map(([good, picul]) => `${picul} picul of ${good}`))} into the hold.`;
+
+      const outcomeMessages = [
+        taken.length > 0 ? loadedMessage : "",
+        leftBehind > 0
+          ? taken.length > 0
+            ? `We left ${leftBehind} picul behind.`
+            : "There was no room in the hold, so we left it all behind."
+          : "",
+      ].filter(Boolean);
+      const becameOverloaded = !isOverloaded(context.ship.hold) && isOverloaded(hold);
+
+      enqueue.assign({
+        ship: { ...context.ship, hold },
+        cargoOffer: undefined,
+        messages: [...context.messages, outcomeMessages, becameOverloaded ? OVERLOADED_MESSAGES : []].filter(
+          (messages) => messages.length > 0,
+        ),
+      });
+    }),
   },
 }).createMachine({
   initial: "introScreen",
@@ -392,7 +427,7 @@ export const gameMachine = setup({
                             context.currentEvent!.effect?.(context) ?? { currentPort: context.destination },
                         ),
                       ],
-                      target: "#traveling",
+                      target: "#checkCargoOffer",
                     },
                   },
                 },
@@ -405,9 +440,29 @@ export const gameMachine = setup({
                           return choice?.effect(context) ?? { currentPort: context.destination };
                         }),
                       ],
-                      target: "#traveling",
+                      target: "#checkCargoOffer",
                     },
                   },
+                },
+              },
+            },
+            checkCargoOffer: {
+              id: "checkCargoOffer",
+              always: [
+                { guard: ({ context }) => !context.cargoOffer, target: "traveling" },
+                {
+                  guard: ({ context }) =>
+                    needsCaptainsChoice(context.ship.hold, context.cargoOffer!, context.prices[context.currentPort]),
+                  target: "cargoOffer",
+                },
+                { actions: { type: "takeCargoOffer", params: { overload: false } }, target: "traveling" },
+              ],
+            },
+            cargoOffer: {
+              on: {
+                TAKE_CARGO: {
+                  actions: { type: "takeCargoOffer", params: ({ event }) => ({ overload: event.overload }) },
+                  target: "traveling",
                 },
               },
             },
@@ -481,13 +536,7 @@ export const gameMachine = setup({
                     ],
                   });
                   if (becameOverloaded) {
-                    enqueue({
-                      type: "displayMessages",
-                      params: [
-                        "Our ship is overloaded, Captain!",
-                        "This will reduce our speed and increase risk of damage to our ship.",
-                      ],
-                    });
+                    enqueue({ type: "displayMessages", params: OVERLOADED_MESSAGES });
                   }
                 }),
               },

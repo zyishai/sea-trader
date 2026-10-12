@@ -1,3 +1,4 @@
+export * from "./CargoOfferView.js";
 export * from "./MainView.js";
 export * from "./PiratesView.js";
 export * from "./PortView.js";

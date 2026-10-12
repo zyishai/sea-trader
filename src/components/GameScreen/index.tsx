@@ -2,7 +2,7 @@ import React from "react";
 import { Box, Text, useInput } from "ink";
 import { GameContext } from "../GameContext.js";
 import { Typed } from "./Typed.js";
-import { MainView, PortView, MarketView, ShipyardView, PiratesView } from "./views/index.js";
+import { CargoOfferView, MainView, PortView, MarketView, ShipyardView, PiratesView } from "./views/index.js";
 import { ActionPrompt as ActionPromptKeyboard } from "../prompts/keyboard/ActionPrompt.js";
 import { ActionPrompt as ActionPromptArrows } from "../prompts/arrows/ActionPrompt.js";
 import { StatusBar } from "./StatusBar.js";
@@ -45,6 +45,7 @@ function getCurrentView() {
   const hasMessages = machine.context.messages && machine.context.messages.length > 0;
   const hasInteractiveEvent = machine.matches({ gameScreen: { at_port: { eventOccurred: "multi_choice" } } });
   const piratesEncountered = machine.matches({ gameScreen: { at_port: "piratesEncountered" } });
+  const hasCargoOffer = machine.matches({ gameScreen: { at_port: "cargoOffer" } });
 
   if (hasMessages) {
     return <Messages />;
@@ -56,6 +57,10 @@ function getCurrentView() {
 
   if (hasInteractiveEvent) {
     return <InteractiveEvent />;
+  }
+
+  if (hasCargoOffer) {
+    return <CargoOfferView />;
   }
 
   if (machine.matches({ gameScreen: "menu" })) {

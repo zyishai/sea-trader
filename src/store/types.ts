@@ -1,6 +1,7 @@
 import { goods, goodsInfo, ports, seasons, TREND_DIRECTION, TREND_STRENGTH } from "./constants.js";
 import { Rng } from "./rng.js";
 import { Hold } from "./hold.js";
+import { CargoOffer } from "./cargo-offer.js";
 
 export type GameSettings = {
   extendedGame?: boolean;
@@ -83,6 +84,7 @@ export type Context = {
   availablePorts: readonly Port[];
   destination?: Port;
   currentEvent?: EventTemplate;
+  cargoOffer?: CargoOffer;
 
   // Market context
   availableGoods: readonly Good[];

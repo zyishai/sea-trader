@@ -8,7 +8,8 @@ import {
   Season,
   TrendStrength,
 } from "./types.js";
-import { goodsAboard, isOverloaded, load, spaceUsed, unload, unloadWhere, withCapacity } from "./hold.js";
+import { goodsAboard, isOverloaded, spaceUsed, unload, unloadWhere, withCapacity } from "./hold.js";
+import { CargoOffer } from "./cargo-offer.js";
 
 export const goods = ["Wheat", "Tea", "Spices", "Opium", "Porcelain"] as const;
 export const ports = ["Hong Kong", "Shanghai", "Nagasaki", "Singapore", "Manila"] as const;
@@ -536,21 +537,19 @@ const discoveryEvents: EventTemplate[] = [
           // 50% chance of finding goods
           if (outcome < 0.5) {
             const goodsFound = context.rng.int(2, 4);
-            let newHold = context.ship.hold;
-            const discoveries = [];
+            const amount = Math.round(10 * (1 + context.day / GOAL_DAYS));
+            const cargoOffer: CargoOffer = {};
 
             for (let i = 0; i < goodsFound; i++) {
               const good = context.rng.pick(goods) as Good;
-              const { hold, loaded } = load(newHold, good, Math.round(10 * (1 + context.day / GOAL_DAYS)));
-              newHold = hold;
-              discoveries.push(`${loaded} picul of ${good}.`);
+              cargoOffer[good] = (cargoOffer[good] ?? 0) + amount;
             }
+            const discoveries = (Object.entries(cargoOffer) as [Good, number][]).map(
+              ([good, picul]) => `${picul} picul of ${good}.`,
+            );
 
             return {
-              ship: {
-                ...context.ship,
-                hold: newHold,
-              },
+              cargoOffer,
               day: context.day + 1,
               reputation: Math.min(100, context.reputation + 3),
               balance: context.balance + baseReward,

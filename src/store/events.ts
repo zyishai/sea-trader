@@ -8,6 +8,7 @@ export type GameEvents =
   | { type: "PIRATES_ENCOUNTER_FLEE" }
   | { type: "PIRATES_ENCOUNTER_OFFER" }
   | { type: "RESOLVE_EVENT"; choice: string }
+  | { type: "TAKE_CARGO"; overload: boolean }
   | { type: "GO_TO_MARKET" }
   | { type: "PURCHASE"; good: Good; quantity: number }
   | { type: "SELL"; good: Good; quantity: number }

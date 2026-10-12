@@ -6,7 +6,7 @@ export type Hold = {
   capacity: number; // In picul
 };
 
-const bulkinessOf = (good: Good) => goodsInfo.find((info) => info.name === good)?.bulkiness ?? 1;
+export const bulkinessOf = (good: Good) => goodsInfo.find((info) => info.name === good)?.bulkiness ?? 1;
 const spaceFor = (good: Good, picul: number) => Math.ceil(picul * bulkinessOf(good));
 const overloadLimit = (hold: Hold) => Math.floor(hold.capacity * (1 + OVERLOAD_BUFFER));
 const withAmount = (hold: Hold, good: Good, picul: number): Hold => {
@@ -32,8 +32,8 @@ export const fitsAboard = (hold: Hold, good: Good, { overload }: { overload: boo
 export const value = (hold: Hold, prices: Record<Good, number>) =>
   goodsAboard(hold).reduce((sum, [good, picul]) => sum + prices[good] * picul, 0);
 
-export const load = (hold: Hold, good: Good, picul: number) => {
-  const loaded = Math.min(picul, fitsAboard(hold, good, { overload: true }));
+export const load = (hold: Hold, good: Good, picul: number, { overload } = { overload: true }) => {
+  const loaded = Math.min(picul, fitsAboard(hold, good, { overload }));
   const newHold = withAmount(hold, good, amountOf(hold, good) + loaded);
   return {
     hold: newHold,

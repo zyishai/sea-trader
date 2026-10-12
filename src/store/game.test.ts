@@ -3,7 +3,8 @@ import { createActor, type StateValue } from "xstate";
 import { gameMachine } from "./game.js";
 import { amountOf, emptyHold, isOverloaded, load } from "./hold.js";
 import { createRng, Rng, seededRng } from "./rng.js";
-import { Context } from "./types.js";
+import { Context, EventTemplate } from "./types.js";
+import { cargoOfferView } from "./views/cargo-offer.js";
 
 const startGame = (rng: Rng = seededRng(42)) => {
   const actor = createActor(gameMachine, { input: { rng } }).start();
@@ -98,5 +99,79 @@ describe("pirate encounter", () => {
 
     expect(amountOf(game.getSnapshot().context.ship.hold, "Tea")).toBe(26);
     expect(messagesOf(game)).toContain("The pirates stole 14 Tea from our hold.");
+  });
+});
+
+describe("cargo offer", () => {
+  const findingEvent = (cargoOffer: Context["cargoOffer"]): EventTemplate => ({
+    type: "discovery",
+    severity: "minor",
+    baseChance: 0,
+    message: "Something floats by.",
+    choices: [{ label: "Haul it in", key: "H", effect: () => ({ cargoOffer }) }],
+  });
+
+  const findGoods = (cargoOffer: Context["cargoOffer"], hold = emptyHold(100)) => {
+    const game = gameAt({ gameScreen: { at_port: { eventOccurred: "multi_choice" } } }, (context) => ({
+      ship: { ...context.ship, hold },
+      currentEvent: findingEvent(cargoOffer),
+      destination: "Shanghai",
+      prices: {
+        ...context.prices,
+        [context.currentPort]: { Wheat: 100, Tea: 400, Spices: 800, Opium: 2000, Porcelain: 300 },
+      },
+    }));
+    game.send({ type: "RESOLVE_EVENT", choice: "H" });
+    return game;
+  };
+
+  it("loads an offer that fits without asking", () => {
+    const game = findGoods({ Tea: 30, Wheat: 20 });
+
+    const { hold } = game.getSnapshot().context.ship;
+    expect(amountOf(hold, "Tea")).toBe(30);
+    expect(amountOf(hold, "Wheat")).toBe(20);
+    expect(game.getSnapshot().matches({ gameScreen: { at_port: "cargoOffer" } })).toBe(false);
+  });
+
+  it("asks the Captain when the offer doesn't fit", () => {
+    const game = findGoods({ Wheat: 60, Opium: 70 });
+
+    expect(game.getSnapshot().matches({ gameScreen: { at_port: "cargoOffer" } })).toBe(true);
+    expect(cargoOfferView(game.getSnapshot().context)).toEqual({
+      offered: 130,
+      takeAll: { picul: 120, overloads: true },
+      takeFitting: { picul: 100 },
+    });
+  });
+
+  it("takes only what fits, most valuable goods first", () => {
+    const game = findGoods({ Wheat: 60, Opium: 70 });
+
+    game.send({ type: "TAKE_CARGO", overload: false });
+
+    const { hold } = game.getSnapshot().context.ship;
+    expect(amountOf(hold, "Opium")).toBe(70);
+    expect(amountOf(hold, "Wheat")).toBe(30);
+    expect(isOverloaded(hold)).toBe(false);
+  });
+
+  it("takes as much as the Ship can carry, overloading it", () => {
+    const game = findGoods({ Wheat: 60, Opium: 70 });
+
+    game.send({ type: "TAKE_CARGO", overload: true });
+
+    const { hold } = game.getSnapshot().context.ship;
+    expect(amountOf(hold, "Opium")).toBe(70);
+    expect(amountOf(hold, "Wheat")).toBe(50);
+    expect(isOverloaded(hold)).toBe(true);
+    expect(game.getSnapshot().context.cargoOffer).toBeUndefined();
+  });
+
+  it("doesn't ask when there is no room either way", () => {
+    const game = findGoods({ Tea: 10 }, load(emptyHold(100), "Wheat", 120).hold);
+
+    expect(game.getSnapshot().matches({ gameScreen: { at_port: "cargoOffer" } })).toBe(false);
+    expect(amountOf(game.getSnapshot().context.ship.hold, "Tea")).toBe(0);
   });
 });
